@@ -80,7 +80,7 @@ public class CatDashboardController
      */
     private CatProfile scopeQuery(CatProfile query)
     {
-        if (SecurityUtils.isAdmin() || SecurityUtils.hasRole("doctor"))
+        if (!catWardAuthService.isWardScopedUser())
         {
             return query;
         }

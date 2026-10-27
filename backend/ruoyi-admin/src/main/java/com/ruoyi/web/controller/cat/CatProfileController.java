@@ -388,11 +388,11 @@ public class CatProfileController extends BaseController
 
     /**
      * 助理按病房授权限定可见范围（需求文档 15：助理分别管理不同病房）
-     * 管理员、医生不受限制；未授权任何病房的账号看不到档案
+     * 超管、管理员、医生不受限制；助理只有配置了病房授权才收敛范围。
      */
     private void applyWardScope(CatProfile query)
     {
-        if (SecurityUtils.isAdmin() || SecurityUtils.hasRole("doctor"))
+        if (!catWardAuthService.isWardScopedUser())
         {
             return;
         }

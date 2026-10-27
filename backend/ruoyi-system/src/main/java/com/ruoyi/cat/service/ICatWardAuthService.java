@@ -26,6 +26,15 @@ public interface ICatWardAuthService
     public List<Long> selectUserIdsByWardId(Long wardId);
 
     /**
+     * 当前登录用户是否需要按病房授权收敛数据范围。
+     *
+     * 规则：超管、管理员(manager)、医生(doctor) 一律不收敛；
+     * 只有「助理(assistant)」角色、且在病房授权表里确实配置了病房时才收敛。
+     * 助理若一条授权都没有，视为未启用病房隔离（否则会出现整站 0 条数据）。
+     */
+    public boolean isWardScopedUser();
+
+    /**
      * 保存某用户的病房授权（先删后增）
      */
     public int saveUserWardAuth(Long userId, Long[] wardIds);

@@ -39,6 +39,21 @@ public class CatWardAuthServiceImpl implements ICatWardAuthService
     }
 
     @Override
+    public boolean isWardScopedUser()
+    {
+        if (SecurityUtils.isAdmin() || SecurityUtils.hasRole("manager") || SecurityUtils.hasRole("doctor"))
+        {
+            return false;
+        }
+        if (!SecurityUtils.hasRole("assistant"))
+        {
+            return false;
+        }
+        List<Long> wardIds = selectWardIdsByUserId(SecurityUtils.getUserId());
+        return wardIds != null && !wardIds.isEmpty();
+    }
+
+    @Override
     @Transactional
     public int saveUserWardAuth(Long userId, Long[] wardIds)
     {
