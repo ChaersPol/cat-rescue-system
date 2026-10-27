@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatTnrMapper">
+
+    <resultMap type="CatTnr" id="CatTnrResult">
+        <result property="tnrId" column="tnr_id" />
+        <result property="catId" column="cat_id" />
+        <result property="captureTime" column="capture_time" />
+        <result property="capturePoint" column="capture_point" />
+        <result property="catName" column="cat_name" />
+        <result property="earMarked" column="ear_marked" />
+        <result property="surgeryDate" column="surgery_date" />
+        <result property="surgeon" column="surgeon" />
+        <result property="surgeryRecord" column="surgery_record" />
+        <result property="prePostCheck" column="pre_post_check" />
+        <result property="anesthesiaNote" column="anesthesia_note" />
+        <result property="postObservation" column="post_observation" />
+        <result property="result" column="result" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatTnrVo">
+        select tnr_id, cat_id, capture_time, capture_point, cat_name, ear_marked, surgery_date, surgeon, surgery_record, pre_post_check, anesthesia_note, post_observation, result, create_by, create_time, update_by, update_time, remark from cat_tnr
+    </sql>
+
+    <select id="selectCatTnrById" parameterType="Long" resultMap="CatTnrResult">
+        <include refid="selectCatTnrVo"/>
+        where tnr_id = #{tnrId}
+    </select>
+
+    <select id="selectCatTnrList" parameterType="CatTnr" resultMap="CatTnrResult">
+        <include refid="selectCatTnrVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="captureTime != null">AND capture_time = #{captureTime}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(capture_time,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(capture_time,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
+            <if test="capturePoint != null and capturePoint != ''">AND capture_point = #{capturePoint}</if>
+            <if test="catName != null and catName != ''">AND cat_name = #{catName}</if>
+            <if test="earMarked != null and earMarked != ''">AND ear_marked = #{earMarked}</if>
+            <if test="surgeryDate != null">AND surgery_date = #{surgeryDate}</if>
+            <if test="surgeon != null and surgeon != ''">AND surgeon = #{surgeon}</if>
+            <if test="surgeryRecord != null and surgeryRecord != ''">AND surgery_record = #{surgeryRecord}</if>
+            <if test="prePostCheck != null and prePostCheck != ''">AND pre_post_check = #{prePostCheck}</if>
+            <if test="anesthesiaNote != null and anesthesiaNote != ''">AND anesthesia_note = #{anesthesiaNote}</if>
+            <if test="postObservation != null and postObservation != ''">AND post_observation = #{postObservation}</if>
+            <if test="result != null and result != ''">AND result = #{result}</if>
+            AND del_flag = '0'
+        </where>
+        order by tnr_id desc
+    </select>
+
+    <insert id="insertCatTnr" parameterType="CatTnr" useGeneratedKeys="true" keyProperty="tnrId">
+        insert into cat_tnr (
+            <if test="catId != null">cat_id,</if>
+            <if test="captureTime != null">capture_time,</if>
+            <if test="capturePoint != null">capture_point,</if>
+            <if test="catName != null">cat_name,</if>
+            <if test="earMarked != null">ear_marked,</if>
+            <if test="surgeryDate != null">surgery_date,</if>
+            <if test="surgeon != null">surgeon,</if>
+            <if test="surgeryRecord != null">surgery_record,</if>
+            <if test="prePostCheck != null">pre_post_check,</if>
+            <if test="anesthesiaNote != null">anesthesia_note,</if>
+            <if test="postObservation != null">post_observation,</if>
+            <if test="result != null">result,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="captureTime != null">#{captureTime},</if>
+            <if test="capturePoint != null">#{capturePoint},</if>
+            <if test="catName != null">#{catName},</if>
+            <if test="earMarked != null">#{earMarked},</if>
+            <if test="surgeryDate != null">#{surgeryDate},</if>
+            <if test="surgeon != null">#{surgeon},</if>
+            <if test="surgeryRecord != null">#{surgeryRecord},</if>
+            <if test="prePostCheck != null">#{prePostCheck},</if>
+            <if test="anesthesiaNote != null">#{anesthesiaNote},</if>
+            <if test="postObservation != null">#{postObservation},</if>
+            <if test="result != null">#{result},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatTnr" parameterType="CatTnr">
+        update cat_tnr
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="captureTime != null">capture_time = #{captureTime},</if>
+            <if test="capturePoint != null and capturePoint != ''">capture_point = #{capturePoint},</if>
+            <if test="catName != null and catName != ''">cat_name = #{catName},</if>
+            <if test="earMarked != null and earMarked != ''">ear_marked = #{earMarked},</if>
+            <if test="surgeryDate != null">surgery_date = #{surgeryDate},</if>
+            <if test="surgeon != null and surgeon != ''">surgeon = #{surgeon},</if>
+            <if test="surgeryRecord != null and surgeryRecord != ''">surgery_record = #{surgeryRecord},</if>
+            <if test="prePostCheck != null and prePostCheck != ''">pre_post_check = #{prePostCheck},</if>
+            <if test="anesthesiaNote != null and anesthesiaNote != ''">anesthesia_note = #{anesthesiaNote},</if>
+            <if test="postObservation != null and postObservation != ''">post_observation = #{postObservation},</if>
+            <if test="result != null and result != ''">result = #{result},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where tnr_id = #{tnrId}
+    </update>
+
+    <delete id="deleteCatTnrById" parameterType="Long">
+        update cat_tnr set del_flag = '2' where tnr_id = #{tnrId}
+    </delete>
+
+    <delete id="deleteCatTnrByIds" parameterType="Long">
+        update cat_tnr set del_flag = '2' where tnr_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

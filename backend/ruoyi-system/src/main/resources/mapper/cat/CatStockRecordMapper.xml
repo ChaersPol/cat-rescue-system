@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatStockRecordMapper">
+
+    <resultMap type="CatStockRecord" id="CatStockRecordResult">
+        <result property="recordId" column="record_id" />
+        <result property="materialId" column="material_id" />
+        <result property="recordType" column="record_type" />
+        <result property="quantity" column="quantity" />
+        <result property="recordDate" column="record_date" />
+        <result property="supplier" column="supplier" />
+        <result property="receiverBase" column="receiver_base" />
+        <result property="receiver" column="receiver" />
+        <result property="purpose" column="purpose" />
+        <result property="operator" column="operator" />
+        <result property="expenseId" column="expense_id" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatStockRecordVo">
+        select record_id, material_id, record_type, quantity, record_date, supplier, receiver_base, receiver, purpose, operator, expense_id, create_by, create_time, update_by, update_time, remark from cat_stock_record
+    </sql>
+
+    <select id="selectCatStockRecordById" parameterType="Long" resultMap="CatStockRecordResult">
+        <include refid="selectCatStockRecordVo"/>
+        where record_id = #{recordId}
+    </select>
+
+    <select id="selectCatStockRecordList" parameterType="CatStockRecord" resultMap="CatStockRecordResult">
+        <include refid="selectCatStockRecordVo"/>
+        <where>
+            <if test="materialId != null">AND material_id = #{materialId}</if>
+            <if test="recordType != null and recordType != ''">AND record_type = #{recordType}</if>
+            <if test="quantity != null">AND quantity = #{quantity}</if>
+            <if test="recordDate != null">AND record_date = #{recordDate}</if>
+            <if test="supplier != null and supplier != ''">AND supplier = #{supplier}</if>
+            <if test="receiverBase != null and receiverBase != ''">AND receiver_base = #{receiverBase}</if>
+            <if test="receiver != null and receiver != ''">AND receiver = #{receiver}</if>
+            <if test="purpose != null and purpose != ''">AND purpose = #{purpose}</if>
+            <if test="operator != null and operator != ''">AND operator = #{operator}</if>
+            <if test="expenseId != null">AND expense_id = #{expenseId}</if>
+        </where>
+        order by record_id desc
+    </select>
+
+    <insert id="insertCatStockRecord" parameterType="CatStockRecord" useGeneratedKeys="true" keyProperty="recordId">
+        insert into cat_stock_record (
+            <if test="materialId != null">material_id,</if>
+            <if test="recordType != null">record_type,</if>
+            <if test="quantity != null">quantity,</if>
+            <if test="recordDate != null">record_date,</if>
+            <if test="supplier != null">supplier,</if>
+            <if test="receiverBase != null">receiver_base,</if>
+            <if test="receiver != null">receiver,</if>
+            <if test="purpose != null">purpose,</if>
+            <if test="operator != null">operator,</if>
+            <if test="expenseId != null">expense_id,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="materialId != null">#{materialId},</if>
+            <if test="recordType != null">#{recordType},</if>
+            <if test="quantity != null">#{quantity},</if>
+            <if test="recordDate != null">#{recordDate},</if>
+            <if test="supplier != null">#{supplier},</if>
+            <if test="receiverBase != null">#{receiverBase},</if>
+            <if test="receiver != null">#{receiver},</if>
+            <if test="purpose != null">#{purpose},</if>
+            <if test="operator != null">#{operator},</if>
+            <if test="expenseId != null">#{expenseId},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatStockRecord" parameterType="CatStockRecord">
+        update cat_stock_record
+        <set>
+            <if test="materialId != null">material_id = #{materialId},</if>
+            <if test="recordType != null and recordType != ''">record_type = #{recordType},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="recordDate != null">record_date = #{recordDate},</if>
+            <if test="supplier != null and supplier != ''">supplier = #{supplier},</if>
+            <if test="receiverBase != null and receiverBase != ''">receiver_base = #{receiverBase},</if>
+            <if test="receiver != null and receiver != ''">receiver = #{receiver},</if>
+            <if test="purpose != null and purpose != ''">purpose = #{purpose},</if>
+            <if test="operator != null and operator != ''">operator = #{operator},</if>
+            <if test="expenseId != null">expense_id = #{expenseId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where record_id = #{recordId}
+    </update>
+
+    <delete id="deleteCatStockRecordById" parameterType="Long">
+        delete from cat_stock_record where record_id = #{recordId}
+    </delete>
+
+    <delete id="deleteCatStockRecordByIds" parameterType="Long">
+        delete from cat_stock_record where record_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

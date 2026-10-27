@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatVaccineMapper">
+
+    <resultMap type="CatVaccine" id="CatVaccineResult">
+        <result property="vaccineId" column="vaccine_id" />
+        <result property="catId" column="cat_id" />
+        <result property="vaccineType" column="vaccine_type" />
+        <result property="vaccineDate" column="vaccine_date" />
+        <result property="nextDate" column="next_date" />
+        <result property="responsible" column="responsible" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatVaccineVo">
+        select vaccine_id, cat_id, vaccine_type, vaccine_date, next_date, responsible, create_by, create_time, update_by, update_time, remark from cat_vaccine
+    </sql>
+
+    <select id="selectCatVaccineById" parameterType="Long" resultMap="CatVaccineResult">
+        <include refid="selectCatVaccineVo"/>
+        where vaccine_id = #{vaccineId}
+    </select>
+
+    <select id="selectCatVaccineList" parameterType="CatVaccine" resultMap="CatVaccineResult">
+        <include refid="selectCatVaccineVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="vaccineType != null and vaccineType != ''">AND vaccine_type = #{vaccineType}</if>
+            <if test="vaccineDate != null">AND vaccine_date = #{vaccineDate}</if>
+            <if test="nextDate != null">AND next_date = #{nextDate}</if>
+            <if test="responsible != null and responsible != ''">AND responsible = #{responsible}</if>
+            AND del_flag = '0'
+        </where>
+        order by vaccine_id desc
+    </select>
+
+    <insert id="insertCatVaccine" parameterType="CatVaccine" useGeneratedKeys="true" keyProperty="vaccineId">
+        insert into cat_vaccine (
+            <if test="catId != null">cat_id,</if>
+            <if test="vaccineType != null">vaccine_type,</if>
+            <if test="vaccineDate != null">vaccine_date,</if>
+            <if test="nextDate != null">next_date,</if>
+            <if test="responsible != null">responsible,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="vaccineType != null">#{vaccineType},</if>
+            <if test="vaccineDate != null">#{vaccineDate},</if>
+            <if test="nextDate != null">#{nextDate},</if>
+            <if test="responsible != null">#{responsible},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatVaccine" parameterType="CatVaccine">
+        update cat_vaccine
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="vaccineType != null and vaccineType != ''">vaccine_type = #{vaccineType},</if>
+            <if test="vaccineDate != null">vaccine_date = #{vaccineDate},</if>
+            <if test="nextDate != null">next_date = #{nextDate},</if>
+            <if test="responsible != null and responsible != ''">responsible = #{responsible},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where vaccine_id = #{vaccineId}
+    </update>
+
+    <delete id="deleteCatVaccineById" parameterType="Long">
+        update cat_vaccine set del_flag = '2' where vaccine_id = #{vaccineId}
+    </delete>
+
+    <delete id="deleteCatVaccineByIds" parameterType="Long">
+        update cat_vaccine set del_flag = '2' where vaccine_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

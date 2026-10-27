@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatReferralMapper">
+
+    <resultMap type="CatReferral" id="CatReferralResult">
+        <result property="referralId" column="referral_id" />
+        <result property="catId" column="cat_id" />
+        <result property="sendDate" column="send_date" />
+        <result property="sendReason" column="send_reason" />
+        <result property="hospitalName" column="hospital_name" />
+        <result property="hospitalCheck" column="hospital_check" />
+        <result property="hospitalDiagnosis" column="hospital_diagnosis" />
+        <result property="hospitalPrescription" column="hospital_prescription" />
+        <result property="files" column="files" />
+        <result property="result" column="result" />
+        <result property="dischargeTo" column="discharge_to" />
+        <result property="targetBaseId" column="target_base_id" />
+        <result property="dischargeAdvice" column="discharge_advice" />
+        <result property="status" column="status" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatReferralVo">
+        select referral_id, cat_id, send_date, send_reason, hospital_name, hospital_check, hospital_diagnosis, hospital_prescription, files, result, discharge_to, target_base_id, discharge_advice, status, create_by, create_time, update_by, update_time, remark from cat_referral
+    </sql>
+
+    <select id="selectCatReferralById" parameterType="Long" resultMap="CatReferralResult">
+        <include refid="selectCatReferralVo"/>
+        where referral_id = #{referralId}
+    </select>
+
+    <select id="selectCatReferralList" parameterType="CatReferral" resultMap="CatReferralResult">
+        <include refid="selectCatReferralVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="sendDate != null">AND send_date = #{sendDate}</if>
+            <if test="sendReason != null and sendReason != ''">AND send_reason = #{sendReason}</if>
+            <if test="hospitalName != null and hospitalName != ''">AND hospital_name = #{hospitalName}</if>
+            <if test="hospitalCheck != null and hospitalCheck != ''">AND hospital_check = #{hospitalCheck}</if>
+            <if test="hospitalDiagnosis != null and hospitalDiagnosis != ''">AND hospital_diagnosis = #{hospitalDiagnosis}</if>
+            <if test="hospitalPrescription != null and hospitalPrescription != ''">AND hospital_prescription = #{hospitalPrescription}</if>
+            <if test="files != null and files != ''">AND files = #{files}</if>
+            <if test="result != null and result != ''">AND result = #{result}</if>
+            <if test="dischargeTo != null and dischargeTo != ''">AND discharge_to = #{dischargeTo}</if>
+            <if test="targetBaseId != null">AND target_base_id = #{targetBaseId}</if>
+            <if test="dischargeAdvice != null and dischargeAdvice != ''">AND discharge_advice = #{dischargeAdvice}</if>
+            <if test="status != null and status != ''">AND status = #{status}</if>
+            AND del_flag = '0'
+        </where>
+        order by referral_id desc
+    </select>
+
+    <insert id="insertCatReferral" parameterType="CatReferral" useGeneratedKeys="true" keyProperty="referralId">
+        insert into cat_referral (
+            <if test="catId != null">cat_id,</if>
+            <if test="sendDate != null">send_date,</if>
+            <if test="sendReason != null">send_reason,</if>
+            <if test="hospitalName != null">hospital_name,</if>
+            <if test="hospitalCheck != null">hospital_check,</if>
+            <if test="hospitalDiagnosis != null">hospital_diagnosis,</if>
+            <if test="hospitalPrescription != null">hospital_prescription,</if>
+            <if test="files != null">files,</if>
+            <if test="result != null">result,</if>
+            <if test="dischargeTo != null">discharge_to,</if>
+            <if test="targetBaseId != null">target_base_id,</if>
+            <if test="dischargeAdvice != null">discharge_advice,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="sendDate != null">#{sendDate},</if>
+            <if test="sendReason != null">#{sendReason},</if>
+            <if test="hospitalName != null">#{hospitalName},</if>
+            <if test="hospitalCheck != null">#{hospitalCheck},</if>
+            <if test="hospitalDiagnosis != null">#{hospitalDiagnosis},</if>
+            <if test="hospitalPrescription != null">#{hospitalPrescription},</if>
+            <if test="files != null">#{files},</if>
+            <if test="result != null">#{result},</if>
+            <if test="dischargeTo != null">#{dischargeTo},</if>
+            <if test="targetBaseId != null">#{targetBaseId},</if>
+            <if test="dischargeAdvice != null">#{dischargeAdvice},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatReferral" parameterType="CatReferral">
+        update cat_referral
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="sendDate != null">send_date = #{sendDate},</if>
+            <if test="sendReason != null and sendReason != ''">send_reason = #{sendReason},</if>
+            <if test="hospitalName != null and hospitalName != ''">hospital_name = #{hospitalName},</if>
+            <if test="hospitalCheck != null and hospitalCheck != ''">hospital_check = #{hospitalCheck},</if>
+            <if test="hospitalDiagnosis != null and hospitalDiagnosis != ''">hospital_diagnosis = #{hospitalDiagnosis},</if>
+            <if test="hospitalPrescription != null and hospitalPrescription != ''">hospital_prescription = #{hospitalPrescription},</if>
+            <if test="files != null and files != ''">files = #{files},</if>
+            <if test="result != null and result != ''">result = #{result},</if>
+            <if test="dischargeTo != null and dischargeTo != ''">discharge_to = #{dischargeTo},</if>
+            <if test="targetBaseId != null">target_base_id = #{targetBaseId},</if>
+            <if test="dischargeAdvice != null and dischargeAdvice != ''">discharge_advice = #{dischargeAdvice},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where referral_id = #{referralId}
+    </update>
+
+    <delete id="deleteCatReferralById" parameterType="Long">
+        update cat_referral set del_flag = '2' where referral_id = #{referralId}
+    </delete>
+
+    <delete id="deleteCatReferralByIds" parameterType="Long">
+        update cat_referral set del_flag = '2' where referral_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

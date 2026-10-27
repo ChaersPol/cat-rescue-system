@@ -1,0 +1,180 @@
+# ============================================================
+# 通用 .gitignore
+#   适用：流浪猫救助站管理系统（RuoYi-Vue3）
+#         Spring Boot / Maven  +  Vue3 / Vite / Node
+#   环境：macOS / Windows / Linux 开发，IDEA / VSCode
+#   说明：本文件为项目根目录配置，backend/、frontend/ 下两个
+#         子 .gitignore 仍生效，本文件负责兜底与跨平台通用项。
+# ============================================================
+
+# ------------------------------------------------------------
+# WorkBuddy（IDE 工作区数据，只属于本机，绝不入库）
+# ------------------------------------------------------------
+.workbuddy/
+**/.workbuddy/
+.workbuddy*
+!.workbuddy.md
+
+# 子仓库备份（backend/frontend 原有 .git 的历史备份，不入库）
+.git-backup/
+
+# ------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.DocumentRevisions-V100
+.TemporaryItems
+.VolumeIcon.icns
+
+# ------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+
+# ------------------------------------------------------------
+# Linux
+# ------------------------------------------------------------
+*~
+.directory
+.Trash-*
+.fuse_hidden*
+
+# ------------------------------------------------------------
+# 编辑器 / IDE
+# ------------------------------------------------------------
+# JetBrains（IDEA / WebStorm）
+.idea/
+*.iml
+*.ipr
+*.iws
+# VSCode（保留推荐插件配置）
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+# Eclipse / STS
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated
+.springBeans
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+# 其他编辑器
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+.history/
+*.orig
+*.rej
+
+# ------------------------------------------------------------
+# Java / Maven
+# ------------------------------------------------------------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+# 保留 Maven / Gradle Wrapper（保证 clone 后能直接构建）
+!.mvn/wrapper/maven-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+# Maven 本地/临时文件
+.mvn/timing.properties
+release.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+dependency-reduced-pom.xml
+buildNumber.properties
+.flattened-pom.xml
+
+# ------------------------------------------------------------
+# Gradle（本项目的备用构建方式）
+# ------------------------------------------------------------
+.gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ------------------------------------------------------------
+# Node / Vue3 / Vite
+# ------------------------------------------------------------
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+dist/
+dist-ssr/
+.vite/
+*.local
+coverage/
+.nyc_output/
+# 注意：package-lock.json 应当入库（锁定依赖版本），此处刻意不忽略
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.eslintcache
+.stylelintcache
+
+# ------------------------------------------------------------
+# 日志与临时文件
+# ------------------------------------------------------------
+logs/
+*.log
+*.log.*
+!*.log.example
+*.pid
+*.seed
+*.tmp
+*.temp
+*.bak
+*.cache
+*.zip
+!.git/**/*.zip
+
+# ------------------------------------------------------------
+# 环境变量 / 密钥（防止误提交敏感信息）
+# ------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+secrets.yml
+
+# ------------------------------------------------------------
+# 运行时上传目录
+# ------------------------------------------------------------
+# 说明：uploadPath/upload/demo 下是演示用的猫咪照片与视频（约 5.6MB），
+#       为了让 clone 下来就能看到效果，默认保留入库。
+#       如需忽略所有上传文件，取消下面两行注释即可。
+# backend/ruoyi-admin/uploadPath/upload/
+# !backend/ruoyi-admin/uploadPath/upload/demo/

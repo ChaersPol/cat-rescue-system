@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatExpenseMapper">
+
+    <resultMap type="CatExpense" id="CatExpenseResult">
+        <result property="expenseId" column="expense_id" />
+        <result property="categoryId" column="category_id" />
+        <result property="expenseType" column="expense_type" />
+        <result property="expenseDate" column="expense_date" />
+        <result property="supplier" column="supplier" />
+        <result property="items" column="items" />
+        <result property="amount" column="amount" />
+        <result property="payMethod" column="pay_method" />
+        <result property="receiptUrl" column="receipt_url" />
+        <result property="baseId" column="base_id" />
+        <result property="catId" column="cat_id" />
+        <result property="referralId" column="referral_id" />
+        <result property="stockId" column="stock_id" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatExpenseVo">
+        select expense_id, category_id, expense_type, expense_date, supplier, items, amount, pay_method, receipt_url, base_id, cat_id, referral_id, stock_id, create_by, create_time, update_by, update_time, remark from cat_expense
+    </sql>
+
+    <select id="selectCatExpenseById" parameterType="Long" resultMap="CatExpenseResult">
+        <include refid="selectCatExpenseVo"/>
+        where expense_id = #{expenseId}
+    </select>
+
+    <select id="selectCatExpenseList" parameterType="CatExpense" resultMap="CatExpenseResult">
+        <include refid="selectCatExpenseVo"/>
+        <where>
+            <if test="categoryId != null">AND category_id = #{categoryId}</if>
+            <if test="expenseType != null and expenseType != ''">AND expense_type = #{expenseType}</if>
+            <if test="expenseDate != null">AND expense_date = #{expenseDate}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(expense_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(expense_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
+            <if test="supplier != null and supplier != ''">AND supplier = #{supplier}</if>
+            <if test="items != null and items != ''">AND items = #{items}</if>
+            <if test="amount != null">AND amount = #{amount}</if>
+            <if test="payMethod != null and payMethod != ''">AND pay_method = #{payMethod}</if>
+            <if test="receiptUrl != null and receiptUrl != ''">AND receipt_url = #{receiptUrl}</if>
+            <if test="baseId != null">AND base_id = #{baseId}</if>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="referralId != null">AND referral_id = #{referralId}</if>
+            <if test="stockId != null">AND stock_id = #{stockId}</if>
+            AND del_flag = '0'
+        </where>
+        order by expense_id desc
+    </select>
+
+    <insert id="insertCatExpense" parameterType="CatExpense" useGeneratedKeys="true" keyProperty="expenseId">
+        insert into cat_expense (
+            <if test="categoryId != null">category_id,</if>
+            <if test="expenseType != null">expense_type,</if>
+            <if test="expenseDate != null">expense_date,</if>
+            <if test="supplier != null">supplier,</if>
+            <if test="items != null">items,</if>
+            <if test="amount != null">amount,</if>
+            <if test="payMethod != null">pay_method,</if>
+            <if test="receiptUrl != null">receipt_url,</if>
+            <if test="baseId != null">base_id,</if>
+            <if test="catId != null">cat_id,</if>
+            <if test="referralId != null">referral_id,</if>
+            <if test="stockId != null">stock_id,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="expenseType != null">#{expenseType},</if>
+            <if test="expenseDate != null">#{expenseDate},</if>
+            <if test="supplier != null">#{supplier},</if>
+            <if test="items != null">#{items},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="payMethod != null">#{payMethod},</if>
+            <if test="receiptUrl != null">#{receiptUrl},</if>
+            <if test="baseId != null">#{baseId},</if>
+            <if test="catId != null">#{catId},</if>
+            <if test="referralId != null">#{referralId},</if>
+            <if test="stockId != null">#{stockId},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatExpense" parameterType="CatExpense">
+        update cat_expense
+        <set>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="expenseType != null and expenseType != ''">expense_type = #{expenseType},</if>
+            <if test="expenseDate != null">expense_date = #{expenseDate},</if>
+            <if test="supplier != null and supplier != ''">supplier = #{supplier},</if>
+            <if test="items != null and items != ''">items = #{items},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="payMethod != null and payMethod != ''">pay_method = #{payMethod},</if>
+            <if test="receiptUrl != null and receiptUrl != ''">receipt_url = #{receiptUrl},</if>
+            <if test="baseId != null">base_id = #{baseId},</if>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="referralId != null">referral_id = #{referralId},</if>
+            <if test="stockId != null">stock_id = #{stockId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where expense_id = #{expenseId}
+    </update>
+
+    <delete id="deleteCatExpenseById" parameterType="Long">
+        update cat_expense set del_flag = '2' where expense_id = #{expenseId}
+    </delete>
+
+    <delete id="deleteCatExpenseByIds" parameterType="Long">
+        update cat_expense set del_flag = '2' where expense_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

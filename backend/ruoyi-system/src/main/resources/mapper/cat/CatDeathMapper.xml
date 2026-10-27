@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatDeathMapper">
+
+    <resultMap type="CatDeath" id="CatDeathResult">
+        <result property="deathId" column="death_id" />
+        <result property="catId" column="cat_id" />
+        <result property="deathDate" column="death_date" />
+        <result property="deathPlace" column="death_place" />
+        <result property="deathType" column="death_type" />
+        <result property="deathReason" column="death_reason" />
+        <result property="history" column="history" />
+        <result property="bodyDisposal" column="body_disposal" />
+        <result property="doctor" column="doctor" />
+        <result property="registrar" column="registrar" />
+        <result property="photos" column="photos" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatDeathVo">
+        select death_id, cat_id, death_date, death_place, death_type, death_reason, history, body_disposal, doctor, registrar, photos, create_by, create_time, update_by, update_time, remark from cat_death
+    </sql>
+
+    <select id="selectCatDeathById" parameterType="Long" resultMap="CatDeathResult">
+        <include refid="selectCatDeathVo"/>
+        where death_id = #{deathId}
+    </select>
+
+    <select id="selectCatDeathList" parameterType="CatDeath" resultMap="CatDeathResult">
+        <include refid="selectCatDeathVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="deathDate != null">AND death_date = #{deathDate}</if>
+            <if test="deathPlace != null and deathPlace != ''">AND death_place = #{deathPlace}</if>
+            <if test="deathType != null and deathType != ''">AND death_type = #{deathType}</if>
+            <if test="deathReason != null and deathReason != ''">AND death_reason = #{deathReason}</if>
+            <if test="history != null and history != ''">AND history = #{history}</if>
+            <if test="bodyDisposal != null and bodyDisposal != ''">AND body_disposal = #{bodyDisposal}</if>
+            <if test="doctor != null and doctor != ''">AND doctor = #{doctor}</if>
+            <if test="registrar != null and registrar != ''">AND registrar = #{registrar}</if>
+            <if test="photos != null and photos != ''">AND photos = #{photos}</if>
+            AND del_flag = '0'
+        </where>
+        order by death_id desc
+    </select>
+
+    <insert id="insertCatDeath" parameterType="CatDeath" useGeneratedKeys="true" keyProperty="deathId">
+        insert into cat_death (
+            <if test="catId != null">cat_id,</if>
+            <if test="deathDate != null">death_date,</if>
+            <if test="deathPlace != null">death_place,</if>
+            <if test="deathType != null">death_type,</if>
+            <if test="deathReason != null">death_reason,</if>
+            <if test="history != null">history,</if>
+            <if test="bodyDisposal != null">body_disposal,</if>
+            <if test="doctor != null">doctor,</if>
+            <if test="registrar != null">registrar,</if>
+            <if test="photos != null">photos,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="deathDate != null">#{deathDate},</if>
+            <if test="deathPlace != null">#{deathPlace},</if>
+            <if test="deathType != null">#{deathType},</if>
+            <if test="deathReason != null">#{deathReason},</if>
+            <if test="history != null">#{history},</if>
+            <if test="bodyDisposal != null">#{bodyDisposal},</if>
+            <if test="doctor != null">#{doctor},</if>
+            <if test="registrar != null">#{registrar},</if>
+            <if test="photos != null">#{photos},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatDeath" parameterType="CatDeath">
+        update cat_death
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="deathDate != null">death_date = #{deathDate},</if>
+            <if test="deathPlace != null and deathPlace != ''">death_place = #{deathPlace},</if>
+            <if test="deathType != null and deathType != ''">death_type = #{deathType},</if>
+            <if test="deathReason != null and deathReason != ''">death_reason = #{deathReason},</if>
+            <if test="history != null and history != ''">history = #{history},</if>
+            <if test="bodyDisposal != null and bodyDisposal != ''">body_disposal = #{bodyDisposal},</if>
+            <if test="doctor != null and doctor != ''">doctor = #{doctor},</if>
+            <if test="registrar != null and registrar != ''">registrar = #{registrar},</if>
+            <if test="photos != null and photos != ''">photos = #{photos},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where death_id = #{deathId}
+    </update>
+
+    <delete id="deleteCatDeathById" parameterType="Long">
+        update cat_death set del_flag = '2' where death_id = #{deathId}
+    </delete>
+
+    <delete id="deleteCatDeathByIds" parameterType="Long">
+        update cat_death set del_flag = '2' where death_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

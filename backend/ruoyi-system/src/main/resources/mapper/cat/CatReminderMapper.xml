@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatReminderMapper">
+
+    <resultMap type="CatReminder" id="CatReminderResult">
+        <result property="reminderId" column="reminder_id" />
+        <result property="catId" column="cat_id" />
+        <result property="reminderType" column="reminder_type" />
+        <result property="title" column="title" />
+        <result property="content" column="content" />
+        <result property="remindDate" column="remind_date" />
+        <result property="status" column="status" />
+        <result property="targetUser" column="target_user" />
+        <result property="readTime" column="read_time" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatReminderVo">
+        select reminder_id, cat_id, reminder_type, title, content, remind_date, status, target_user, read_time, create_by, create_time, update_by, update_time, remark from cat_reminder
+    </sql>
+
+    <!-- 目标用户过滤：为空表示全员；管理员通过 scopeAll 跳过限制 -->
+    <sql id="scopeFilter">
+        <if test="scopeAll == null or scopeAll != true">
+            and (c.target_user is null or c.target_user = ''
+            <if test="currentUserName != null and currentUserName != ''">
+                or find_in_set(#{currentUserName}, c.target_user) &gt; 0
+            </if>
+            )
+        </if>
+    </sql>
+
+    <!-- 每条记录的 status 返回的是「当前登录用户」的已读状态，不再是表里的全局状态 -->
+    <sql id="selectReminderWithReadStatus">
+        select c.reminder_id, c.cat_id, c.reminder_type, c.title, c.content, c.remind_date,
+               case when r.read_id is not null then '1' else '0' end as status,
+               c.target_user, r.read_time, c.create_by, c.create_time, c.update_by, c.update_time, c.remark
+        from cat_reminder c
+        left join cat_reminder_read r
+               on r.reminder_id = c.reminder_id and r.user_id = ifnull(#{currentUserId}, 0)
+    </sql>
+
+    <select id="selectCatReminderById" parameterType="Long" resultMap="CatReminderResult">
+        <include refid="selectCatReminderVo"/>
+        where reminder_id = #{reminderId}
+    </select>
+
+    <select id="selectCatReminderList" parameterType="CatReminder" resultMap="CatReminderResult">
+        <include refid="selectReminderWithReadStatus"/>
+        <where>
+            <include refid="scopeFilter"/>
+            <if test="catId != null">AND c.cat_id = #{catId}</if>
+            <if test="reminderType != null and reminderType != ''">AND c.reminder_type = #{reminderType}</if>
+            <if test="title != null and title != ''">AND c.title = #{title}</if>
+            <if test="content != null and content != ''">AND c.content = #{content}</if>
+            <if test="remindDate != null">AND c.remind_date = #{remindDate}</if>
+            <if test="status != null and status != ''">
+                AND (case when r.read_id is not null then '1' else '0' end) = #{status}
+            </if>
+            <if test="targetUser != null and targetUser != ''">AND c.target_user = #{targetUser}</if>
+            <if test="readTime != null">AND r.read_time = #{readTime}</if>
+        </where>
+        order by c.reminder_id desc
+    </select>
+
+    <!-- 定时任务判重：只要同一业务对象生成过提醒就不再重复生成，与是否已读无关 -->
+    <select id="selectCountByBizKey" parameterType="CatReminder" resultType="int">
+        select count(*) from cat_reminder
+        <where>
+            <if test="reminderType != null and reminderType != ''">AND reminder_type = #{reminderType}</if>
+            <choose>
+                <when test="catId != null">AND cat_id = #{catId}</when>
+                <otherwise>AND cat_id is null</otherwise>
+            </choose>
+            <if test="content != null and content != ''">AND content = #{content}</if>
+        </where>
+    </select>
+
+    <!-- 顶栏铃铛：未读优先，其次按提醒日期倒序 -->
+    <select id="selectHeaderReminders" resultMap="CatReminderResult">
+        <include refid="selectReminderWithReadStatus"/>
+        <where>
+            <include refid="scopeFilter"/>
+        </where>
+        order by (case when r.read_id is null then 0 else 1 end), c.remind_date desc, c.reminder_id desc
+        limit #{limit}
+    </select>
+
+    <select id="selectUnreadCount" resultType="int">
+        select count(*)
+        from cat_reminder c
+        where not exists (
+            select 1 from cat_reminder_read r
+            where r.reminder_id = c.reminder_id and r.user_id = #{currentUserId}
+        )
+        <include refid="scopeFilter"/>
+    </select>
+
+    <select id="selectUnreadIds" resultType="Long">
+        select c.reminder_id
+        from cat_reminder c
+        where not exists (
+            select 1 from cat_reminder_read r
+            where r.reminder_id = c.reminder_id and r.user_id = #{currentUserId}
+        )
+        <include refid="scopeFilter"/>
+    </select>
+
+    <insert id="insertCatReminder" parameterType="CatReminder" useGeneratedKeys="true" keyProperty="reminderId">
+        insert into cat_reminder (
+            <if test="catId != null">cat_id,</if>
+            <if test="reminderType != null">reminder_type,</if>
+            <if test="title != null">title,</if>
+            <if test="content != null">content,</if>
+            <if test="remindDate != null">remind_date,</if>
+            <if test="status != null">status,</if>
+            <if test="targetUser != null">target_user,</if>
+            <if test="readTime != null">read_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="reminderType != null">#{reminderType},</if>
+            <if test="title != null">#{title},</if>
+            <if test="content != null">#{content},</if>
+            <if test="remindDate != null">#{remindDate},</if>
+            <if test="status != null">#{status},</if>
+            <if test="targetUser != null">#{targetUser},</if>
+            <if test="readTime != null">#{readTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatReminder" parameterType="CatReminder">
+        update cat_reminder
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="reminderType != null and reminderType != ''">reminder_type = #{reminderType},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="remindDate != null">remind_date = #{remindDate},</if>
+            <if test="targetUser != null">target_user = #{targetUser},</if>
+            <if test="readTime != null">read_time = #{readTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where reminder_id = #{reminderId}
+    </update>
+
+    <delete id="deleteCatReminderById" parameterType="Long">
+        delete from cat_reminder where reminder_id = #{reminderId}
+    </delete>
+
+    <delete id="deleteCatReminderByIds" parameterType="Long">
+        delete from cat_reminder where reminder_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 已读写在 cat_reminder_read 里，按人独立；重复点击不会报错 -->
+    <insert id="insertReminderRead">
+        insert ignore into cat_reminder_read (reminder_id, user_id, read_time)
+        values (#{reminderId}, #{userId}, sysdate())
+    </insert>
+
+    <insert id="insertReminderReadBatch">
+        insert ignore into cat_reminder_read (reminder_id, user_id, read_time)
+        values
+        <foreach collection="reminderIds" item="rid" separator=",">(#{rid}, #{userId}, sysdate())</foreach>
+    </insert>
+
+    <delete id="deleteReminderReadByReminderIds">
+        delete from cat_reminder_read where reminder_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 按岗位取收件人登录名 -->
+    <select id="selectUserNamesByPostNames" resultType="String">
+        select distinct u.user_name
+        from sys_user u
+        inner join sys_user_post up on up.user_id = u.user_id
+        inner join sys_post p on p.post_id = up.post_id
+        where u.del_flag = '0' and u.status = '0'
+          and p.post_name in
+          <foreach collection="postNames" item="name" open="(" separator="," close=")">#{name}</foreach>
+        order by u.user_name
+    </select>
+</mapper>

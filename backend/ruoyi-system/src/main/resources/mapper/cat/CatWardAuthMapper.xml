@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatWardAuthMapper">
+
+    <resultMap type="CatWardAuth" id="CatWardAuthResult">
+        <result property="userId" column="user_id" />
+        <result property="wardId" column="ward_id" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <sql id="selectCatWardAuthVo">
+        select a.user_id, a.ward_id, a.create_by, a.create_time
+        from cat_ward_auth a
+    </sql>
+
+    <select id="selectCatWardAuthList" parameterType="CatWardAuth" resultMap="CatWardAuthResult">
+        <include refid="selectCatWardAuthVo"/>
+        <where>
+            <if test="userId != null">AND a.user_id = #{userId}</if>
+            <if test="wardId != null">AND a.ward_id = #{wardId}</if>
+        </where>
+    </select>
+
+    <select id="selectWardIdsByUserId" parameterType="Long" resultType="Long">
+        select ward_id from cat_ward_auth where user_id = #{userId}
+    </select>
+
+    <select id="selectUserIdsByWardId" parameterType="Long" resultType="Long">
+        select user_id from cat_ward_auth where ward_id = #{wardId}
+    </select>
+
+    <insert id="insertCatWardAuth" parameterType="CatWardAuth">
+        insert into cat_ward_auth (user_id, ward_id, create_by, create_time)
+        values (#{userId}, #{wardId}, #{createBy}, sysdate())
+    </insert>
+
+    <insert id="batchInsert">
+        insert into cat_ward_auth (user_id, ward_id, create_by, create_time)
+        values
+        <foreach item="wardId" collection="wardIds" separator=",">
+            (#{userId}, #{wardId}, #{operator}, sysdate())
+        </foreach>
+    </insert>
+
+    <delete id="deleteByUserId" parameterType="Long">
+        delete from cat_ward_auth where user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByWardId" parameterType="Long">
+        delete from cat_ward_auth where ward_id = #{wardId}
+    </delete>
+</mapper>

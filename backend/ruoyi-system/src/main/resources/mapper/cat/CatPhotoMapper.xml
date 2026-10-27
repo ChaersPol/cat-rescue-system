@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatPhotoMapper">
+
+    <resultMap type="CatPhoto" id="CatPhotoResult">
+        <result property="photoId" column="photo_id" />
+        <result property="catId" column="cat_id" />
+        <result property="folder" column="folder" />
+        <result property="fileType" column="file_type" />
+        <result property="fileUrl" column="file_url" />
+        <result property="thumbUrl" column="thumb_url" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatPhotoVo">
+        select photo_id, cat_id, folder, file_type, file_url, thumb_url, create_by, create_time, update_by, update_time, remark from cat_photo
+    </sql>
+
+    <select id="selectCatPhotoById" parameterType="Long" resultMap="CatPhotoResult">
+        <include refid="selectCatPhotoVo"/>
+        where photo_id = #{photoId}
+    </select>
+
+    <select id="selectCatPhotoList" parameterType="CatPhoto" resultMap="CatPhotoResult">
+        <include refid="selectCatPhotoVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="folder != null and folder != ''">AND folder = #{folder}</if>
+            <if test="fileType != null and fileType != ''">AND file_type = #{fileType}</if>
+            <if test="fileUrl != null and fileUrl != ''">AND file_url = #{fileUrl}</if>
+        </where>
+        order by photo_id desc
+    </select>
+
+    <insert id="insertCatPhoto" parameterType="CatPhoto" useGeneratedKeys="true" keyProperty="photoId">
+        insert into cat_photo (
+            <if test="catId != null">cat_id,</if>
+            <if test="folder != null">folder,</if>
+            <if test="fileType != null">file_type,</if>
+            <if test="fileUrl != null">file_url,</if>
+            <if test="thumbUrl != null">thumb_url,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="folder != null">#{folder},</if>
+            <if test="fileType != null">#{fileType},</if>
+            <if test="fileUrl != null">#{fileUrl},</if>
+            <if test="thumbUrl != null">#{thumbUrl},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatPhoto" parameterType="CatPhoto">
+        update cat_photo
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="folder != null and folder != ''">folder = #{folder},</if>
+            <if test="fileType != null and fileType != ''">file_type = #{fileType},</if>
+            <if test="fileUrl != null and fileUrl != ''">file_url = #{fileUrl},</if>
+            <if test="thumbUrl != null">thumb_url = #{thumbUrl},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where photo_id = #{photoId}
+    </update>
+
+    <delete id="deleteCatPhotoById" parameterType="Long">
+        delete from cat_photo where photo_id = #{photoId}
+    </delete>
+
+    <delete id="deleteCatPhotoByIds" parameterType="Long">
+        delete from cat_photo where photo_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

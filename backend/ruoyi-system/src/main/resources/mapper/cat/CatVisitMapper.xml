@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatVisitMapper">
+
+    <resultMap type="CatVisit" id="CatVisitResult">
+        <result property="visitId" column="visit_id" />
+        <result property="adoptionId" column="adoption_id" />
+        <result property="catId" column="cat_id" />
+        <result property="planType" column="plan_type" />
+        <result property="planDate" column="plan_date" />
+        <result property="visitStatus" column="visit_status" />
+        <result property="visitContent" column="visit_content" />
+        <result property="photos" column="photos" />
+        <result property="visitBy" column="visit_by" />
+        <result property="visitTime" column="visit_time" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatVisitVo">
+        select visit_id, adoption_id, cat_id, plan_type, plan_date, visit_status, visit_content, photos, visit_by, visit_time, create_by, create_time, update_by, update_time, remark from cat_visit
+    </sql>
+
+    <select id="selectCatVisitById" parameterType="Long" resultMap="CatVisitResult">
+        <include refid="selectCatVisitVo"/>
+        where visit_id = #{visitId}
+    </select>
+
+    <select id="selectCatVisitList" parameterType="CatVisit" resultMap="CatVisitResult">
+        <include refid="selectCatVisitVo"/>
+        <where>
+            <if test="adoptionId != null">AND adoption_id = #{adoptionId}</if>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="planType != null and planType != ''">AND plan_type = #{planType}</if>
+            <if test="planDate != null">AND plan_date = #{planDate}</if>
+            <if test="visitStatus != null and visitStatus != ''">AND visit_status = #{visitStatus}</if>
+            <if test="visitContent != null and visitContent != ''">AND visit_content = #{visitContent}</if>
+            <if test="photos != null and photos != ''">AND photos = #{photos}</if>
+            <if test="visitBy != null and visitBy != ''">AND visit_by = #{visitBy}</if>
+            <if test="visitTime != null">AND visit_time = #{visitTime}</if>
+        </where>
+        order by visit_id desc
+    </select>
+
+    <insert id="insertCatVisit" parameterType="CatVisit" useGeneratedKeys="true" keyProperty="visitId">
+        insert into cat_visit (
+            <if test="adoptionId != null">adoption_id,</if>
+            <if test="catId != null">cat_id,</if>
+            <if test="planType != null">plan_type,</if>
+            <if test="planDate != null">plan_date,</if>
+            <if test="visitStatus != null">visit_status,</if>
+            <if test="visitContent != null">visit_content,</if>
+            <if test="photos != null">photos,</if>
+            <if test="visitBy != null">visit_by,</if>
+            <if test="visitTime != null">visit_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="adoptionId != null">#{adoptionId},</if>
+            <if test="catId != null">#{catId},</if>
+            <if test="planType != null">#{planType},</if>
+            <if test="planDate != null">#{planDate},</if>
+            <if test="visitStatus != null">#{visitStatus},</if>
+            <if test="visitContent != null">#{visitContent},</if>
+            <if test="photos != null">#{photos},</if>
+            <if test="visitBy != null">#{visitBy},</if>
+            <if test="visitTime != null">#{visitTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatVisit" parameterType="CatVisit">
+        update cat_visit
+        <set>
+            <if test="adoptionId != null">adoption_id = #{adoptionId},</if>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="planType != null and planType != ''">plan_type = #{planType},</if>
+            <if test="planDate != null">plan_date = #{planDate},</if>
+            <if test="visitStatus != null and visitStatus != ''">visit_status = #{visitStatus},</if>
+            <if test="visitContent != null and visitContent != ''">visit_content = #{visitContent},</if>
+            <if test="photos != null and photos != ''">photos = #{photos},</if>
+            <if test="visitBy != null and visitBy != ''">visit_by = #{visitBy},</if>
+            <if test="visitTime != null">visit_time = #{visitTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where visit_id = #{visitId}
+    </update>
+
+    <delete id="deleteCatVisitById" parameterType="Long">
+        delete from cat_visit where visit_id = #{visitId}
+    </delete>
+
+    <delete id="deleteCatVisitByIds" parameterType="Long">
+        delete from cat_visit where visit_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

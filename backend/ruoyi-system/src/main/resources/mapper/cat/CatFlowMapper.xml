@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatFlowMapper">
+
+    <resultMap type="CatFlow" id="CatFlowResult">
+        <result property="flowId" column="flow_id" />
+        <result property="catId" column="cat_id" />
+        <result property="fromBaseId" column="from_base_id" />
+        <result property="fromWardId" column="from_ward_id" />
+        <result property="toBaseId" column="to_base_id" />
+        <result property="toWardId" column="to_ward_id" />
+        <result property="flowType" column="flow_type" />
+        <result property="flowReason" column="flow_reason" />
+        <result property="hospitalName" column="hospital_name" />
+        <result property="hospitalResult" column="hospital_result" />
+        <result property="operateBy" column="operate_by" />
+        <result property="operateTime" column="operate_time" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatFlowVo">
+        select flow_id, cat_id, from_base_id, from_ward_id, to_base_id, to_ward_id, flow_type, flow_reason, hospital_name, hospital_result, operate_by, operate_time, create_by, create_time, update_by, update_time, remark from cat_flow
+    </sql>
+
+    <select id="selectCatFlowById" parameterType="Long" resultMap="CatFlowResult">
+        <include refid="selectCatFlowVo"/>
+        where flow_id = #{flowId}
+    </select>
+
+    <select id="selectCatFlowList" parameterType="CatFlow" resultMap="CatFlowResult">
+        <include refid="selectCatFlowVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="fromBaseId != null">AND from_base_id = #{fromBaseId}</if>
+            <if test="fromWardId != null">AND from_ward_id = #{fromWardId}</if>
+            <if test="toBaseId != null">AND to_base_id = #{toBaseId}</if>
+            <if test="toWardId != null">AND to_ward_id = #{toWardId}</if>
+            <if test="flowType != null and flowType != ''">AND flow_type = #{flowType}</if>
+            <if test="flowReason != null and flowReason != ''">AND flow_reason = #{flowReason}</if>
+            <if test="hospitalName != null and hospitalName != ''">AND hospital_name = #{hospitalName}</if>
+            <if test="hospitalResult != null and hospitalResult != ''">AND hospital_result = #{hospitalResult}</if>
+            <if test="operateBy != null and operateBy != ''">AND operate_by = #{operateBy}</if>
+            <if test="operateTime != null">AND operate_time = #{operateTime}</if>
+        </where>
+        order by flow_id desc
+    </select>
+
+    <insert id="insertCatFlow" parameterType="CatFlow" useGeneratedKeys="true" keyProperty="flowId">
+        insert into cat_flow (
+            <if test="catId != null">cat_id,</if>
+            <if test="fromBaseId != null">from_base_id,</if>
+            <if test="fromWardId != null">from_ward_id,</if>
+            <if test="toBaseId != null">to_base_id,</if>
+            <if test="toWardId != null">to_ward_id,</if>
+            <if test="flowType != null">flow_type,</if>
+            <if test="flowReason != null">flow_reason,</if>
+            <if test="hospitalName != null">hospital_name,</if>
+            <if test="hospitalResult != null">hospital_result,</if>
+            <if test="operateBy != null">operate_by,</if>
+            <if test="operateTime != null">operate_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="fromBaseId != null">#{fromBaseId},</if>
+            <if test="fromWardId != null">#{fromWardId},</if>
+            <if test="toBaseId != null">#{toBaseId},</if>
+            <if test="toWardId != null">#{toWardId},</if>
+            <if test="flowType != null">#{flowType},</if>
+            <if test="flowReason != null">#{flowReason},</if>
+            <if test="hospitalName != null">#{hospitalName},</if>
+            <if test="hospitalResult != null">#{hospitalResult},</if>
+            <if test="operateBy != null">#{operateBy},</if>
+            <if test="operateTime != null">#{operateTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatFlow" parameterType="CatFlow">
+        update cat_flow
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="fromBaseId != null">from_base_id = #{fromBaseId},</if>
+            <if test="fromWardId != null">from_ward_id = #{fromWardId},</if>
+            <if test="toBaseId != null">to_base_id = #{toBaseId},</if>
+            <if test="toWardId != null">to_ward_id = #{toWardId},</if>
+            <if test="flowType != null and flowType != ''">flow_type = #{flowType},</if>
+            <if test="flowReason != null and flowReason != ''">flow_reason = #{flowReason},</if>
+            <if test="hospitalName != null and hospitalName != ''">hospital_name = #{hospitalName},</if>
+            <if test="hospitalResult != null and hospitalResult != ''">hospital_result = #{hospitalResult},</if>
+            <if test="operateBy != null and operateBy != ''">operate_by = #{operateBy},</if>
+            <if test="operateTime != null">operate_time = #{operateTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where flow_id = #{flowId}
+    </update>
+
+    <delete id="deleteCatFlowById" parameterType="Long">
+        delete from cat_flow where flow_id = #{flowId}
+    </delete>
+
+    <delete id="deleteCatFlowByIds" parameterType="Long">
+        delete from cat_flow where flow_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,94 @@
+package com.ruoyi.cat.domain;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import java.util.Date;
+import com.ruoyi.common.core.domain.BaseEntity;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+/**
+ * 疫苗记录表
+ * 
+ * @author ruoyi
+ */
+public class CatVaccine extends BaseEntity
+{
+    private static final long serialVersionUID = 1L;
+    /** 疫苗记录id */
+    private Long vaccineId;
+    /** 猫咪id */
+    private Long catId;
+    /** 疫苗类型 */
+    private String vaccineType;
+    /** 接种日期 */
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    private Date vaccineDate;
+    /** 下次接种时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    private Date nextDate;
+    /** 负责人 */
+    private String responsible;
+    public Long getVaccineId()
+    {
+        return vaccineId;
+    }
+    public void setVaccineId(Long vaccineId)
+    {
+        this.vaccineId = vaccineId;
+    }
+    public Long getCatId()
+    {
+        return catId;
+    }
+    public void setCatId(Long catId)
+    {
+        this.catId = catId;
+    }
+    public String getVaccineType()
+    {
+        return vaccineType;
+    }
+    public void setVaccineType(String vaccineType)
+    {
+        this.vaccineType = vaccineType;
+    }
+    public Date getVaccineDate()
+    {
+        return vaccineDate;
+    }
+    public void setVaccineDate(Date vaccineDate)
+    {
+        this.vaccineDate = vaccineDate;
+    }
+    public Date getNextDate()
+    {
+        return nextDate;
+    }
+    public void setNextDate(Date nextDate)
+    {
+        this.nextDate = nextDate;
+    }
+    public String getResponsible()
+    {
+        return responsible;
+    }
+    public void setResponsible(String responsible)
+    {
+        this.responsible = responsible;
+    }
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+            .append("vaccineId", getVaccineId())
+            .append("catId", getCatId())
+            .append("vaccineType", getVaccineType())
+            .append("vaccineDate", getVaccineDate())
+            .append("nextDate", getNextDate())
+            .append("responsible", getResponsible())
+            .append("createBy", getCreateBy())
+            .append("createTime", getCreateTime())
+            .append("updateBy", getUpdateBy())
+            .append("updateTime", getUpdateTime())
+            .append("remark", getRemark())
+            .toString();
+    }
+}

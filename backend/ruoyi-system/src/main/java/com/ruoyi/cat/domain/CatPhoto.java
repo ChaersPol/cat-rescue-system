@@ -1,0 +1,91 @@
+package com.ruoyi.cat.domain;
+import com.ruoyi.common.core.domain.BaseEntity;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+/**
+ * 猫咪照片相册表
+ * 
+ * @author ruoyi
+ */
+public class CatPhoto extends BaseEntity
+{
+    private static final long serialVersionUID = 1L;
+    /** 照片id */
+    private Long photoId;
+    /** 猫咪id */
+    private Long catId;
+    /** 文件夹 */
+    private String folder;
+    /** 文件类型（1图片 2视频） */
+    private String fileType;
+    /** 文件地址 */
+    private String fileUrl;
+    /** 缩略图地址（列表/相册展示用，图片自动缩放、视频自动抽帧） */
+    private String thumbUrl;
+    public Long getPhotoId()
+    {
+        return photoId;
+    }
+    public void setPhotoId(Long photoId)
+    {
+        this.photoId = photoId;
+    }
+    public Long getCatId()
+    {
+        return catId;
+    }
+    public void setCatId(Long catId)
+    {
+        this.catId = catId;
+    }
+    public String getFolder()
+    {
+        return folder;
+    }
+    public void setFolder(String folder)
+    {
+        this.folder = folder;
+    }
+    public String getFileType()
+    {
+        return fileType;
+    }
+    public void setFileType(String fileType)
+    {
+        this.fileType = fileType;
+    }
+    public String getFileUrl()
+    {
+        return fileUrl;
+    }
+    public void setFileUrl(String fileUrl)
+    {
+        this.fileUrl = fileUrl;
+    }
+
+    public String getThumbUrl()
+    {
+        return thumbUrl;
+    }
+
+    public void setThumbUrl(String thumbUrl)
+    {
+        this.thumbUrl = thumbUrl;
+    }
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+            .append("photoId", getPhotoId())
+            .append("catId", getCatId())
+            .append("folder", getFolder())
+            .append("fileType", getFileType())
+            .append("fileUrl", getFileUrl())
+            .append("thumbUrl", getThumbUrl())
+            .append("createBy", getCreateBy())
+            .append("createTime", getCreateTime())
+            .append("updateBy", getUpdateBy())
+            .append("updateTime", getUpdateTime())
+            .append("remark", getRemark())
+            .toString();
+    }
+}

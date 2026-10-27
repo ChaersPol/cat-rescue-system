@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatMedicationMapper">
+
+    <resultMap type="CatMedication" id="CatMedicationResult">
+        <result property="medicationId" column="medication_id" />
+        <result property="catId" column="cat_id" />
+        <result property="useDate" column="use_date" />
+        <result property="timePeriod" column="time_period" />
+        <result property="drugName" column="drug_name" />
+        <result property="dosage" column="dosage" />
+        <result property="administration" column="administration" />
+        <result property="executor" column="executor" />
+        <result property="adverseReaction" column="adverse_reaction" />
+        <result property="photos" column="photos" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatMedicationVo">
+        select medication_id, cat_id, use_date, time_period, drug_name, dosage, administration, executor, adverse_reaction, photos, create_by, create_time, update_by, update_time, remark from cat_medication
+    </sql>
+
+    <select id="selectCatMedicationById" parameterType="Long" resultMap="CatMedicationResult">
+        <include refid="selectCatMedicationVo"/>
+        where medication_id = #{medicationId}
+    </select>
+
+    <select id="selectCatMedicationList" parameterType="CatMedication" resultMap="CatMedicationResult">
+        <include refid="selectCatMedicationVo"/>
+        <where>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <if test="useDate != null">AND use_date = #{useDate}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(use_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(use_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
+            <if test="timePeriod != null and timePeriod != ''">AND time_period = #{timePeriod}</if>
+            <if test="drugName != null and drugName != ''">AND drug_name = #{drugName}</if>
+            <if test="dosage != null and dosage != ''">AND dosage = #{dosage}</if>
+            <if test="administration != null and administration != ''">AND administration = #{administration}</if>
+            <if test="executor != null and executor != ''">AND executor = #{executor}</if>
+            <if test="adverseReaction != null and adverseReaction != ''">AND adverse_reaction = #{adverseReaction}</if>
+            <if test="photos != null and photos != ''">AND photos = #{photos}</if>
+            AND del_flag = '0'
+        </where>
+        order by medication_id desc
+    </select>
+
+    <insert id="insertCatMedication" parameterType="CatMedication" useGeneratedKeys="true" keyProperty="medicationId">
+        insert into cat_medication (
+            <if test="catId != null">cat_id,</if>
+            <if test="useDate != null">use_date,</if>
+            <if test="timePeriod != null">time_period,</if>
+            <if test="drugName != null">drug_name,</if>
+            <if test="dosage != null">dosage,</if>
+            <if test="administration != null">administration,</if>
+            <if test="executor != null">executor,</if>
+            <if test="adverseReaction != null">adverse_reaction,</if>
+            <if test="photos != null">photos,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="catId != null">#{catId},</if>
+            <if test="useDate != null">#{useDate},</if>
+            <if test="timePeriod != null">#{timePeriod},</if>
+            <if test="drugName != null">#{drugName},</if>
+            <if test="dosage != null">#{dosage},</if>
+            <if test="administration != null">#{administration},</if>
+            <if test="executor != null">#{executor},</if>
+            <if test="adverseReaction != null">#{adverseReaction},</if>
+            <if test="photos != null">#{photos},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatMedication" parameterType="CatMedication">
+        update cat_medication
+        <set>
+            <if test="catId != null">cat_id = #{catId},</if>
+            <if test="useDate != null">use_date = #{useDate},</if>
+            <if test="timePeriod != null and timePeriod != ''">time_period = #{timePeriod},</if>
+            <if test="drugName != null and drugName != ''">drug_name = #{drugName},</if>
+            <if test="dosage != null and dosage != ''">dosage = #{dosage},</if>
+            <if test="administration != null and administration != ''">administration = #{administration},</if>
+            <if test="executor != null and executor != ''">executor = #{executor},</if>
+            <if test="adverseReaction != null and adverseReaction != ''">adverse_reaction = #{adverseReaction},</if>
+            <if test="photos != null and photos != ''">photos = #{photos},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where medication_id = #{medicationId}
+    </update>
+
+    <delete id="deleteCatMedicationById" parameterType="Long">
+        update cat_medication set del_flag = '2' where medication_id = #{medicationId}
+    </delete>
+
+    <delete id="deleteCatMedicationByIds" parameterType="Long">
+        update cat_medication set del_flag = '2' where medication_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

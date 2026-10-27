@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatConfigMapper">
+
+    <resultMap type="CatConfig" id="CatConfigResult">
+        <result property="configId" column="config_id" />
+        <result property="configKey" column="config_key" />
+        <result property="configValue" column="config_value" />
+        <result property="configName" column="config_name" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatConfigVo">
+        select config_id, config_key, config_value, config_name, create_by, create_time, update_by, update_time, remark from cat_config
+    </sql>
+
+    <select id="selectCatConfigById" parameterType="Long" resultMap="CatConfigResult">
+        <include refid="selectCatConfigVo"/>
+        where config_id = #{configId}
+    </select>
+
+    <select id="selectCatConfigList" parameterType="CatConfig" resultMap="CatConfigResult">
+        <include refid="selectCatConfigVo"/>
+        <where>
+            <if test="configKey != null and configKey != ''">AND config_key = #{configKey}</if>
+            <if test="configValue != null and configValue != ''">AND config_value = #{configValue}</if>
+            <if test="configName != null and configName != ''">AND config_name = #{configName}</if>
+        </where>
+        order by config_id desc
+    </select>
+
+    <select id="selectCatConfigByKey" parameterType="String" resultMap="CatConfigResult">
+        <include refid="selectCatConfigVo"/>
+        where config_key = #{configKey}
+    </select>
+
+    <insert id="insertCatConfig" parameterType="CatConfig" useGeneratedKeys="true" keyProperty="configId">
+        insert into cat_config (
+            <if test="configKey != null">config_key,</if>
+            <if test="configValue != null">config_value,</if>
+            <if test="configName != null">config_name,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="configKey != null">#{configKey},</if>
+            <if test="configValue != null">#{configValue},</if>
+            <if test="configName != null">#{configName},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatConfig" parameterType="CatConfig">
+        update cat_config
+        <set>
+            <if test="configKey != null and configKey != ''">config_key = #{configKey},</if>
+            <if test="configValue != null and configValue != ''">config_value = #{configValue},</if>
+            <if test="configName != null and configName != ''">config_name = #{configName},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where config_id = #{configId}
+    </update>
+
+    <delete id="deleteCatConfigById" parameterType="Long">
+        delete from cat_config where config_id = #{configId}
+    </delete>
+
+    <delete id="deleteCatConfigByIds" parameterType="Long">
+        delete from cat_config where config_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

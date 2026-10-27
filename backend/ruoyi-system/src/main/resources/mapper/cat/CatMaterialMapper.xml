@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatMaterialMapper">
+
+    <resultMap type="CatMaterial" id="CatMaterialResult">
+        <result property="materialId" column="material_id" />
+        <result property="categoryId" column="category_id" />
+        <result property="materialName" column="material_name" />
+        <result property="spec" column="spec" />
+        <result property="unit" column="unit" />
+        <result property="stock" column="stock" />
+        <result property="minStock" column="min_stock" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatMaterialVo">
+        select material_id, category_id, material_name, spec, unit, stock, min_stock, create_by, create_time, update_by, update_time, remark from cat_material
+    </sql>
+
+    <select id="selectCatMaterialById" parameterType="Long" resultMap="CatMaterialResult">
+        <include refid="selectCatMaterialVo"/>
+        where material_id = #{materialId}
+    </select>
+
+    <select id="selectCatMaterialList" parameterType="CatMaterial" resultMap="CatMaterialResult">
+        <include refid="selectCatMaterialVo"/>
+        <where>
+            <if test="categoryId != null">AND category_id = #{categoryId}</if>
+            <if test="materialName != null and materialName != ''">AND material_name like concat('%', #{materialName}, '%')</if>
+            <if test="spec != null and spec != ''">AND spec like concat('%', #{spec}, '%')</if>
+            <if test="unit != null and unit != ''">AND unit = #{unit}</if>
+            <if test="stock != null">AND stock = #{stock}</if>
+            <if test="minStock != null">AND min_stock = #{minStock}</if>
+            <if test="stockStatus == 'low'">AND stock &lt;= ifnull(min_stock, 0)</if>
+            <if test="stockStatus == 'ok'">AND stock &gt; ifnull(min_stock, 0)</if>
+            AND del_flag = '0'
+        </where>
+        order by material_id desc
+    </select>
+
+    <insert id="insertCatMaterial" parameterType="CatMaterial" useGeneratedKeys="true" keyProperty="materialId">
+        insert into cat_material (
+            <if test="categoryId != null">category_id,</if>
+            <if test="materialName != null">material_name,</if>
+            <if test="spec != null">spec,</if>
+            <if test="unit != null">unit,</if>
+            <if test="stock != null">stock,</if>
+            <if test="minStock != null">min_stock,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="materialName != null">#{materialName},</if>
+            <if test="spec != null">#{spec},</if>
+            <if test="unit != null">#{unit},</if>
+            <if test="stock != null">#{stock},</if>
+            <if test="minStock != null">#{minStock},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatMaterial" parameterType="CatMaterial">
+        update cat_material
+        <set>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="materialName != null and materialName != ''">material_name = #{materialName},</if>
+            <if test="spec != null and spec != ''">spec = #{spec},</if>
+            <if test="unit != null and unit != ''">unit = #{unit},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="minStock != null">min_stock = #{minStock},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where material_id = #{materialId}
+    </update>
+
+    <delete id="deleteCatMaterialById" parameterType="Long">
+        update cat_material set del_flag = '2' where material_id = #{materialId}
+    </delete>
+
+    <delete id="deleteCatMaterialByIds" parameterType="Long">
+        update cat_material set del_flag = '2' where material_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="updateStock">
+        update cat_material set stock = stock + #{quantity}, update_time = sysdate() where material_id = #{materialId}
+    </update>
+</mapper>
