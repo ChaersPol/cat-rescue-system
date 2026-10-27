@@ -87,7 +87,16 @@ export const constantRoutes = [
   {
     path: "/:pathMatch(.*)*",
     component: () => import('@/views/error/404'),
-    hidden: true
+    hidden: true,
+    // 兜底：若是「目录地址」或截断地址（如 /system/log、/profile），
+    // 自动跳到它下面第一个真实页面，而不是甩给用户一个 404
+    beforeEnter: (to) => {
+      const prefix = to.path.replace(/\/$/, '') + '/'
+      const hit = router.getRoutes()
+        .filter(r => r.path.startsWith(prefix) && r.path !== to.path)
+        .sort((a, b) => a.path.length - b.path.length)[0]
+      return hit ? hit.path : true
+    }
   },
   {
     path: '/401',
@@ -122,7 +131,9 @@ export const constantRoutes = [
       {
         path: 'profile/:activeTab?',
         component: () => import('@/views/system/user/profile/index'),
-        name: 'Profile',
+        // 名字不能叫 Profile：菜单「猫咪档案」一级目录 path=profile，若依会自动生成同名路由 'Profile'
+        // 后注册的动态路由会把这条常量路由顶掉，导致 /user/profile 变成 404
+        name: 'UserProfile',
         meta: { title: '个人中心', icon: 'user' }
       }
     ]

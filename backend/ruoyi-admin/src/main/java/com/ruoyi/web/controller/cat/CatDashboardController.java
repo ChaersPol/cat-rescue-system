@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -93,8 +92,12 @@ public class CatDashboardController
 
     /**
      * 统计看板数据
+     *
+     * 看板是所有人的首页（/index），因此不限具体权限串，登录即可访问；
+     * 数据范围由 scopeQuery 按病房授权收敛（助理只看自己被授权的病房）。
+     * 注：原先写的 cat:dashboard:view 在 sys_menu 里没有对应菜单/按钮，
+     * 除超管(*:*:*)外任何角色都拿不到数据，首页图表会全空并抛 403。
      */
-    @PreAuthorize("@ss.hasPermi('cat:dashboard:view')")
     @GetMapping("/stats")
     public AjaxResult stats()
     {

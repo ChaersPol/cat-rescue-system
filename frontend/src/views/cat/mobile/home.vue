@@ -37,7 +37,7 @@
           <el-icon><FirstAidKit /></el-icon>
           <span>用药打卡</span>
         </div>
-        <div class="quick-item" @click="goPc('/reminder/reminder')">
+        <div class="quick-item" @click="goPc('/reminder')">
           <el-icon><Bell /></el-icon>
           <span>提醒中心</span>
         </div>
@@ -92,7 +92,7 @@
     <div class="tabbar">
       <div class="tab active"><el-icon><HomeFilled /></el-icon><span>首页</span></div>
       <div class="tab" @click="goPc('/profile/profile')"><el-icon><Files /></el-icon><span>档案</span></div>
-      <div class="tab" @click="goPc('/reminder/reminder')"><el-icon><Bell /></el-icon><span>提醒</span></div>
+      <div class="tab" @click="goPc('/reminder')"><el-icon><Bell /></el-icon><span>提醒</span></div>
       <div class="tab" @click="goPc('/index')"><el-icon><DataBoard /></el-icon><span>看板</span></div>
     </div>
   </div>

@@ -18,6 +18,23 @@ const isWhiteList = (path) => {
   return whiteList.some(pattern => isPathMatch(pattern, path))
 }
 
+/**
+ * 目录型路由（有 children 但自己不是页面）默认 redirect 是 'noRedirect'，
+ * 直接访问目录地址会落到 404。这里递归改成跳到第一个子页面，避免
+ * 「/profile」「/medical」「/system/log」这类地址一打开就是 404。
+ */
+const withFirstChildRedirect = (route) => {
+  if (!route.children || !route.children.length) return route
+  route.children.forEach(withFirstChildRedirect)
+  if (route.redirect && route.redirect !== 'noRedirect') return route
+  const first = route.children[0]
+  const base = route.path.endsWith('/') ? route.path.slice(0, -1) : route.path
+  const childPath = first.path.startsWith('/') ? first.path : `${base}/${first.path}`
+  // 子级自身也是目录时，指到它的 redirect 上，逐层收敛到真正的页面
+  route.redirect = !first.component && first.redirect && first.redirect !== 'noRedirect' ? first.redirect : childPath
+  return route
+}
+
 router.beforeEach(async (to, from) => {
   NProgress.start()
   if (getToken()) {
@@ -48,7 +65,7 @@ router.beforeEach(async (to, from) => {
         const accessRoutes = await usePermissionStore().generateRoutes()
         accessRoutes.forEach(route => {
           if (!isHttp(route.path)) {
-            router.addRoute(route)
+            router.addRoute(withFirstChildRedirect(route))
           }
         })
         // 重新导航到目标路由，确保动态路由已注册
