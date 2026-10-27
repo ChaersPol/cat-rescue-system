@@ -261,6 +261,12 @@ function handleExport() {
   proxy.download("cat/expense/export", { ...queryParams.value }, `expense_${new Date().getTime()}.xlsx`)
 }
 
+// 从看板「支出结构」柱子点击进来时，按费用类型预筛选
+const route = useRoute()
+if (route.query.expenseType) {
+   queryParams.value.expenseType = String(route.query.expenseType)
+}
+
 loadStockOptions()
 getList()
 </script>
