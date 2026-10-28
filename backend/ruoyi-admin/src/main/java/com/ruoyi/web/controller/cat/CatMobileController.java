@@ -13,12 +13,14 @@ import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.SysRole;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.cat.domain.CatReminder;
 import com.ruoyi.cat.service.ICatReminderService;
 import com.ruoyi.system.service.ISysRoleService;
 import org.springframework.web.bind.annotation.PutMapping;
 import com.ruoyi.cat.domain.CatProfile;
 import com.ruoyi.cat.domain.CatConfig;
+import com.ruoyi.cat.domain.CatPhoto;
 import com.ruoyi.cat.domain.CatDiagnosis;
 import com.ruoyi.cat.domain.CatMedication;
 import com.ruoyi.cat.domain.CatVaccine;
@@ -35,6 +37,7 @@ import com.ruoyi.cat.mapper.CatReferralMapper;
 import com.ruoyi.cat.mapper.CatFlowMapper;
 import com.ruoyi.cat.mapper.CatDeathMapper;
 import com.ruoyi.cat.mapper.CatConfigMapper;
+import com.ruoyi.cat.mapper.CatPhotoMapper;
 
 /**
  * 移动端扫码档案查询控制器（免登录）
@@ -64,9 +67,43 @@ public class CatMobileController
     @Autowired
     private CatConfigMapper catConfigMapper;
     @Autowired
+    private CatPhotoMapper catPhotoMapper;
+    @Autowired
     private ICatReminderService catReminderService;
     @Autowired
     private ISysRoleService roleService;
+
+    /**
+     * 挑一张猫咪照片作扫码页头像：优先「正面照」，没有就取相册最新一张图片
+     * 优先返回缩略图地址（手机流量友好），缩略图为空时回退原图
+     */
+    private String pickAvatarUrl(Long catId)
+    {
+        CatPhoto hit = queryFirstImage(catId, "正面照");
+        if (hit == null)
+        {
+            hit = queryFirstImage(catId, null);
+        }
+        if (hit == null)
+        {
+            return "";
+        }
+        String url = StringUtils.isNotEmpty(hit.getThumbUrl()) ? hit.getThumbUrl() : hit.getFileUrl();
+        return url == null ? "" : url;
+    }
+
+    private CatPhoto queryFirstImage(Long catId, String folder)
+    {
+        CatPhoto query = new CatPhoto();
+        query.setCatId(catId);
+        query.setFileType("1");
+        if (folder != null)
+        {
+            query.setFolder(folder);
+        }
+        List<CatPhoto> photos = catPhotoMapper.selectCatPhotoList(query);
+        return (photos == null || photos.isEmpty()) ? null : photos.get(0);
+    }
 
     /**
      * 读取扫码权限方案：A=公开模式（仅基础信息），B=内部模式（含全部病历）
@@ -100,6 +137,8 @@ public class CatMobileController
 
         Map<String, Object> result = new HashMap<>();
         result.put("profile", profile);
+        // 头像照片（相册里挑一张，没有则前端回退成名字首字）
+        result.put("avatar", pickAvatarUrl(catId));
 
         // 扫码权限方案：A 模式仅返回基础信息，医疗病历需登录后台查看
         String scanMode = getScanPermissionMode();

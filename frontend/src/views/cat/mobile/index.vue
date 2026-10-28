@@ -3,7 +3,8 @@
     <!-- 顶部档案卡片 -->
     <div class="profile-header">
       <div class="profile-avatar">
-        <span>{{ profile.catName ? profile.catName.charAt(0) : '猫' }}</span>
+        <img v-if="avatarSrc" :src="avatarSrc" alt="" @error="avatarBroken = true" />
+        <span v-else>{{ profile.catName ? profile.catName.charAt(0) : '猫' }}</span>
       </div>
       <div class="profile-info">
         <div class="profile-name">{{ profile.catName || '未知猫咪' }}</div>
@@ -79,6 +80,17 @@ const timeline = ref([])
 const loading = ref(true)
 const notFound = ref(false)
 const needLogin = ref(false)
+// 头像：优先相册照片，取不到或加载失败时回退成名字首字
+const avatarUrl = ref('')
+const avatarBroken = ref(false)
+
+const avatarSrc = computed(() => {
+  if (avatarBroken.value || !avatarUrl.value) return ''
+  const url = avatarUrl.value
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url
+  const base = import.meta.env.VITE_APP_BASE_API
+  return base + (url.startsWith('/') ? url : '/' + url)
+})
 
 const sexLabel = computed(() => {
   const map = { '0': '公', '1': '母', '2': '未知' }
@@ -107,6 +119,7 @@ function getData() {
       profile.value = response.data.profile || {}
       timeline.value = response.data.timeline || []
       needLogin.value = response.data.needLogin === true
+      avatarUrl.value = response.data.avatar || ''
     } else {
       notFound.value = true
     }
@@ -147,6 +160,14 @@ getData()
   font-size: 28px;
   margin-right: 16px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .profile-name {
