@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatWard;
 import com.ruoyi.cat.service.ICatWardService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 病房 控制器
@@ -32,6 +33,9 @@ public class CatWardController extends BaseController
 {
     @Autowired
     private ICatWardService wardIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:ward:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatWardController extends BaseController
     public void export(HttpServletResponse response, CatWard wardId)
     {
         List<CatWard> list = wardIdService.selectCatWardList(wardId);
+        refNameFiller.fill(list);
         ExcelUtil<CatWard> util = new ExcelUtil<CatWard>(CatWard.class);
         util.exportExcel(response, list, "病房数据");
     }

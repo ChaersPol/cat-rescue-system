@@ -1,5 +1,7 @@
 package com.ruoyi.cat.domain;
 import java.math.BigDecimal;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -12,18 +14,27 @@ public class CatMaterial extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 物资id */
+    @Excel(name = "物资ID", cellType = ColumnType.NUMERIC)
     private Long materialId;
     /** 物资分类id */
     private Long categoryId;
+    /** 物资分类名称（导出展示用，非表字段） */
+    @Excel(name = "物资分类")
+    private String materialCategoryRefName;
     /** 物资名称 */
+    @Excel(name = "物资名称")
     private String materialName;
     /** 规格 */
+    @Excel(name = "规格")
     private String spec;
     /** 单位 */
+    @Excel(name = "单位")
     private String unit;
     /** 当前库存 */
+    @Excel(name = "当前库存", cellType = ColumnType.NUMERIC)
     private BigDecimal stock;
     /** 库存预警阈值 */
+    @Excel(name = "库存预警阈值", cellType = ColumnType.NUMERIC)
     private BigDecimal minStock;
     /** 库存状态筛选（low=库存不足 ok=库存正常），非持久化字段 */
     private String stockStatus;
@@ -52,6 +63,14 @@ public class CatMaterial extends BaseEntity
     public void setCategoryId(Long categoryId)
     {
         this.categoryId = categoryId;
+    }
+    public String getMaterialCategoryRefName()
+    {
+        return materialCategoryRefName;
+    }
+    public void setMaterialCategoryRefName(String materialCategoryRefName)
+    {
+        this.materialCategoryRefName = materialCategoryRefName;
     }
     public String getMaterialName()
     {

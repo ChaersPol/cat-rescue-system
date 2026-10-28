@@ -11,7 +11,34 @@ import { listCatWard } from '@/api/cat/ward'
  *   import { useCatCache } from "@/utils/catCache"
  *   const { catLabel } = useCatCache()
  *   <span>{{ catLabel(scope.row.catId) }}</span>
+ *
+ * ⚠️ 猫咪在所有列表里的展示写法固定为「名字（档案编号）」，例如「毛豆（CAT202610180024）」。
+ * 只允许在 formatCatLabel 里定义，页面**不要自己拼字符串**，否则改格式要全站翻一遍。
  */
+
+/**
+ * 猫咪展示名：名字（档案编号）
+ * 名字为空显示「未命名」，档案编号为空时只显示名字（不出现空括号）
+ */
+export function formatCatLabel(catName, archiveNo) {
+  const name = String(catName === undefined || catName === null ? '' : catName).trim() || '未命名'
+  const no = String(archiveNo === undefined || archiveNo === null ? '' : archiveNo).trim()
+  return no ? `${name}（${no}）` : name
+}
+
+/**
+ * 从页面自己已加载的下拉数据里解析猫咪展示名（避免再发一次请求）
+ * @param {Array|Ref<Array>} options 形如 [{ catId, catName, archiveNo }]
+ * @param {number|string} catId
+ */
+export function catLabelOf(options, catId) {
+  if (catId === undefined || catId === null || catId === '') {
+    return '-'
+  }
+  const list = Array.isArray(options) ? options : ((options && options.value) || [])
+  const item = list.find(i => String(i.catId) === String(catId))
+  return item ? formatCatLabel(item.catName, item.archiveNo) : '#' + catId
+}
 
 function createCache(loader, idKey, buildLabel) {
   const map = ref({})
@@ -59,7 +86,7 @@ function createCache(loader, idKey, buildLabel) {
 const catCache = createCache(
   () => listCatProfile({ pageNum: 1, pageSize: 500 }),
   'catId',
-  c => `${c.archiveNo || ''} ${c.catName || ''}`.trim()
+  c => formatCatLabel(c.catName, c.archiveNo)
 )
 
 const baseCache = createCache(
@@ -74,7 +101,7 @@ const wardCache = createCache(
   w => w.wardName || '#' + w.wardId
 )
 
-/** 猫咪：catLabel(catId) 得到「档案编号 名字」 */
+/** 猫咪：catLabel(catId) 得到「名字（档案编号）」 */
 export function useCatCache() {
   catCache.load()
   return { catMap: catCache.map, catLabel: catCache.label, reloadCatCache: () => catCache.load(true) }

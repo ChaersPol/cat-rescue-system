@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatTnr;
 import com.ruoyi.cat.service.ICatTnrService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * TNR抓捕登记 控制器
@@ -32,6 +33,9 @@ public class CatTnrController extends BaseController
 {
     @Autowired
     private ICatTnrService tnrIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:tnr:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatTnrController extends BaseController
     public void export(HttpServletResponse response, CatTnr tnrId)
     {
         List<CatTnr> list = tnrIdService.selectCatTnrList(tnrId);
+        refNameFiller.fill(list);
         ExcelUtil<CatTnr> util = new ExcelUtil<CatTnr>(CatTnr.class);
         util.exportExcel(response, list, "TNR抓捕登记数据");
     }

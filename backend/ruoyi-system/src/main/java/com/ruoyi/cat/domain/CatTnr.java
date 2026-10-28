@@ -2,6 +2,8 @@ package com.ruoyi.cat.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -14,31 +16,46 @@ public class CatTnr extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** TNR记录id */
+    @Excel(name = "TNR记录ID", cellType = ColumnType.NUMERIC)
     private Long tnrId;
     /** 关联猫咪档案id */
     private Long catId;
+    /** 猫咪（名称+档案号），导出展示用非表字段 */
+    @Excel(name = "猫咪")
+    private String catRefName;
     /** 抓捕时间 */
+    @Excel(name = "抓捕时间", dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date captureTime;
     /** 抓捕点位 */
+    @Excel(name = "抓捕点位")
     private String capturePoint;
-    /** 猫咪信息 */
+    /** 猫咪信息（未建档时现场登记的名字） */
+    @Excel(name = "现场登记名")
     private String catName;
     /** 是否剪耳标记 */
+    @Excel(name = "是否剪耳标记", dictType = "cat_yes_no")
     private String earMarked;
     /** 绝育手术日期 */
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    @Excel(name = "绝育手术日期", dateFormat = "yyyy-MM-dd")
     private Date surgeryDate;
     /** 手术医生 */
+    @Excel(name = "手术医生")
     private String surgeon;
     /** 手术记录 */
+    @Excel(name = "手术记录")
     private String surgeryRecord;
     /** 术前术后检查 */
+    @Excel(name = "术前术后检查")
     private String prePostCheck;
     /** 麻醉备注 */
+    @Excel(name = "麻醉备注")
     private String anesthesiaNote;
     /** 术后观察记录 */
+    @Excel(name = "术后观察记录")
     private String postObservation;
     /** 结果（0待定 1放归 2转入基地饲养） */
+    @Excel(name = "结果", dictType = "cat_tnr_result")
     private String result;
     public Long getTnrId()
     {
@@ -55,6 +72,14 @@ public class CatTnr extends BaseEntity
     public void setCatId(Long catId)
     {
         this.catId = catId;
+    }
+    public String getCatRefName()
+    {
+        return catRefName;
+    }
+    public void setCatRefName(String catRefName)
+    {
+        this.catRefName = catRefName;
     }
     public Date getCaptureTime()
     {

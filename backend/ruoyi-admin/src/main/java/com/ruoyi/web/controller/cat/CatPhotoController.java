@@ -21,6 +21,7 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatPhoto;
 import com.ruoyi.cat.service.CatThumbnailService;
 import com.ruoyi.cat.service.ICatPhotoService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 猫咪照片 控制器
@@ -36,6 +37,9 @@ public class CatPhotoController extends BaseController
 
     @Autowired
     private CatThumbnailService thumbnailService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     /**
      * 批量重建缩略图（历史数据补齐 / 安装 ffmpeg 后回补视频封面）
@@ -76,6 +80,7 @@ public class CatPhotoController extends BaseController
     public void export(HttpServletResponse response, CatPhoto photoId)
     {
         List<CatPhoto> list = photoIdService.selectCatPhotoList(photoId);
+        refNameFiller.fill(list);
         ExcelUtil<CatPhoto> util = new ExcelUtil<CatPhoto>(CatPhoto.class);
         util.exportExcel(response, list, "猫咪照片数据");
     }

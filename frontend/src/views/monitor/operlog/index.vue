@@ -81,6 +81,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['monitor:operlog:remove']"
@@ -108,7 +109,8 @@
       </el-row>
 
       <el-table ref="operlogRef" v-loading="loading" :data="operlogList" @selection-change="handleSelectionChange" :default-sort="defaultSort" @sort-change="handleSortChange">
-         <el-table-column type="selection" width="50" align="center" />
+         <el-table-column type="selection" width="50" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="日志编号" align="center" prop="operId" />
          <el-table-column label="系统模块" align="center" prop="title" :show-overflow-tooltip="true" />
          <el-table-column label="操作类型" align="center" prop="businessType">
@@ -133,7 +135,7 @@
                <span>{{ scope.row.costTime }}毫秒</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" v-if="checkPermi(['monitor:operlog:query'])">
             <template #default="scope">
                <el-button link type="primary" icon="View" @click="handleDetail(scope.row, scope.index)" v-hasPermi="['monitor:operlog:query']">详细</el-button>
             </template>

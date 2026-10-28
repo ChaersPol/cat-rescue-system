@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatExpense;
 import com.ruoyi.cat.service.ICatExpenseService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 财务支出 控制器
@@ -32,6 +33,9 @@ public class CatExpenseController extends BaseController
 {
     @Autowired
     private ICatExpenseService expenseIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:expense:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatExpenseController extends BaseController
     public void export(HttpServletResponse response, CatExpense expenseId)
     {
         List<CatExpense> list = expenseIdService.selectCatExpenseList(expenseId);
+        refNameFiller.fill(list);
         ExcelUtil<CatExpense> util = new ExcelUtil<CatExpense>(CatExpense.class);
         util.exportExcel(response, list, "财务支出数据");
     }

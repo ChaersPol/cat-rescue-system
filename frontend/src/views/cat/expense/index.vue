@@ -21,10 +21,10 @@
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:expense:add']">新增</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:expense:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" v-if="$route.meta.canRemove" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:expense:edit']">修改</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:expense:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:expense:remove']">删除</el-button>
          </el-col>
          <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:expense:export']">导出</el-button>
@@ -33,7 +33,8 @@
       </el-row>
 
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="费用类型" align="center" prop="expenseType">
             <template #default="scope">
                <dict-tag :options="cat_expense_type" :value="scope.row.expenseType" />
@@ -43,7 +44,7 @@
          <el-table-column label="供应商" align="center" prop="supplier" :show-overflow-tooltip="true" />
          <el-table-column label="清单/说明" align="center" prop="items" :show-overflow-tooltip="true" />
          <el-table-column label="金额" align="center" prop="amount" :show-overflow-tooltip="true" />
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:expense:edit', 'cat:expense:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:expense:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:expense:remove']">删除</el-button>

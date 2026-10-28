@@ -21,6 +21,7 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.service.ICatFlowService;
 import com.ruoyi.cat.service.ICatTransferService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 流转记录 控制器
@@ -37,6 +38,9 @@ public class CatFlowController extends BaseController
     @Autowired
     private ICatTransferService catTransferService;
 
+    @Autowired
+    private CatRefNameFiller refNameFiller;
+
     @PreAuthorize("@ss.hasPermi('cat:flow:list')")
     @GetMapping("/list")
     public TableDataInfo list(CatFlow flowId)
@@ -52,6 +56,7 @@ public class CatFlowController extends BaseController
     public void export(HttpServletResponse response, CatFlow flowId)
     {
         List<CatFlow> list = flowIdService.selectCatFlowList(flowId);
+        refNameFiller.fill(list);
         ExcelUtil<CatFlow> util = new ExcelUtil<CatFlow>(CatFlow.class);
         util.exportExcel(response, list, "流转记录数据");
     }

@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatDeath;
 import com.ruoyi.cat.service.ICatDeathService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 死亡台账 控制器
@@ -32,6 +33,9 @@ public class CatDeathController extends BaseController
 {
     @Autowired
     private ICatDeathService deathIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:death:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatDeathController extends BaseController
     public void export(HttpServletResponse response, CatDeath deathId)
     {
         List<CatDeath> list = deathIdService.selectCatDeathList(deathId);
+        refNameFiller.fill(list);
         ExcelUtil<CatDeath> util = new ExcelUtil<CatDeath>(CatDeath.class);
         util.exportExcel(response, list, "死亡台账数据");
     }

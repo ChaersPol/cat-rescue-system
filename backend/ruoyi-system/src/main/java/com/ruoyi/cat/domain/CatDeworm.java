@@ -2,6 +2,8 @@ package com.ruoyi.cat.domain;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -14,18 +16,26 @@ public class CatDeworm extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 驱虫记录id */
+    @Excel(name = "驱虫记录ID", cellType = ColumnType.NUMERIC)
     private Long dewormId;
     /** 猫咪id */
     private Long catId;
+    /** 猫咪（名称+档案号），导出展示用非表字段 */
+    @Excel(name = "猫咪")
+    private String catRefName;
     /** 驱虫类型 */
+    @Excel(name = "驱虫类型", dictType = "cat_deworm_type")
     private String dewormType;
     /** 驱虫药 */
+    @Excel(name = "驱虫药")
     private String dewormDrug;
     /** 驱虫日期 */
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    @Excel(name = "驱虫日期", dateFormat = "yyyy-MM-dd")
     private Date dewormDate;
     /** 下次驱虫时间 */
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    @Excel(name = "下次驱虫时间", dateFormat = "yyyy-MM-dd")
     private Date nextDate;
     public Long getDewormId()
     {
@@ -42,6 +52,14 @@ public class CatDeworm extends BaseEntity
     public void setCatId(Long catId)
     {
         this.catId = catId;
+    }
+    public String getCatRefName()
+    {
+        return catRefName;
+    }
+    public void setCatRefName(String catRefName)
+    {
+        this.catRefName = catRefName;
     }
     public String getDewormType()
     {

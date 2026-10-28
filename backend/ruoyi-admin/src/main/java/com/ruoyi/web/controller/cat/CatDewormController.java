@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatDeworm;
 import com.ruoyi.cat.service.ICatDewormService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 驱虫记录 控制器
@@ -32,6 +33,9 @@ public class CatDewormController extends BaseController
 {
     @Autowired
     private ICatDewormService dewormIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:deworm:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatDewormController extends BaseController
     public void export(HttpServletResponse response, CatDeworm dewormId)
     {
         List<CatDeworm> list = dewormIdService.selectCatDewormList(dewormId);
+        refNameFiller.fill(list);
         ExcelUtil<CatDeworm> util = new ExcelUtil<CatDeworm>(CatDeworm.class);
         util.exportExcel(response, list, "驱虫记录数据");
     }

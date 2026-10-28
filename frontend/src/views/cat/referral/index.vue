@@ -3,7 +3,7 @@
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="猫咪" prop="catId">
         <el-select v-model="queryParams.catId" placeholder="全部猫咪" clearable filterable style="width: 200px">
-          <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+          <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
@@ -27,13 +27,18 @@
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:referral:add']">送医登记</el-button>
       </el-col>
       <el-col :span="1.5">
+        <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:referral:remove']">删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:referral:export']">导出</el-button>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="list">
-      <el-table-column label="猫咪" align="center" width="170">
+    <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+      <el-table-column label="猫咪" align="center" width="220">
         <template #default="scope">{{ catName(scope.row.catId) }}</template>
       </el-table-column>
       <el-table-column label="送医时间" align="center" prop="sendDate" width="160" />
@@ -52,7 +57,7 @@
           <span v-if="!scope.row.result && !scope.row.dischargeTo">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="250" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="250" class-name="small-padding fixed-width" v-if="checkPermi(['cat:referral:edit', 'cat:referral:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Finished" @click="handleDischarge(scope.row)" v-hasPermi="['cat:referral:edit']">出院登记</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:referral:edit']">修改</el-button>
@@ -67,7 +72,7 @@
       <el-form ref="referralRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item label="猫咪" prop="catId">
           <el-select v-model="form.catId" placeholder="请选择猫咪" filterable style="width: 100%" :disabled="form.referralId != undefined">
-            <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+            <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
           </el-select>
         </el-form-item>
         <el-form-item label="送医时间" prop="sendDate">
@@ -131,6 +136,7 @@
 import { listCatReferral, getCatReferral, delCatReferral, addCatReferral, updateCatReferral } from '@/api/cat/referral'
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from '@/api/cat/profile'
+import { catLabelOf, formatCatLabel } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
 
 const { proxy } = getCurrentInstance()
@@ -141,6 +147,8 @@ const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
 const total = ref(0)
+const ids = ref([])
+const multiple = ref(true)
 const title = ref('')
 const catOptions = ref([])
 const baseOptions = ref([])
@@ -165,10 +173,8 @@ const { queryParams, form, rules } = toRefs(data)
 // 表单草稿：填到一半误关闭不丢内容（需求文档 13）
 const draft = useFormDraft('cat-referral-form', form)
 
-function catName(catId) {
-  const c = catOptions.value.find(i => i.catId === catId)
-  return c ? c.catName : (catId ? '#' + catId : '-')
-}
+// 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
+const catName = catId => catLabelOf(catOptions, catId)
 
 function statusLabel(s) {
   return { '0': '治疗中', '1': '已出院', '2': '已离世' }[s] || '未知'
@@ -282,9 +288,15 @@ function submitForm() {
   })
 }
 
+function handleSelectionChange(selection) {
+  ids.value = selection.map(item => item.referralId)
+  multiple.value = !selection.length
+}
+
 function handleDelete(row) {
+  const delIds = row.referralId || ids.value
   proxy.$modal.confirm('是否确认删除该转诊记录？').then(function () {
-    return delCatReferral(row.referralId)
+    return delCatReferral(delIds)
   }).then(() => {
     getList()
     proxy.$modal.msgSuccess('删除成功')

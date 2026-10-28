@@ -54,6 +54,12 @@ public interface CatProfileMapper
     public List<CatProfile> selectQrCodeByIds(Long[] catIds);
 
     /**
+     * 按 id 批量查询「猫咪信息卡」打印所需数据
+     * 含二维码、最近疫苗、最近送医、最近诊断、最近用药，一次查全
+     */
+    public List<com.ruoyi.cat.domain.CatCardVo> selectCardsByIds(Long[] catIds);
+
+    /**
      * 更新归档状态（0 未归档 1 已归档）
      */
     public int updateArchived(@Param("catId") Long catId, @Param("archived") String archived);

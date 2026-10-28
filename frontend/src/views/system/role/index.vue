@@ -64,6 +64,7 @@
                type="success"
                plain
                icon="Edit"
+               v-if="$route.meta.canRemove"
                :disabled="single"
                @click="handleUpdate"
                v-hasPermi="['system:role:edit']"
@@ -74,6 +75,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['system:role:remove']"
@@ -93,7 +95,8 @@
 
       <!-- 表格数据 -->
       <el-table v-loading="loading" :data="roleList" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="角色编号" prop="roleId" width="120" />
          <el-table-column label="角色名称" prop="roleName" :show-overflow-tooltip="true" width="150" />
          <el-table-column label="权限字符" prop="roleKey" :show-overflow-tooltip="true" width="150" />
@@ -113,7 +116,7 @@
                <span>{{ parseTime(scope.row.createTime) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" v-if="checkPermi(['system:role:edit', 'system:role:remove'])">
             <template #default="scope">
               <el-tooltip content="修改" placement="top" v-if="scope.row.roleId !== 1">
                 <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:role:edit']"></el-button>

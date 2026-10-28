@@ -32,6 +32,7 @@
     </el-row>
 
     <el-table v-loading="loading" :data="list">
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
       <el-table-column label="物资" align="center" width="180">
         <template #default="scope">{{ materialName(scope.row.materialId) }}</template>
       </el-table-column>
@@ -57,7 +58,7 @@
       <el-table-column label="用途" align="center" prop="purpose" min-width="160" :show-overflow-tooltip="true" />
       <el-table-column label="备注" align="center" prop="remark" min-width="140" :show-overflow-tooltip="true" />
       <el-table-column label="操作人" align="center" prop="operator" width="100" />
-      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width" v-if="checkPermi(['cat:stockrecord:edit'])">
         <template #default="scope">
           <el-button link type="danger" icon="RefreshLeft" @click="handleReverse(scope.row)" v-hasPermi="['cat:stockrecord:edit']">冲销</el-button>
         </template>

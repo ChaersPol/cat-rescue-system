@@ -57,6 +57,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['monitor:logininfor:remove']"
@@ -76,6 +77,7 @@
                type="primary"
                plain
                icon="Unlock"
+               v-if="$route.meta.canRemove"
                :disabled="single"
                @click="handleUnlock"
                v-hasPermi="['monitor:logininfor:unlock']"
@@ -94,7 +96,8 @@
       </el-row>
 
       <el-table ref="logininforRef" v-loading="loading" :data="logininforList" @selection-change="handleSelectionChange" :default-sort="defaultSort" @sort-change="handleSortChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="访问编号" align="center" prop="infoId" />
          <el-table-column label="用户名称" align="center" prop="userName" :show-overflow-tooltip="true" sortable="custom" :sort-orders="['descending', 'ascending']" />
          <el-table-column label="地址" align="center" prop="ipaddr" :show-overflow-tooltip="true" />

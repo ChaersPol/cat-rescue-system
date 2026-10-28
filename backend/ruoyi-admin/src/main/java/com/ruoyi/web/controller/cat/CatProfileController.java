@@ -335,6 +335,19 @@ public class CatProfileController extends BaseController
     }
 
     /**
+     * 猫咪信息卡打印数据（含二维码、最近疫苗/送医/诊断/用药）
+     */
+    @GetMapping("/cards")
+    public AjaxResult cards(@RequestParam("catIds") Long[] catIds)
+    {
+        if (catIds == null || catIds.length == 0)
+        {
+            return success(new ArrayList<>());
+        }
+        return success(catProfileMapper.selectCardsByIds(catIds));
+    }
+
+    /**
      * 归档（离世 / 放归 / 领养后不再出现在在养列表）
      */
     @PreAuthorize("@ss.hasPermi('cat:profile:edit')")

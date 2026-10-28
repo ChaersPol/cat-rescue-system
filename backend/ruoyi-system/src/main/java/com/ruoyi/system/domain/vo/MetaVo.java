@@ -29,6 +29,13 @@ public class MetaVo
      */
     private String link;
 
+    /**
+     * 当前用户在该模块是否拥有删除权限。
+     * 菜单树本身已按用户权限过滤，该值等于「本模块下存在用户可见的 :remove 按钮」，
+     * 前端据此决定表格多选列与批量操作按钮是否渲染。
+     */
+    private Boolean canRemove = Boolean.FALSE;
+
     public MetaVo()
     {
     }
@@ -102,5 +109,15 @@ public class MetaVo
     public void setLink(String link)
     {
         this.link = link;
+    }
+
+    public Boolean getCanRemove()
+    {
+        return canRemove;
+    }
+
+    public void setCanRemove(Boolean canRemove)
+    {
+        this.canRemove = canRemove;
     }
 }

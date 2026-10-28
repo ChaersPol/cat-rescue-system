@@ -22,6 +22,7 @@
     />
 
     <el-table v-loading="loading" :data="userList">
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
       <el-table-column label="用户ID" align="center" prop="userId" width="90" />
       <el-table-column label="登录账号" align="center" prop="userName" width="140" />
       <el-table-column label="用户昵称" align="center" prop="nickName" width="140" />
@@ -34,7 +35,7 @@
           <span v-if="!(authMap[scope.row.userId] || []).length" class="text-muted">未授权</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width" v-if="checkPermi(['cat:wardauth:edit', 'cat:wardauth:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Setting" @click="handleAuth(scope.row)" v-hasPermi="['cat:wardauth:edit']">配置授权</el-button>
           <el-button link type="danger" icon="Delete" @click="handleClear(scope.row)" v-hasPermi="['cat:wardauth:remove']">清空</el-button>

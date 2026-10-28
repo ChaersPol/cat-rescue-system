@@ -1,4 +1,6 @@
 package com.ruoyi.cat.domain;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -11,12 +13,16 @@ public class CatConfig extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 配置id */
+    @Excel(name = "配置ID", cellType = ColumnType.NUMERIC)
     private Long configId;
     /** 配置键 */
+    @Excel(name = "配置键")
     private String configKey;
     /** 配置值 */
+    @Excel(name = "配置值")
     private String configValue;
     /** 配置说明 */
+    @Excel(name = "配置说明")
     private String configName;
     public Long getConfigId()
     {

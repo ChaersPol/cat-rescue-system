@@ -26,19 +26,20 @@
         <el-button type="primary" plain icon="Refresh" @click="handleGenerate" v-hasPermi="['cat:reminder:list']">生成到期提醒</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button type="success" plain icon="Check" :disabled="multiple" @click="handleMarkReadBatch" v-hasPermi="['cat:reminder:edit']">标记已读</el-button>
+        <el-button type="success" plain icon="Check" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleMarkReadBatch" v-hasPermi="['cat:reminder:edit']">标记已读</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:reminder:add']">新增</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:reminder:remove']">删除</el-button>
+        <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:reminder:remove']">删除</el-button>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
     <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange" :row-class-name="rowClassName">
-      <el-table-column type="selection" width="45" align="center" />
+      <el-table-column type="selection" width="45" align="center" v-if="$route.meta.canRemove" />
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
       <el-table-column label="类型" align="center" prop="reminderType" width="90">
         <template #default="scope">
           <el-tag :type="typeTag(scope.row.reminderType)" size="small">{{ scope.row.reminderType }}</el-tag>
@@ -46,7 +47,7 @@
       </el-table-column>
       <el-table-column label="标题" align="center" prop="title" width="150" :show-overflow-tooltip="true" />
       <el-table-column label="内容" align="center" prop="content" min-width="240" :show-overflow-tooltip="true" />
-      <el-table-column label="关联猫咪" align="center" prop="catId" width="110">
+      <el-table-column label="关联猫咪" align="center" prop="catId" width="220">
         <template #default="scope">
           <span v-if="scope.row.catId">{{ catName(scope.row.catId) }}</span>
           <span v-else>-</span>
@@ -69,7 +70,7 @@
           <el-tag v-else size="small" type="info" effect="plain">全员</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width" v-if="checkPermi(['cat:reminder:edit', 'cat:reminder:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Check" @click="handleMarkRead(scope.row)" v-hasPermi="['cat:reminder:edit']">已读</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:reminder:edit']">修改</el-button>
@@ -89,7 +90,7 @@
         </el-form-item>
         <el-form-item label="关联猫咪" prop="catId">
           <el-select v-model="form.catId" placeholder="可不选（库存类提醒）" clearable filterable style="width: 100%">
-            <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+            <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
           </el-select>
         </el-form-item>
         <el-form-item label="标题" prop="title">
@@ -127,6 +128,7 @@ import {
   markReadBatchCatReminder
 } from '@/api/cat/reminder'
 import { listCatProfile } from '@/api/cat/profile'
+import { catLabelOf, formatCatLabel } from '@/utils/catCache'
 
 const { proxy } = getCurrentInstance()
 
@@ -139,7 +141,6 @@ const multiple = ref(true)
 const total = ref(0)
 const title = ref('')
 const catOptions = ref([])
-const catMap = ref({})
 
 const typeOptions = ['疫苗', '驱虫', '回访', '库存', '转诊', '其他']
 
@@ -160,9 +161,8 @@ const data = reactive({
 
 const { queryParams, form, rules } = toRefs(data)
 
-function catName(catId) {
-  return catMap.value[catId] || '#' + catId
-}
+// 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
+const catName = catId => catLabelOf(catOptions, catId)
 
 function isOverdue(row) {
   if (!row.remindDate || row.status !== '0') return false
@@ -181,9 +181,6 @@ function typeTag(type) {
 function loadCats() {
   listCatProfile({ pageNum: 1, pageSize: 999 }).then(res => {
     catOptions.value = res.rows || []
-    const map = {}
-    catOptions.value.forEach(c => (map[c.catId] = c.catName))
-    catMap.value = map
   })
 }
 

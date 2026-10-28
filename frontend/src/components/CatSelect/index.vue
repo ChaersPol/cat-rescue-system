@@ -15,8 +15,8 @@
       :label="buildLabel(item)"
       :value="item.catId"
     >
-      <span class="cat-select-label">{{ item.archiveNo }}</span>
       <span class="cat-select-name">{{ item.catName }}</span>
+      <span class="cat-select-label" v-if="item.archiveNo">（{{ item.archiveNo }}）</span>
       <span v-if="item.breed" class="cat-select-breed">{{ item.breed }}</span>
     </el-option>
     <template #empty>
@@ -27,9 +27,10 @@
 
 <script setup name="CatSelect">
 import { listCatProfile, getCatProfile } from "@/api/cat/profile"
+import { formatCatLabel } from "@/utils/catCache"
 
 /**
- * 猫咪选择器：用「档案编号 · 名字」展示，避免表单里只能看到一个数字 id。
+ * 猫咪选择器：用「名字（档案编号）」展示，避免表单里只能看到一个数字 id。
  * 用法：<cat-select v-model="form.catId" />
  */
 const props = defineProps({
@@ -57,8 +58,9 @@ const innerValue = computed({
   set: (val) => emit("update:modelValue", val)
 })
 
+// 全站统一写法：名字（档案编号）
 function buildLabel(item) {
-  return `${item.archiveNo || ""} ${item.catName || ""}`.trim()
+  return formatCatLabel(item.catName, item.archiveNo)
 }
 
 function loadOptions() {
@@ -120,6 +122,7 @@ onMounted(() => {
 .cat-select-label {
   color: #909399;
   font-size: 12px;
+  margin-left: 4px;
   margin-right: 8px;
 }
 .cat-select-name {

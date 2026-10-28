@@ -1,4 +1,6 @@
 package com.ruoyi.cat.domain;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -11,18 +13,25 @@ public class CatBase extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 基地id */
+    @Excel(name = "基地ID", cellType = ColumnType.NUMERIC)
     private Long baseId;
     /** 基地名称 */
+    @Excel(name = "基地名称")
     private String baseName;
     /** 基地类型（1饲养基地 2医疗基地 3放归点位） */
+    @Excel(name = "基地类型", dictType = "cat_base_type")
     private String baseType;
     /** 基地负责人 */
+    @Excel(name = "基地负责人")
     private String leader;
     /** 联系电话 */
+    @Excel(name = "联系电话")
     private String phone;
     /** 基地地址 */
+    @Excel(name = "基地地址")
     private String address;
     /** 状态（0正常 1停用） */
+    @Excel(name = "状态", dictType = "sys_normal_disable")
     private String status;
     public Long getBaseId()
     {

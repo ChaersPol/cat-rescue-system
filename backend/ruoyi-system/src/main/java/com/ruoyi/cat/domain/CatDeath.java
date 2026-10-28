@@ -1,5 +1,7 @@
 package com.ruoyi.cat.domain;
 import java.util.Date;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -12,26 +14,39 @@ public class CatDeath extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 死亡记录id */
+    @Excel(name = "死亡记录ID", cellType = ColumnType.NUMERIC)
     private Long deathId;
     /** 猫咪id */
     private Long catId;
+    /** 猫咪（名称+档案号），导出展示用非表字段 */
+    @Excel(name = "猫咪")
+    private String catRefName;
     /** 死亡日期 */
+    @Excel(name = "死亡日期", dateFormat = "yyyy-MM-dd")
     private Date deathDate;
     /** 死亡地点 */
+    @Excel(name = "死亡地点")
     private String deathPlace;
     /** 死亡类型 */
+    @Excel(name = "死亡类型", dictType = "cat_death_type")
     private String deathType;
     /** 死因描述 */
+    @Excel(name = "死因描述")
     private String deathReason;
     /** 既往病史 */
+    @Excel(name = "既往病史")
     private String history;
     /** 遗体处理方式 */
+    @Excel(name = "遗体处理方式")
     private String bodyDisposal;
     /** 操作医生 */
+    @Excel(name = "操作医生")
     private String doctor;
     /** 登记人 */
+    @Excel(name = "登记人")
     private String registrar;
     /** 照片 */
+    @Excel(name = "照片")
     private String photos;
     public Long getDeathId()
     {
@@ -48,6 +63,14 @@ public class CatDeath extends BaseEntity
     public void setCatId(Long catId)
     {
         this.catId = catId;
+    }
+    public String getCatRefName()
+    {
+        return catRefName;
+    }
+    public void setCatRefName(String catRefName)
+    {
+        this.catRefName = catRefName;
     }
     public Date getDeathDate()
     {

@@ -91,3 +91,12 @@ export function listCatQrCodes(catIds) {
     params: { catIds: Array.isArray(catIds) ? catIds.join(',') : catIds }
   })
 }
+
+// 批量取「猫咪信息卡」打印数据（含二维码、最近疫苗/送医/诊断/用药）
+export function listCatCards(catIds) {
+  return request({
+    url: '/cat/profile/cards',
+    method: 'get',
+    params: { catIds: Array.isArray(catIds) ? catIds.join(',') : catIds }
+  })
+}

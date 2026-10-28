@@ -3,7 +3,7 @@
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="猫咪" prop="catId">
         <el-select v-model="queryParams.catId" placeholder="全部猫咪" clearable filterable style="width: 200px">
-          <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+          <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
       <el-form-item label="死亡类型" prop="deathType">
@@ -30,13 +30,18 @@
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:death:add']">死亡登记</el-button>
       </el-col>
       <el-col :span="1.5">
+        <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:death:remove']">删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:death:export']">导出</el-button>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="list">
-      <el-table-column label="猫咪" align="center" width="170">
+    <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+      <el-table-column label="猫咪" align="center" width="220">
         <template #default="scope">{{ catName(scope.row.catId) }}</template>
       </el-table-column>
       <el-table-column label="死亡时间" align="center" prop="deathDate" width="160" />
@@ -49,7 +54,7 @@
       <el-table-column label="死因描述" align="center" prop="deathReason" min-width="220" :show-overflow-tooltip="true" />
       <el-table-column label="医生" align="center" prop="doctor" width="100" />
       <el-table-column label="登记人" align="center" prop="registrar" width="100" />
-      <el-table-column label="操作" align="center" width="140" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="140" class-name="small-padding fixed-width" v-if="checkPermi(['cat:death:edit', 'cat:death:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:death:edit']">修改</el-button>
           <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:death:remove']">删除</el-button>
@@ -63,7 +68,7 @@
       <el-form ref="deathRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="猫咪" prop="catId">
           <el-select v-model="form.catId" placeholder="请选择猫咪" filterable style="width: 100%" :disabled="form.deathId != undefined">
-            <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+            <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
           </el-select>
         </el-form-item>
         <el-form-item label="死亡时间" prop="deathDate">
@@ -110,6 +115,7 @@
 import { listCatDeath, getCatDeath, delCatDeath, addCatDeath, updateCatDeath } from '@/api/cat/death'
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from '@/api/cat/profile'
+import { catLabelOf, formatCatLabel } from '@/utils/catCache'
 
 const { proxy } = getCurrentInstance()
 const { cat_death_type } = proxy.useDict('cat_death_type')
@@ -121,6 +127,8 @@ const showSearch = ref(true)
 const total = ref(0)
 const title = ref('')
 const catOptions = ref([])
+const ids = ref([])
+const multiple = ref(true)
 
 const data = reactive({
   form: {},
@@ -142,10 +150,8 @@ const { queryParams, form, rules } = toRefs(data)
 // 表单草稿：填到一半误关闭不丢内容（需求文档 13）
 const draft = useFormDraft('cat-death-form', form)
 
-function catName(catId) {
-  const c = catOptions.value.find(i => i.catId === catId)
-  return c ? c.catName : (catId ? '#' + catId : '-')
-}
+// 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
+const catName = catId => catLabelOf(catOptions, catId)
 
 function deathTypeLabel(v) {
   const d = (cat_death_type.value || []).find(i => i.value === v)
@@ -245,9 +251,15 @@ function submitForm() {
   })
 }
 
+function handleSelectionChange(selection) {
+  ids.value = selection.map(item => item.deathId)
+  multiple.value = !selection.length
+}
+
 function handleDelete(row) {
+  const delIds = row.deathId || ids.value
   proxy.$modal.confirm('是否确认删除该死亡记录？').then(function () {
-    return delCatDeath(row.deathId)
+    return delCatDeath(delIds)
   }).then(() => {
     getList()
     proxy.$modal.msgSuccess('删除成功')

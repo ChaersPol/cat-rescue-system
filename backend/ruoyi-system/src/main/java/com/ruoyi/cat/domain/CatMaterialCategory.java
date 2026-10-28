@@ -1,4 +1,6 @@
 package com.ruoyi.cat.domain;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -11,12 +13,16 @@ public class CatMaterialCategory extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 分类id */
+    @Excel(name = "分类ID", cellType = ColumnType.NUMERIC)
     private Long categoryId;
     /** 物资分类名称 */
+    @Excel(name = "物资分类名称")
     private String categoryName;
     /** 显示顺序 */
+    @Excel(name = "显示顺序", cellType = ColumnType.NUMERIC)
     private Integer orderNum;
     /** 状态 */
+    @Excel(name = "状态", dictType = "sys_normal_disable")
     private String status;
     public Long getCategoryId()
     {

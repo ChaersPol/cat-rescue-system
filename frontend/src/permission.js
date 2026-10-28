@@ -76,6 +76,12 @@ router.beforeEach(async (to, from) => {
         return { path: '/' }
       }
     }
+    // 静态详情页（分配用户、字典数据、调度日志等）没有后端下发的 meta，
+    // 从 activeMenu 指向的主菜单继承「删除权限」，保证多选列判断与主列表一致
+    if (to.meta.canRemove === undefined && to.meta.activeMenu) {
+      const parent = router.resolve(to.meta.activeMenu)
+      to.meta.canRemove = !!(parent.meta && parent.meta.canRemove)
+    }
     return true
   } else {
     // 没有token

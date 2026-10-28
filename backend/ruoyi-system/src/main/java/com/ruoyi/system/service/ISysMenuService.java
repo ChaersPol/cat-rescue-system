@@ -66,9 +66,10 @@ public interface ISysMenuService
      * 构建前端路由所需要的菜单
      * 
      * @param menus 菜单列表
+     * @param userPerms 当前用户拥有的权限标识集合，用于下发 meta.canRemove（可为 null）
      * @return 路由列表
      */
-    public List<RouterVo> buildMenus(List<SysMenu> menus);
+    public List<RouterVo> buildMenus(List<SysMenu> menus, Set<String> userPerms);
 
     /**
      * 构建前端所需要树结构

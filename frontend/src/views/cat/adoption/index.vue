@@ -9,7 +9,7 @@
          </el-form-item>
          <el-form-item label="猫咪" prop="catId">
             <el-select v-model="queryParams.catId" placeholder="全部猫咪" clearable filterable style="width: 200px">
-               <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+               <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
             </el-select>
          </el-form-item>
          <el-form-item>
@@ -23,10 +23,10 @@
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:adoption:add']">新增领养</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:adoption:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" v-if="$route.meta.canRemove" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:adoption:edit']">修改</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:adoption:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:adoption:remove']">删除</el-button>
          </el-col>
          <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:adoption:export']">导出</el-button>
@@ -35,8 +35,9 @@
       </el-row>
 
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
-         <el-table-column label="猫咪" align="center" prop="catId" min-width="160">
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+         <el-table-column label="猫咪" align="center" prop="catId" min-width="210">
             <template #default="scope">
                <span v-if="scope.row.catId">{{ catLabel(scope.row.catId) }}</span>
                <span v-else>-</span>
@@ -57,7 +58,7 @@
                <el-tag v-else type="info" size="small">未上传</el-tag>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:adoption:edit', 'cat:adoption:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:adoption:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:adoption:remove']">删除</el-button>
@@ -71,7 +72,7 @@
          <el-form ref="formRef" :model="form" :rules="rules" label-width="96px">
             <el-form-item label="领养猫咪" prop="catId">
                <el-select v-model="form.catId" placeholder="请选择猫咪" filterable style="width: 100%">
-                  <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+                  <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
                </el-select>
             </el-form-item>
             <el-row>
@@ -125,6 +126,7 @@
 import { listCatAdoption, getCatAdoption, delCatAdoption, addCatAdoption, updateCatAdoption } from "@/api/cat/adoption"
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from "@/api/cat/profile"
+import { catLabelOf, formatCatLabel } from "@/utils/catCache"
 
 const { proxy } = getCurrentInstance()
 
@@ -159,10 +161,8 @@ const { queryParams, form, rules } = toRefs(data)
 // 表单草稿：填到一半误关闭不丢内容（需求文档 13）
 const draft = useFormDraft('cat-adoption-form', form)
 
-function catLabel(catId) {
-  const c = catOptions.value.find(x => x.catId === catId)
-  return c ? c.catName + '（' + c.archiveNo + '）' : '#' + catId
-}
+// 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
+const catLabel = catId => catLabelOf(catOptions, catId)
 
 function loadCats() {
   listCatProfile({ pageNum: 1, pageSize: 999 }).then(res => {

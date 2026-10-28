@@ -1,4 +1,6 @@
 package com.ruoyi.cat.domain;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -11,12 +13,16 @@ public class CatTag extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 标签id */
+    @Excel(name = "标签ID", cellType = ColumnType.NUMERIC)
     private Long tagId;
     /** 标签名称 */
+    @Excel(name = "标签名称")
     private String tagName;
     /** 标签分组 */
+    @Excel(name = "标签分组")
     private String tagGroup;
     /** 状态（0正常 1停用） */
+    @Excel(name = "状态", dictType = "sys_normal_disable")
     private String status;
     public Long getTagId()
     {

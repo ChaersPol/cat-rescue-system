@@ -21,6 +21,7 @@ import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatDiagnosis;
 import com.ruoyi.cat.service.ICatDiagnosisService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 站内诊断记录 控制器
@@ -33,6 +34,9 @@ public class CatDiagnosisController extends BaseController
 {
     @Autowired
     private ICatDiagnosisService diagnosisIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
     @GetMapping("/list")
@@ -49,6 +53,7 @@ public class CatDiagnosisController extends BaseController
     public void export(HttpServletResponse response, CatDiagnosis diagnosisId)
     {
         List<CatDiagnosis> list = diagnosisIdService.selectCatDiagnosisList(diagnosisId);
+        refNameFiller.fill(list);
         ExcelUtil<CatDiagnosis> util = new ExcelUtil<CatDiagnosis>(CatDiagnosis.class);
         util.exportExcel(response, list, "站内诊断记录数据");
     }

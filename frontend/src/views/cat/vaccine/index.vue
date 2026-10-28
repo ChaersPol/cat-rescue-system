@@ -20,10 +20,10 @@
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:vaccine:add']">新增</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:vaccine:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" v-if="$route.meta.canRemove" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:vaccine:edit']">修改</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:vaccine:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:vaccine:remove']">删除</el-button>
          </el-col>
          <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:vaccine:export']">导出</el-button>
@@ -32,7 +32,8 @@
       </el-row>
 
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="猫咪" align="center" prop="catId" width="210" :show-overflow-tooltip="true">
             <template #default="scope">
                {{ catLabel(scope.row.catId) }}
@@ -46,7 +47,7 @@
          <el-table-column label="接种日期" align="center" prop="vaccineDate" :show-overflow-tooltip="true" />
          <el-table-column label="下次接种" align="center" prop="nextDate" :show-overflow-tooltip="true" />
          <el-table-column label="负责人" align="center" prop="responsible" :show-overflow-tooltip="true" />
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:vaccine:edit', 'cat:vaccine:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:vaccine:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:vaccine:remove']">删除</el-button>

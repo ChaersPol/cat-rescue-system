@@ -27,6 +27,7 @@ import './permission' // permission control
 
 import { useDict } from '@/utils/dict'
 import { getConfigKey } from "@/api/system/config"
+import { checkPermi } from '@/utils/permission'
 import { parseTime, resetForm, addDateRange, handleTree, selectDictLabel, selectDictLabels } from '@/utils/ruoyi'
 
 // 分页组件
@@ -49,6 +50,7 @@ const app = createApp(App)
 
 // 全局方法挂载
 app.config.globalProperties.useDict = useDict
+app.config.globalProperties.checkPermi = checkPermi
 app.config.globalProperties.download = download
 app.config.globalProperties.downloadGet = downloadGet
 app.config.globalProperties.parseTime = parseTime
@@ -58,6 +60,18 @@ app.config.globalProperties.addDateRange = addDateRange
 app.config.globalProperties.getConfigKey = getConfigKey
 app.config.globalProperties.selectDictLabel = selectDictLabel
 app.config.globalProperties.selectDictLabels = selectDictLabels
+
+/**
+ * 表格序号：跨页连续。
+ * 配合 <el-table-column type="index" :index="i => $seqIndex(i, queryParams)" /> 使用，
+ * 第 2 页（pageSize=10）首行返回 11，而不是从 1 重新开始。
+ * 不分页的表格可直接传 $seqIndex(i)。
+ */
+app.config.globalProperties.$seqIndex = (index, params) => {
+  const pageNum = Number(params && params.pageNum) || 1
+  const pageSize = Number(params && params.pageSize) || 10
+  return (pageNum - 1) * pageSize + index + 1
+}
 
 // 全局组件挂载
 app.component('DictTag', DictTag)

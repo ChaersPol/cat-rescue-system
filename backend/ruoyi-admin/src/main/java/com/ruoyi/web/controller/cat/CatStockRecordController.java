@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatStockRecord;
 import com.ruoyi.cat.service.ICatStockRecordService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 物资出入库记录 控制器
@@ -32,6 +33,9 @@ public class CatStockRecordController extends BaseController
 {
     @Autowired
     private ICatStockRecordService recordIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:stockrecord:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatStockRecordController extends BaseController
     public void export(HttpServletResponse response, CatStockRecord recordId)
     {
         List<CatStockRecord> list = recordIdService.selectCatStockRecordList(recordId);
+        refNameFiller.fill(list);
         ExcelUtil<CatStockRecord> util = new ExcelUtil<CatStockRecord>(CatStockRecord.class);
         util.exportExcel(response, list, "物资出入库记录数据");
     }

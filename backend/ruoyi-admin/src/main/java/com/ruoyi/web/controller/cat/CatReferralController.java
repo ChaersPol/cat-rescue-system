@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatReferral;
 import com.ruoyi.cat.service.ICatReferralService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 外送医院转诊记录 控制器
@@ -32,6 +33,9 @@ public class CatReferralController extends BaseController
 {
     @Autowired
     private ICatReferralService referralIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:referral:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatReferralController extends BaseController
     public void export(HttpServletResponse response, CatReferral referralId)
     {
         List<CatReferral> list = referralIdService.selectCatReferralList(referralId);
+        refNameFiller.fill(list);
         ExcelUtil<CatReferral> util = new ExcelUtil<CatReferral>(CatReferral.class);
         util.exportExcel(response, list, "外送医院转诊记录数据");
     }

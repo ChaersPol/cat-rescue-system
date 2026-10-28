@@ -1,5 +1,7 @@
 package com.ruoyi.cat.domain;
 import java.util.Date;
+import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.annotation.Excel.ColumnType;
 import com.ruoyi.common.core.domain.BaseEntity;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -12,32 +14,50 @@ public class CatReferral extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
     /** 转诊记录id */
+    @Excel(name = "转诊记录ID", cellType = ColumnType.NUMERIC)
     private Long referralId;
     /** 猫咪id */
     private Long catId;
+    /** 猫咪（名称+档案号），导出展示用非表字段 */
+    @Excel(name = "猫咪")
+    private String catRefName;
     /** 送医时间 */
+    @Excel(name = "送医时间", dateFormat = "yyyy-MM-dd")
     private Date sendDate;
     /** 送医原因 */
+    @Excel(name = "送医原因")
     private String sendReason;
     /** 送往医院名称 */
+    @Excel(name = "送往医院名称")
     private String hospitalName;
     /** 医院检查结果 */
+    @Excel(name = "医院检查结果")
     private String hospitalCheck;
     /** 医院诊断 */
+    @Excel(name = "医院诊断")
     private String hospitalDiagnosis;
     /** 医院处方 */
+    @Excel(name = "医院处方")
     private String hospitalPrescription;
     /** 病历化验单照片视频 */
+    @Excel(name = "病历资料")
     private String files;
     /** 医院处置结论 */
+    @Excel(name = "医院处置结论", dictType = "cat_hospital_result")
     private String result;
     /** 出院去向 */
+    @Excel(name = "出院去向", dictType = "cat_discharge_to")
     private String dischargeTo;
     /** 转入指定基地id */
     private Long targetBaseId;
+    /** 转入基地（名称+类型），导出展示用非表字段 */
+    @Excel(name = "转入基地")
+    private String targetBaseRefName;
     /** 出院医嘱、康复评估 */
+    @Excel(name = "出院医嘱")
     private String dischargeAdvice;
     /** 状态（0治疗中 1已出院 2已离世） */
+    @Excel(name = "状态", dictType = "cat_referral_status")
     private String status;
     public Long getReferralId()
     {
@@ -54,6 +74,14 @@ public class CatReferral extends BaseEntity
     public void setCatId(Long catId)
     {
         this.catId = catId;
+    }
+    public String getCatRefName()
+    {
+        return catRefName;
+    }
+    public void setCatRefName(String catRefName)
+    {
+        this.catRefName = catRefName;
     }
     public Date getSendDate()
     {
@@ -134,6 +162,14 @@ public class CatReferral extends BaseEntity
     public void setTargetBaseId(Long targetBaseId)
     {
         this.targetBaseId = targetBaseId;
+    }
+    public String getTargetBaseRefName()
+    {
+        return targetBaseRefName;
+    }
+    public void setTargetBaseRefName(String targetBaseRefName)
+    {
+        this.targetBaseRefName = targetBaseRefName;
     }
     public String getDischargeAdvice()
     {

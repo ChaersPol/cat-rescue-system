@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatRelease;
 import com.ruoyi.cat.service.ICatReleaseService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * TNR放归登记 控制器
@@ -32,6 +33,9 @@ public class CatReleaseController extends BaseController
 {
     @Autowired
     private ICatReleaseService releaseIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:release:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatReleaseController extends BaseController
     public void export(HttpServletResponse response, CatRelease releaseId)
     {
         List<CatRelease> list = releaseIdService.selectCatReleaseList(releaseId);
+        refNameFiller.fill(list);
         ExcelUtil<CatRelease> util = new ExcelUtil<CatRelease>(CatRelease.class);
         util.exportExcel(response, list, "TNR放归登记数据");
     }

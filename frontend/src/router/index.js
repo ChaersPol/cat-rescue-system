@@ -131,7 +131,7 @@ export const constantRoutes = [
       {
         path: 'profile/:activeTab?',
         component: () => import('@/views/system/user/profile/index'),
-        // 名字不能叫 Profile：菜单「猫咪档案」一级目录 path=profile，若依会自动生成同名路由 'Profile'
+        // 名字不能叫 Profile：菜单「猫咪档案」一级目录 path=profile，框架会自动生成同名路由 'Profile'
         // 后注册的动态路由会把这条常量路由顶掉，导致 /user/profile 变成 404
         name: 'UserProfile',
         meta: { title: '个人中心', icon: 'user' }

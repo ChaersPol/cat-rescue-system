@@ -20,10 +20,10 @@
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:feeCategory:add']">新增</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:feeCategory:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" v-if="$route.meta.canRemove" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:feeCategory:edit']">修改</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:feeCategory:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:feeCategory:remove']">删除</el-button>
          </el-col>
          <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:feeCategory:export']">导出</el-button>
@@ -32,7 +32,8 @@
       </el-row>
 
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="分类名称" align="center" prop="categoryName" :show-overflow-tooltip="true" />
          <el-table-column label="费用类型" align="center" prop="categoryType">
             <template #default="scope">
@@ -45,7 +46,7 @@
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:feeCategory:edit', 'cat:feeCategory:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:feeCategory:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:feeCategory:remove']">删除</el-button>
@@ -205,7 +206,7 @@ function handleDelete(row) {
 }
 
 function handleExport() {
-  proxy.download("cat/feeCategory/export", { ...queryParams.value }, `feeCategory_${new Date().getTime()}.xlsx`)
+  proxy.download("cat/feecategory/export", { ...queryParams.value }, `feecategory_${new Date().getTime()}.xlsx`)
 }
 
 getList()

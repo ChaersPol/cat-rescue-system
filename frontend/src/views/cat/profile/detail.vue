@@ -92,6 +92,7 @@
           <template #header><span>流转轨迹（{{ flows.length }}）</span></template>
           <el-empty v-if="!flows.length" description="暂无流转记录" :image-size="60" />
           <el-table v-else :data="flows" size="small" border>
+            <el-table-column label="序号" type="index" :index="i => $seqIndex(i)" width="56" align="center" />
             <el-table-column label="时间" width="160" align="center">
               <template #default="scope">{{ scope.row.operateTime || '—' }}</template>
             </el-table-column>

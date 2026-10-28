@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatVisit;
 import com.ruoyi.cat.service.ICatVisitService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 回访记录 控制器
@@ -32,6 +33,9 @@ public class CatVisitController extends BaseController
 {
     @Autowired
     private ICatVisitService visitIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:visit:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatVisitController extends BaseController
     public void export(HttpServletResponse response, CatVisit visitId)
     {
         List<CatVisit> list = visitIdService.selectCatVisitList(visitId);
+        refNameFiller.fill(list);
         ExcelUtil<CatVisit> util = new ExcelUtil<CatVisit>(CatVisit.class);
         util.exportExcel(response, list, "回访记录数据");
     }

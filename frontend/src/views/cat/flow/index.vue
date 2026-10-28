@@ -3,7 +3,7 @@
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="猫咪" prop="catId">
         <el-select v-model="queryParams.catId" placeholder="全部猫咪" clearable filterable style="width: 200px">
-          <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+          <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
       <el-form-item label="流转类型" prop="flowType">
@@ -31,7 +31,8 @@
     </el-row>
 
     <el-table v-loading="loading" :data="list">
-      <el-table-column label="猫咪" align="center" prop="catId" width="170">
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+      <el-table-column label="猫咪" align="center" prop="catId" width="220">
         <template #default="scope">
           <span>{{ catName(scope.row.catId) }}</span>
         </template>
@@ -69,7 +70,7 @@
       </el-table-column>
       <el-table-column label="操作人" align="center" prop="operateBy" width="110" />
       <el-table-column label="操作时间" align="center" prop="operateTime" width="160" />
-      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width" v-if="checkPermi(['cat:flow:edit'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:flow:edit']">补充备注</el-button>
         </template>
@@ -82,7 +83,7 @@
       <el-form ref="flowRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item label="猫咪" prop="catId">
           <el-select v-model="form.catId" placeholder="请选择猫咪" filterable style="width: 100%" @change="onCatChange">
-            <el-option v-for="c in catOptions" :key="c.catId" :label="c.catName + '（' + c.archiveNo + '）'" :value="c.catId" />
+            <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
           </el-select>
         </el-form-item>
         <el-form-item label="流转类型" prop="flowType">
@@ -136,6 +137,7 @@
 <script setup name="CatFlow">
 import { listCatFlow, getCatFlow, addCatFlow, updateCatFlow } from '@/api/cat/flow'
 import { listCatProfile } from '@/api/cat/profile'
+import { catLabelOf, formatCatLabel } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
 import { listCatWard } from '@/api/cat/ward'
 
@@ -171,10 +173,8 @@ const data = reactive({
 
 const { queryParams, form, rules } = toRefs(data)
 
-function catName(catId) {
-  const c = catOptions.value.find(i => i.catId === catId)
-  return c ? c.catName : (catId ? '#' + catId : '-')
-}
+// 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
+const catName = catId => catLabelOf(catOptions, catId)
 
 function baseName(baseId) {
   const b = baseOptions.value.find(i => i.baseId === baseId)

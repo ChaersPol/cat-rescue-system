@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatAdoption;
 import com.ruoyi.cat.service.ICatAdoptionService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 领养登记 控制器
@@ -32,6 +33,9 @@ public class CatAdoptionController extends BaseController
 {
     @Autowired
     private ICatAdoptionService adoptionIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:adoption:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatAdoptionController extends BaseController
     public void export(HttpServletResponse response, CatAdoption adoptionId)
     {
         List<CatAdoption> list = adoptionIdService.selectCatAdoptionList(adoptionId);
+        refNameFiller.fill(list);
         ExcelUtil<CatAdoption> util = new ExcelUtil<CatAdoption>(CatAdoption.class);
         util.exportExcel(response, list, "领养登记数据");
     }

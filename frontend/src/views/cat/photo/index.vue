@@ -29,6 +29,9 @@
         <el-button type="success" plain icon="RefreshRight" :loading="rebuilding" @click="handleRebuildThumb" v-hasPermi="['cat:photo:edit']">重建缩略图</el-button>
       </el-col>
       <el-col :span="1.5">
+        <el-button v-if="viewMode === 'table'" type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:photo:remove']">删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-radio-group v-model="viewMode" size="small">
           <el-radio-button label="grid">相册视图</el-radio-button>
           <el-radio-button label="table">列表视图</el-radio-button>
@@ -88,7 +91,9 @@
     </div>
 
     <!-- 列表视图 -->
-    <el-table v-else v-loading="loading" :data="list">
+    <el-table v-else v-loading="loading" :data="list" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+      <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
       <el-table-column label="缩略图" align="center" width="120">
         <template #default="scope">
           <div v-if="isVideo(scope.row)" class="cell-thumb" @click="openVideo(scope.row)">
@@ -111,7 +116,9 @@
           </el-image>
         </template>
       </el-table-column>
-      <el-table-column label="猫咪ID" align="center" prop="catId" width="90" />
+      <el-table-column label="猫咪" align="center" prop="catId" width="220" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catLabel(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="相册分类" align="center" prop="folder" width="110" />
       <el-table-column label="类型" align="center" prop="fileType" width="90">
         <template #default="scope">
@@ -128,7 +135,7 @@
         </template>
       </el-table-column>
       <el-table-column label="文件地址" align="center" prop="fileUrl" :show-overflow-tooltip="true" />
-      <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:photo:edit', 'cat:photo:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:photo:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:photo:remove']">删除</el-button>
@@ -205,6 +212,8 @@ const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
 const total = ref(0)
+const ids = ref([])
+const multiple = ref(true)
 const title = ref('')
 const viewMode = ref('grid')
 const rebuilding = ref(false)
@@ -367,9 +376,15 @@ function submitForm() {
   })
 }
 
+function handleSelectionChange(selection) {
+  ids.value = selection.map(item => item.photoId)
+  multiple.value = !selection.length
+}
+
 function handleDelete(row) {
+  const delIds = row.photoId || ids.value
   proxy.$modal.confirm('是否确认删除该照片？缩略图会随原文件一并保留在磁盘上。').then(function () {
-    return delCatPhoto(row.photoId)
+    return delCatPhoto(delIds)
   }).then(() => {
     getList()
     proxy.$modal.msgSuccess('删除成功')

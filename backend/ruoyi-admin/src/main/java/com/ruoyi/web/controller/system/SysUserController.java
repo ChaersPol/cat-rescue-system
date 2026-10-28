@@ -27,6 +27,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
+import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysDeptService;
 import com.ruoyi.system.service.ISysPostService;
 import com.ruoyi.system.service.ISysRoleService;
@@ -52,6 +53,9 @@ public class SysUserController extends BaseController
 
     @Autowired
     private ISysPostService postService;
+
+    @Autowired
+    private ISysConfigService configService;
 
     /**
      * 获取用户列表
@@ -201,7 +205,9 @@ public class SysUserController extends BaseController
     {
         userService.checkUserAllowed(user);
         userService.checkUserDataScope(user.getUserId());
-        user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
+        // 重置密码统一重置为系统参数「初始化密码」，不接受前端传入的自定义密码
+        String initPassword = configService.selectConfigByKey("sys.user.initPassword");
+        user.setPassword(SecurityUtils.encryptPassword(initPassword));
         user.setUpdateBy(getUsername());
         return toAjax(userService.resetPwd(user));
     }

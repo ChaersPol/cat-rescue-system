@@ -65,6 +65,7 @@
                type="success"
                plain
                icon="Edit"
+               v-if="$route.meta.canRemove"
                :disabled="single"
                @click="handleUpdate"
                v-hasPermi="['system:dict:edit']"
@@ -75,6 +76,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['system:dict:remove']"
@@ -102,7 +104,8 @@
       </el-row>
 
       <el-table v-loading="loading" :data="typeList" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="字典编号" align="center" prop="dictId" />
          <el-table-column label="字典名称" align="center" prop="dictName" :show-overflow-tooltip="true"/>
          <el-table-column label="字典类型" align="center" :show-overflow-tooltip="true">
@@ -121,7 +124,7 @@
                <span>{{ parseTime(scope.row.createTime) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width" v-if="checkPermi(['system:dict:edit', 'system:dict:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:dict:edit']">修改</el-button>
                <el-button link type="primary" icon="Operation" @click="handleDataList(scope.row)" v-hasPermi="['system:dict:edit']">列表</el-button>

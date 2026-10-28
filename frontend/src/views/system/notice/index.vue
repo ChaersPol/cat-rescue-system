@@ -50,6 +50,7 @@
                type="success"
                plain
                icon="Edit"
+               v-if="$route.meta.canRemove"
                :disabled="single"
                @click="handleUpdate"
                v-hasPermi="['system:notice:edit']"
@@ -60,6 +61,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['system:notice:remove']"
@@ -69,8 +71,9 @@
       </el-row>
 
       <el-table v-loading="loading" :data="noticeList" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
-         <el-table-column label="序号" align="center" prop="noticeId" width="100" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+         <el-table-column label="公告ID" align="center" prop="noticeId" width="100" />
          <el-table-column label="公告标题" align="center" :show-overflow-tooltip="true">
             <template #default="scope">
                <a class="link-type" style="cursor:pointer" @click="handleViewData(scope.row)">{{ scope.row.noticeTitle }}</a>
@@ -92,7 +95,7 @@
                <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d}') }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" v-if="checkPermi(['system:notice:list', 'system:notice:edit', 'system:notice:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="User" @click="handleReadUsers(scope.row)" v-hasPermi="['system:notice:list']">阅读用户</el-button>
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:notice:edit']">修改</el-button>

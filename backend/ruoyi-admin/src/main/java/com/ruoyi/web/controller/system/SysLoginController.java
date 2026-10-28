@@ -103,7 +103,7 @@ public class SysLoginController
     {
         Long userId = SecurityUtils.getUserId();
         List<SysMenu> menus = menuService.selectMenuTreeByUserId(userId);
-        return AjaxResult.success(menuService.buildMenus(menus));
+        return AjaxResult.success(menuService.buildMenus(menus, SecurityUtils.getLoginUser().getPermissions()));
     }
 
     // 获取用户密码自定义配置规则

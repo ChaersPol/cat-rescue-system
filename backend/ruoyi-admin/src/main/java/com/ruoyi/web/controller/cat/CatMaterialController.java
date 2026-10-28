@@ -20,6 +20,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatMaterial;
 import com.ruoyi.cat.service.ICatMaterialService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 物资 控制器
@@ -32,6 +33,9 @@ public class CatMaterialController extends BaseController
 {
     @Autowired
     private ICatMaterialService materialIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:material:list')")
     @GetMapping("/list")
@@ -48,6 +52,7 @@ public class CatMaterialController extends BaseController
     public void export(HttpServletResponse response, CatMaterial materialId)
     {
         List<CatMaterial> list = materialIdService.selectCatMaterialList(materialId);
+        refNameFiller.fill(list);
         ExcelUtil<CatMaterial> util = new ExcelUtil<CatMaterial>(CatMaterial.class);
         util.exportExcel(response, list, "物资数据");
     }

@@ -23,6 +23,7 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatReminder;
 import com.ruoyi.cat.service.ICatReminderService;
 import com.ruoyi.cat.service.impl.CatReminderGenerateService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 import com.ruoyi.system.service.ISysRoleService;
 
 /**
@@ -47,6 +48,9 @@ public class CatReminderController extends BaseController
 
     @Autowired
     private ISysRoleService roleService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     /**
      * 手动生成到期提醒

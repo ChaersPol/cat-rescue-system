@@ -27,6 +27,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="ownerBaseId" column="owner_base_id" />
         <result property="hospitalName" column="hospital_name" />
         <result property="qrCode" column="qr_code" />
+        <!-- 列表不返回 base64 本体，只返回是否已生成，供「二维码」列展示 -->
+        <result property="hasQrCode" column="has_qr_code" />
         <result property="archived" column="archived" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
@@ -39,9 +41,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
     </sql>
 
-    <!-- 列表查询不返回 Base64 二维码，避免列表接口数据过大 -->
+    <!-- 列表查询不返回 Base64 二维码，避免列表接口数据过大；只带 has_qr_code 标记 -->
     <sql id="selectCatProfileListVo">
-        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, archived, create_by, create_time, update_by, update_time, remark from cat_profile
+        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, (case when qr_code is not null and qr_code &lt;&gt; '' then 1 else 0 end) as has_qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
     </sql>
 
     <select id="selectCatProfileById" parameterType="Long" resultMap="CatProfileResult">
@@ -68,6 +70,67 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectQrCodeByIds" resultMap="CatProfileResult">
         select cat_id, archive_no, cat_name, qr_code from cat_profile
         where del_flag = '0' and cat_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <!-- 猫咪信息卡：一次查全卡片所需字段（含二维码与各业务表最近一条记录） -->
+    <resultMap type="CatCardVo" id="CatCardResult">
+        <result property="catId" column="cat_id" />
+        <result property="archiveNo" column="archive_no" />
+        <result property="catName" column="cat_name" />
+        <result property="sex" column="sex" />
+        <result property="neutered" column="neutered" />
+        <result property="weight" column="weight" />
+        <result property="status" column="status" />
+        <result property="baseName" column="base_name" />
+        <result property="wardName" column="ward_name" />
+        <result property="remark" column="remark" />
+        <result property="qrCode" column="qr_code" />
+        <result property="photoUrl" column="photo_url" />
+        <result property="photoFolder" column="photo_folder" />
+        <result property="vaccineText" column="vaccine_text" />
+        <result property="hospitalText" column="hospital_text" />
+        <result property="diagnosisText" column="diagnosis_text" />
+        <result property="medicationText" column="medication_text" />
+    </resultMap>
+
+    <select id="selectCardsByIds" resultMap="CatCardResult">
+        select p.cat_id, p.archive_no, p.cat_name, p.sex, p.neutered, p.weight, p.status,
+               p.remark, p.qr_code,
+               b.base_name, w.ward_name,
+               ph.photo_url, ph.photo_folder,
+               (select concat(ifnull(v.vaccine_type, '疫苗'), ' · ', date_format(v.vaccine_date, '%Y-%m-%d'))
+                  from cat_vaccine v
+                 where v.cat_id = p.cat_id and v.del_flag = '0'
+                 order by v.vaccine_date desc, v.vaccine_id desc limit 1) as vaccine_text,
+               coalesce(
+                   (select concat(r.hospital_name, ' · ', date_format(r.send_date, '%Y-%m-%d'))
+                      from cat_referral r
+                     where r.cat_id = p.cat_id and r.del_flag = '0'
+                     order by r.send_date desc, r.referral_id desc limit 1),
+                   nullif(p.hospital_name, '')
+               ) as hospital_text,
+               (select concat(date_format(d.visit_date, '%Y-%m-%d'), ' ', ifnull(d.diagnosis_result, ''))
+                  from cat_diagnosis d
+                 where d.cat_id = p.cat_id and d.del_flag = '0'
+                 order by d.visit_date desc, d.diagnosis_id desc limit 1) as diagnosis_text,
+               (select group_concat(concat(date_format(m.use_date, '%m-%d'), ' ', ifnull(m.drug_name, ''), ifnull(concat(' ', m.dosage), ''))
+                       order by m.use_date desc, m.medication_id desc separator '\n')
+                  from cat_medication m
+                 where m.cat_id = p.cat_id and m.del_flag = '0') as medication_text
+          from cat_profile p
+          left join cat_base b on b.base_id = p.base_id
+          left join cat_ward w on w.ward_id = p.ward_id
+          <!-- 特征照片：优先「正面照」文件夹，其次取最新一张图片 -->
+          left join lateral (
+              select coalesce(nullif(p2.thumb_url, ''), p2.file_url) as photo_url,
+                     p2.folder as photo_folder
+                from cat_photo p2
+               where p2.cat_id = p.cat_id and p2.file_type = '1'
+               order by (p2.folder = '正面照') desc, p2.create_time desc, p2.photo_id desc
+               limit 1
+          ) ph on true
+         where p.cat_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
     </select>
 

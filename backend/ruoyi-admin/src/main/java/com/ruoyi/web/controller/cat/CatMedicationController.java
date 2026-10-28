@@ -21,6 +21,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatMedication;
 import com.ruoyi.cat.service.ICatMedicationService;
+import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
  * 每日用药记录 控制器
@@ -33,6 +34,9 @@ public class CatMedicationController extends BaseController
 {
     @Autowired
     private ICatMedicationService medicationIdService;
+
+    @Autowired
+    private CatRefNameFiller refNameFiller;
 
     @PreAuthorize("@ss.hasPermi('cat:medication:list')")
     @GetMapping("/list")
@@ -49,6 +53,7 @@ public class CatMedicationController extends BaseController
     public void export(HttpServletResponse response, CatMedication medicationId)
     {
         List<CatMedication> list = medicationIdService.selectCatMedicationList(medicationId);
+        refNameFiller.fill(list);
         ExcelUtil<CatMedication> util = new ExcelUtil<CatMedication>(CatMedication.class);
         util.exportExcel(response, list, "每日用药记录数据");
     }

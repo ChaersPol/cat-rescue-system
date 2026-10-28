@@ -1,6 +1,6 @@
 # 流浪动物救助管理系统
 
-基于若依（RuoYi）框架开发的流浪动物救助站管理系统，覆盖猫咪全生命周期档案、医疗病历、TNR 绝育放归、领养回访、财务物资、提醒通知等 20+ 功能模块，并提供扫码 H5 档案页。
+基于 Spring Boot 3 + Vue 3 开发的流浪动物救助站管理系统，覆盖猫咪全生命周期档案、医疗病历、TNR 绝育放归、领养回访、财务物资、提醒通知等 20+ 功能模块，并提供扫码 H5 档案页。
 
 ## 技术栈
 
@@ -14,28 +14,15 @@
 
 ```
 ├── backend/          # 后端（RuoYi-Vue springboot3）
-│   ├── sql/          # 数据库脚本
-│   │   ├── ry_20260417.sql              # 若依基础表（框架自带）
-│   │   ├── cat_rescue_20261025.sql      # 业务表（25 张）
-│   │   ├── cat_menu_20261025.sql        # 菜单与权限（初始版）
-│   │   ├── cat_menu_extra_20261025.sql  # 补充菜单：看板/相册/授权/配置 + 按钮权限
-│   │   ├── cat_dict_20261025.sql        # 字典数据（23 组）
-│   │   ├── cat_dict_extra_20261025.sql  # 补充字典（10 组：基地类型/是否/时间段/流转类型等）
-│   │   ├── cat_job_20261025.sql         # 定时任务 + 提醒/阈值配置项
-│   │   ├── cat_photo_thumb_20261025.sql # 升级脚本：照片缩略图字段
-│   │   ├── cat_org_users_20261026.sql   # 组织架构 + 三类角色 + 8 个测试账号（可重复执行）
-│   │   ├── cat_base_ward_20261026.sql   # 基地/病房/病房授权/B基地猫咪（可重复执行）
-│   │   ├── cat_reminder_header_20261026.sql # 提醒已读表 + 收件岗位配置 + 顶栏铃铛数据（可重复执行）
-│   │   ├── cat_admin_split_20261026.sql # 超级管理员拆分 + 业务管理员角色与账号（可重复执行）
-│   │   ├── cat_diagnosis_correction_20261027.sql # 诊断记录「更正备注」字段（可重复执行）
-│   │   ├── cat_remove_region_20261027.sql # 去掉演示数据里的地区限定，改为通用表述（可重复执行）
-│   │   └── cat_test_data_20261025.sql   # 全模块测试数据（可重复执行）
+│   ├── sql/
+│   │   ├── cat_rescue.sql               # 全项目唯一一份数据库文件（46 张表 + 初始/演示数据）
+│   │   └── upgrade/                     # 生产环境增量脚本（只追加，永不改动历史）
 │   └── ruoyi-system/src/main/java/com/ruoyi/cat/   # 业务代码（domain/mapper/service）
 │   └── ruoyi-admin/src/main/java/com/ruoyi/web/controller/cat/  # 控制器
 ├── frontend/         # 前端（RuoYi-Vue3）
 │   └── src/views/cat/      # 业务页面（含档案详情、二维码卡片打印、移动端首页）
 │   └── src/api/cat/        # 业务 API
-└── docs/             # 需求文档
+└── docs/             # 需求文档 + DATABASE.md（数据库规范）
 ```
 
 ## 快速开始
@@ -43,26 +30,24 @@
 ### 1. 数据库初始化
 
 > 数据库名：`cat_rescue`（独立库，避免与其他项目混用）
+>
+> **本项目只有一份数据库文件**：`backend/sql/cat_rescue.sql`。不要再去找 `ry_xxx.sql`、
+> `cat_menu_xxx.sql` 之类的分步脚本，那些已经全部合并进这一份了。
 
 ```bash
-mysql -u root -p
-CREATE DATABASE cat_rescue DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE cat_rescue;
-source backend/sql/ry_20260417.sql;              # 1. 若依基础表
-source backend/sql/cat_rescue_20261025.sql;      # 2. 业务表（25 张）
-source backend/sql/cat_menu_20261025.sql;        # 3. 菜单权限
-source backend/sql/cat_menu_extra_20261025.sql;  # 4. 补充菜单（统计看板等）
-source backend/sql/cat_dict_20261025.sql;        # 5. 字典数据
-source backend/sql/cat_dict_extra_20261025.sql;  # 5.1 补充字典（基地类型、是否、时间段等，可重复执行）
-source backend/sql/cat_job_20261025.sql;         # 6. 定时任务与提醒阈值配置
-source backend/sql/cat_test_data_20261025.sql;   # 7. 测试数据（可选，推荐导入用于演示）
-source backend/sql/cat_org_users_20261026.sql;   # 8. 组织架构 + 医生/助理角色 + 测试账号（须在第 7 步之后）
-source backend/sql/cat_base_ward_20261026.sql;   # 9. B基地、病房与病房授权（须在第 8 步之后）
-source backend/sql/cat_reminder_header_20261026.sql; # 10. 提醒按人已读 + 收件岗位 + 顶栏铃铛（须在第 9 步之后）
-source backend/sql/cat_admin_split_20261026.sql; # 11. 超级管理员 + 管理员角色 + manager01 账号（须在第 10 步之后）
-source backend/sql/cat_diagnosis_correction_20261027.sql; # 12. 诊断「更正备注」字段（可重复执行）
-source backend/sql/cat_remove_region_20261027.sql;        # 13. 去掉演示数据地区限定，改为通用表述（可重复执行）
+# 一条命令搞定：建库 + 46 张表 + 菜单/字典/角色/账号 + 演示数据
+mysql -u root -p < backend/sql/cat_rescue.sql
+
+# 导入后清一下缓存，否则菜单/字典/参数还是旧值
+redis-cli --scan --pattern 'sys_config:*' | xargs -r redis-cli del
+redis-cli --scan --pattern 'sys_dict:*'   | xargs -r redis-cli del
 ```
+
+导入完直接可以登录，账号见下方「账号与角色」。
+要重建就再跑一遍这条命令（会先删表再建，本地数据会丢，这是预期行为）。
+
+> ⚠️ **生产环境禁止执行这个文件**（含 `DROP TABLE`）。
+> 上线只执行 `backend/sql/upgrade/` 下的增量脚本，规则见 [docs/DATABASE.md](docs/DATABASE.md)。
 
 ### 2. 配置后端
 
@@ -71,8 +56,11 @@ source backend/sql/cat_remove_region_20261027.sql;        # 13. 去掉演示数�
 ```yaml
 url: jdbc:mysql://localhost:3306/cat_rescue?useUnicode=true&characterEncoding=utf8&...
 username: root
-password: 123456
+password: <你的 MySQL 密码>      # 本机开发用的值见 docs/CREDENTIALS.local.md（不入库）
 ```
+
+> ⚠️ 这份 yml 是要提交的（否则别人 clone 下来连不上库），所以**上线前必须把库密码改成强密码**，
+> 改完后同步到本机凭证文件，不要回写到这里。
 
 编辑 `backend/ruoyi-admin/src/main/resources/application.yml`：
 - `ruoyi.profile`：文件上传路径（默认 `./uploadPath`）
@@ -131,8 +119,10 @@ npm run dev
 ### 5. 登录
 
 - 地址：`http://localhost`（或实际前端端口）
-- 超级管理员：`admin` / `admin123`（内置账号，用户管理里看不到它）
-- 业务管理员：`manager01` / `admin123`（首次被重置过密码的话以 `123456` 为准）
+- 超级管理员：`admin`（内置账号，用户管理里看不到它）
+- 业务管理员：`manager01`
+- **初始密码不在仓库里**，记在本机 `docs/CREDENTIALS.local.md`（已 gitignore，不会上传）
+  —— `git clone` 下来的仓库里没有这个文件，非本机部署请向项目维护者索取
 - 登录验证码：**已开启**（`sys_config` 中 `sys.account.captchaEnabled=true`），类型为算术验证码（`ruoyi.captchaType=math`，需填算式结果），点击图片可刷新
 - 如需临时关闭验证码，在「系统管理 → 参数设置」把 `sys.account.captchaEnabled` 改为 `false`，**改完刷新登录页**即可（或直接改库后清 Redis key `sys_config:sys.account.captchaEnabled`）
 
@@ -173,7 +163,7 @@ npm run dev
 
 ## 定时任务
 
-`cat_job_20261025.sql` 会注册一条 Quartz 任务，可在「系统监控 → 定时任务」中查看/启停/手动执行一次：
+基线里的 `sys_job` 已预置一条 Quartz 任务，可在「系统监控 → 定时任务」中查看/启停/手动执行一次：
 
 | 任务名 | 调用目标 | Cron | 说明 |
 |---|---|---|---|
@@ -304,7 +294,7 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 
 - 数据库中以 `/profile/upload/demo/cat/...` 相对路径引用，部署换目录时只需整体拷贝 `uploadPath`
 - 相册列表用缩略图（合计约 470KB），点开大图加载原图，兼顾速度与清晰度
-- 若清空 `uploadPath` 可重新导入：`mysql cat_rescue < backend/sql/cat_test_data_20261025.sql` 只恢复数据，图片文件需重新拷贝
+- 图片文件不在 SQL 里，随仓库一起提交在 `backend/ruoyi-admin/uploadPath/`；清空了从 git 恢复该目录即可
 - 视频封面由内置 jcodec 解码生成，用于验证「无 ffmpeg 环境下的视频抽帧」链路
 
 ## 扫码权限配置
@@ -333,7 +323,7 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 
 ## 测试数据说明
 
-`backend/sql/cat_test_data_20261025.sql` 覆盖全部功能模块，且可重复执行（会先清理 id ≥ 100 的业务数据）：
+`backend/sql/cat_rescue.sql` 自带全模块演示数据，覆盖情况如下（重灌基线即重置为这份数据）：
 
 | 模块 | 数量 | 覆盖场景 |
 |---|---|---|
@@ -354,7 +344,10 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 
 ## 账号与组织架构
 
-对应需求文档 3.1「管理员 / 医生 / 助理」三类角色，另加一个系统内置的超级管理员，初始化脚本见 `backend/sql/cat_org_users_20261026.sql` 与 `backend/sql/cat_admin_split_20261026.sql`，**业务账号密码统一 `admin123`**。
+对应需求文档 3.1「管理员 / 医生 / 助理」三类角色，另加一个系统内置的超级管理员。账号与授权已内置在基线文件（`sys_user` / `sys_role` / `sys_role_menu`）：
+
+- 账号清单见下表；**密码不写入仓库**，明文记在本机 `docs/CREDENTIALS.local.md`（已 gitignore）
+- 密码都是 BCrypt 哈希存库，基线里已经写好，导入后直接可登录，不用手工重置
 
 | 账号 | 姓名 | 角色 | 部门 | 岗位 | 说明 |
 |---|---|---|---|---|---|
@@ -380,7 +373,7 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 | 超管角色不显示 | `SysRoleServiceImpl.selectRoleList` 对非超管注入 `excludeSuperAdmin` | `manager01` 的角色列表只有 3 个，看不到「超级管理员」 |
 | 超管角色不可查看/分配 | `SysRoleController.getInfo`、`authUser/*` 系列校验 `roleId == 1L` | 直接调接口返回空列表或错误提示 |
 | 超管角色不可分配 | `SysUserServiceImpl.insertUserRole` 过滤 `roleId == 1L` | 新增/编辑用户时塞 `roleIds:[1]` 会被丢弃或拒绝 |
-| admin 不可改不可删 | 若依原生 `checkUserAllowed` / `checkRoleAllowed` | 修改、删除、重置密码、改状态全部拒绝 |
+| admin 不可改不可删 | 框架原生 `checkUserAllowed` / `checkRoleAllowed` | 修改、删除、重置密码、改状态全部拒绝 |
 
 > 因此 admin 的昵称、部门、密码只能在自己的「个人中心」里改，用户管理里看不到也动不了它。
 
@@ -389,11 +382,11 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 | 角色 | role_id | 数据权限 | 说明 |
 |---|---|---|---|
 | 超级管理员 | 1 | 全部 | 内置，`isAdmin` 直接放行全部权限，不读菜单元 |
-| 管理员 | 4 | 全部 | 236 个菜单（84 系统 + 152 业务），可管理用户、角色、参数 |
-| 医生 | 2 | 自定义 | 86 个菜单 |
-| 助理 | 3 | 自定义 | 66 个菜单 |
+| 管理员 | 4 | 全部 | 234 个菜单（10 目录 + 43 页面 + 181 按钮），可管理用户、角色、参数 |
+| 医生 | 2 | 自定义 | 84 个菜单 |
+| 助理 | 3 | 自定义 | 64 个菜单 |
 
-> ⚠️ 在「角色管理」里编辑「管理员」角色时，注意**系统管理那一组菜单别漏勾**，否则保存后管理员会立刻失去用户/角色等页面的权限（左侧菜单只剩业务部分）。需要恢复时重跑 `cat_admin_split_20261026.sql` 的第 4 步即可。
+> ⚠️ 在「角色管理」里编辑「管理员」角色时，注意**系统管理那一组菜单别漏勾**，否则保存后管理员会立刻失去用户/角色等页面的权限（左侧菜单只剩业务部分）。恢复办法：重新把「系统管理」整组勾上保存；或者从 git 历史取回 `cat_admin_split_20261026.sql` 单独执行第 4 步。
 
 组织架构（部门管理）：
 
@@ -452,7 +445,7 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 - 库存预警：`stockStatus=low` 返回 4 条、`ok` 返回 6 条；名称模糊搜索生效
 - 单猫档案 PDF：`GET /cat/profile/pdf/100` 返回 `application/pdf`，中文正常渲染
 - 定时任务：Quartz 注册成功，手动执行一次日志输出「新增 0 条提醒」（幂等）
-- 全模块 CRUD：23 个模块「列表 / 新增 / 详情 / 修改 / 删除」全部通过（`backend/sql/gen_crud_probe.py` 自动回归，跑完自清理）
+- 全模块 CRUD：23 个模块「列表 / 新增 / 详情 / 修改 / 删除」全部通过（自动回归探针，跑完自清理）
 - 图片缩略图：上传 1200×900 / 238KB 图片 → 自动生成 400×300 / 63KB 缩略图，体积降 73%，HTTP 200 可访问
 - 视频封面：上传 mp4（H.264）→ 无 ffmpeg 环境下由 jcodec 抽帧生成 400×225 / 29KB 封面，画面正确
 - 缩略图重建：清空 `thumb_url` 后调用 `POST /cat/photo/rebuildThumb`，3 条记录全部恢复

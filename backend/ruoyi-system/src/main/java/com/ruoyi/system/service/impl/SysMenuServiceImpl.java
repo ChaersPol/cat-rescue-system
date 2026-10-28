@@ -167,10 +167,11 @@ public class SysMenuServiceImpl implements ISysMenuService
      * 构建前端路由所需要的菜单
      * 
      * @param menus 菜单列表
+     * @param userPerms 当前用户权限标识集合，用于下发 meta.canRemove
      * @return 路由列表
      */
     @Override
-    public List<RouterVo> buildMenus(List<SysMenu> menus)
+    public List<RouterVo> buildMenus(List<SysMenu> menus, Set<String> userPerms)
     {
         List<RouterVo> routers = new LinkedList<RouterVo>();
         for (SysMenu menu : menus)
@@ -182,12 +183,13 @@ public class SysMenuServiceImpl implements ISysMenuService
             router.setComponent(getComponent(menu));
             router.setQuery(menu.getQuery());
             router.setMeta(new MetaVo(menu.getMenuName(), menu.getIcon(), StringUtils.equals("1", menu.getIsCache()), menu.getPath()));
+            router.getMeta().setCanRemove(resolveCanRemove(menu, userPerms));
             List<SysMenu> cMenus = menu.getChildren();
             if (StringUtils.isNotEmpty(cMenus) && UserConstants.TYPE_DIR.equals(menu.getMenuType()))
             {
                 router.setAlwaysShow(true);
                 router.setRedirect("noRedirect");
-                router.setChildren(buildMenus(cMenus));
+                router.setChildren(buildMenus(cMenus, userPerms));
             }
             else if (isMenuFrame(menu))
             {
@@ -198,6 +200,7 @@ public class SysMenuServiceImpl implements ISysMenuService
                 children.setComponent(menu.getComponent());
                 children.setName(getRouteName(menu.getRouteName(), menu.getPath()));
                 children.setMeta(new MetaVo(menu.getMenuName(), menu.getIcon(), StringUtils.equals("1", menu.getIsCache()), menu.getPath()));
+                children.getMeta().setCanRemove(resolveCanRemove(menu, userPerms));
                 children.setQuery(menu.getQuery());
                 childrenList.add(children);
                 router.setChildren(childrenList);
@@ -219,6 +222,38 @@ public class SysMenuServiceImpl implements ISysMenuService
             routers.add(router);
         }
         return routers;
+    }
+
+    /**
+     * 判断当前用户在该菜单下是否拥有删除权限
+     * <p>
+     * 菜单树查询只包含目录与菜单（M/C），取不到按钮节点，因此按若依的权限命名约定推导：
+     * 菜单自身标识固定为「模块前缀:list」（如 cat:release:list），把末段替换为 remove
+     * 即为该模块的删除权限标识，再看用户权限集合里是否包含它。
+     * 管理员持有通配权限 *:*:*，直接视为有删除权限。
+     *
+     * @param menu 菜单
+     * @param userPerms 当前用户权限标识集合
+     * @return true=有删除权限
+     */
+    private Boolean resolveCanRemove(SysMenu menu, Set<String> userPerms)
+    {
+        if (StringUtils.isEmpty(userPerms))
+        {
+            return Boolean.FALSE;
+        }
+        if (userPerms.contains("*:*:*"))
+        {
+            return Boolean.TRUE;
+        }
+        String perms = menu.getPerms();
+        if (StringUtils.isEmpty(perms))
+        {
+            return Boolean.FALSE;
+        }
+        int idx = perms.lastIndexOf(':');
+        String prefix = idx > 0 ? perms.substring(0, idx) : perms;
+        return userPerms.contains(prefix + ":remove");
     }
 
     /**

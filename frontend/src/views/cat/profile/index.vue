@@ -36,10 +36,10 @@
             <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['cat:profile:add']">新增</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="success" plain icon="Edit" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:profile:edit']">修改</el-button>
+            <el-button type="success" plain icon="Edit" v-if="$route.meta.canRemove" :disabled="single" @click="handleUpdate" v-hasPermi="['cat:profile:edit']">修改</el-button>
          </el-col>
          <el-col :span="1.5">
-            <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:profile:remove']">删除</el-button>
+            <el-button type="danger" plain icon="Delete" v-if="$route.meta.canRemove" :disabled="multiple" @click="handleDelete" v-hasPermi="['cat:profile:remove']">删除</el-button>
          </el-col>
          <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:profile:export']">导出</el-button>
@@ -55,7 +55,8 @@
 
       <div ref="tableWrap">
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="45" align="center" />
+         <el-table-column type="selection" width="45" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="档案编号" align="center" prop="archiveNo" width="160" :show-overflow-tooltip="true" />
          <el-table-column label="猫咪名字" align="center" prop="catName" width="90" :show-overflow-tooltip="true">
             <template #default="scope">
@@ -512,8 +513,9 @@ function handleUnarchive(row) {
 
 // 二维码卡片打印：带上当前勾选的猫咪
 function handlePrintCards() {
-  const ids = ids.value && ids.value.length ? ids.value.join(',') : ''
-  router.push({ path: '/profile/qrcard', query: ids ? { catIds: ids } : {} })
+  // 注意：不能写成 const ids = ids.value...（会命中 TDZ，报 Cannot access 'ids' before initialization）
+  const selectedIds = ids.value && ids.value.length ? ids.value.join(',') : ''
+  router.push({ path: '/profile/qrcard', query: selectedIds ? { catIds: selectedIds } : {} })
 }
 
 function submitForm() {

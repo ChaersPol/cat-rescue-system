@@ -51,6 +51,7 @@
                type="success"
                plain
                icon="Edit"
+               v-if="$route.meta.canRemove"
                :disabled="single"
                @click="handleUpdate"
                v-hasPermi="['monitor:job:edit']"
@@ -61,6 +62,7 @@
                type="danger"
                plain
                icon="Delete"
+               v-if="$route.meta.canRemove"
                :disabled="multiple"
                @click="handleDelete"
                v-hasPermi="['monitor:job:remove']"
@@ -88,7 +90,8 @@
       </el-row>
 
       <el-table v-loading="loading" :data="jobList" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
+         <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="任务编号" width="100" align="center" prop="jobId" />
          <el-table-column label="任务名称" align="center" :show-overflow-tooltip="true">
             <template #default="scope">
@@ -112,7 +115,7 @@
                ></el-switch>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width" v-if="checkPermi(['monitor:job:edit', 'monitor:job:remove', 'monitor:job:changeStatus', 'monitor:job:query'])">
             <template #default="scope">
                <el-tooltip content="修改" placement="top">
                   <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['monitor:job:edit']"></el-button>
