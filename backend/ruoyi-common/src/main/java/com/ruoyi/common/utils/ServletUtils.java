@@ -109,6 +109,76 @@ public class ServletUtils
     }
 
     /**
+     * 获取当前请求的访问根地址（scheme://host[:port]），取不到返回空串
+     * <p>
+     * 反向代理场景优先取 X-Forwarded-Proto / X-Forwarded-Host，其次 Host 请求头，
+     * 最后退回 request 自带的 scheme + serverName/serverPort。
+     * 典型用途：生成二维码等「需要手机能访问到的绝对地址」时，避免把 localhost 写进去。
+     */
+    public static String getRequestBaseUrl()
+    {
+        HttpServletRequest request;
+        try
+        {
+            ServletRequestAttributes attributes = getRequestAttributes();
+            request = attributes == null ? null : attributes.getRequest();
+        }
+        catch (Exception e)
+        {
+            return StringUtils.EMPTY;
+        }
+        if (request == null)
+        {
+            return StringUtils.EMPTY;
+        }
+
+        String scheme = firstHeaderValue(request, "X-Forwarded-Proto");
+        if (StringUtils.isBlank(scheme))
+        {
+            scheme = request.getScheme();
+        }
+        if (StringUtils.isBlank(scheme))
+        {
+            scheme = "http";
+        }
+
+        String host = firstHeaderValue(request, "X-Forwarded-Host");
+        if (StringUtils.isBlank(host))
+        {
+            host = firstHeaderValue(request, "Host");
+        }
+        if (StringUtils.isBlank(host))
+        {
+            host = request.getServerName();
+            int port = request.getServerPort();
+            boolean defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80)
+                    || ("https".equalsIgnoreCase(scheme) && port == 443);
+            if (port > 0 && !defaultPort)
+            {
+                host = host + ":" + port;
+            }
+        }
+        if (StringUtils.isBlank(host))
+        {
+            return StringUtils.EMPTY;
+        }
+        return scheme + "://" + host;
+    }
+
+    /**
+     * 取逗号分隔的请求头中的第一个值（多级代理会追加多份）
+     */
+    private static String firstHeaderValue(HttpServletRequest request, String name)
+    {
+        String value = request.getHeader(name);
+        if (StringUtils.isBlank(value))
+        {
+            return StringUtils.EMPTY;
+        }
+        return StringUtils.trimToEmpty(value.split(",")[0]);
+    }
+
+    /**
      * 获取response
      */
     public static HttpServletResponse getResponse()

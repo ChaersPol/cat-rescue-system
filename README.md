@@ -304,7 +304,7 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 | 配置键 | 说明 |
 |---|---|
 | `scan.permission.mode` | `A` 公开模式（扫码仅看基础信息，医疗记录需登录）/ `B` 内部模式（扫码看全部病历） |
-| `scan.base.url` | 扫码前端地址前缀，如 `https://cat.example.com`（影响新生成二维码内容） |
+| `scan.base.url` | 扫码前端地址前缀，如 `https://cat.example.com`（影响新生成二维码内容；留空或填 `localhost` 时自动取当前访问地址） |
 | `scan.mobile.hint` | 扫码页顶部提示语 |
 | `reminder.advance.days` | 疫苗/驱虫到期提前提醒天数（默认 7） |
 | `reminder.overdue.days` | 疫苗/驱虫过期后仍提醒天数（默认 7） |
@@ -320,6 +320,10 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 > 收件岗位留空表示全员可见；岗位下没有启用账号时同样回退为全员。改完配置后下一次生成提醒时生效，无需重启。
 
 修改 `scan.base.url` 后，可在「猫咪档案」页面点击「批量补二维码」为全部猫咪重新生成。
+
+> 二维码内容 = `scan.base.url` + `/m/cat/{档案编号}`。若该配置为空、或填的是 `localhost` / `127.0.0.1`
+> 这类手机访问不到的地址，后端会自动改用**当前请求的访问地址**（`X-Forwarded-Proto` / `Host` 头，兼容 nginx 反代），
+> 因此用 IP 直连部署时即使忘了改配置，扫出来的也是真实地址。配置里填了有效地址时仍以配置为准。
 
 ## 测试数据说明
 
