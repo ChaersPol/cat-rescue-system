@@ -12,7 +12,9 @@ import usePermissionStore from '@/store/modules/permission'
 
 NProgress.configure({ showSpinner: false })
 
-const whiteList = ['/login', '/register']
+// 免登录白名单：登录/注册 + 手机扫码档案页（二维码贴纸扫开要能直接看档案，
+// 不能因为手机上没有 token 就被弹到登录页）
+const whiteList = ['/login', '/register', '/m', '/m/cat/*']
 
 const isWhiteList = (path) => {
   return whiteList.some(pattern => isPathMatch(pattern, path))
