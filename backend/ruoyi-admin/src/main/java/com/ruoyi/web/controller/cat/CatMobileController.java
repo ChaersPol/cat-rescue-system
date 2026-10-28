@@ -1,6 +1,7 @@
 package com.ruoyi.web.controller.cat;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -243,17 +244,29 @@ public class CatMobileController
             timeline.add(item);
         }
 
-        // 按时间倒序排序
-        timeline.sort((a, b) -> {
-            Object ta = a.get("time");
-            Object tb = b.get("time");
-            if (ta == null) return 1;
-            if (tb == null) return -1;
-            return String.valueOf(tb).compareTo(String.valueOf(ta));
-        });
+        // 按时间倒序（最新在前；无时间的排最后）
+        // 注意：不能拿 String.valueOf(Date) 比较——Date.toString() 形如
+        // "Thu Apr 01 13:40:00 CST 2026"，按字符串排会先比星期、再比英文月份，顺序全乱。
+        timeline.sort((a, b) -> Long.compare(timelineMillis(b.get("time")), timelineMillis(a.get("time"))));
 
         result.put("timeline", timeline);
         return AjaxResult.success(result);
+    }
+
+    /**
+     * 取时间线条目时间的时间戳（毫秒），空值或非日期类型返回 Long.MIN_VALUE（倒序时落到最末）
+     */
+    private static long timelineMillis(Object value)
+    {
+        if (value instanceof Date)
+        {
+            return ((Date) value).getTime();
+        }
+        if (value instanceof Number)
+        {
+            return ((Number) value).longValue();
+        }
+        return Long.MIN_VALUE;
     }
 
     /**
