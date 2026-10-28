@@ -16,7 +16,7 @@
 #    2. 安全组已放通 80（443 不用，本项目走 http）
 #
 #  架构：
-#     80  →  nginx（静态 dist + /prod-api 反代到 8080 + /profile 反代到 8080）
+#     80  →  nginx（静态 dist + /prod-api 反代到 8080 + /profile/upload 反代到 8080）
 #     8080→  Spring Boot（systemd 托管，开机自启）
 #     3306→  MySQL 8（本机 root，口令见 application-druid.yml）
 #     6379→  Redis（本机无密码）
@@ -151,9 +151,12 @@ server {
         proxy_read_timeout 300s;
     }
 
-    # 上传的图片/视频（后端 /profile/** 静态映射）
-    location /profile/ {
-        proxy_pass http://127.0.0.1:8080/profile/;
+    # 上传的图片/视频（后端 /profile/upload/** 静态映射）
+    # 必须只匹配上传目录：前端菜单里也有一级路由 /profile（猫咪档案），
+    # 若写成 location /profile/ ，刷新 /profile/profile 会被转给后端，
+    # 返回 {"msg":"No static resource profile.","code":500} 白屏。
+    location ^~ /profile/upload/ {
+        proxy_pass http://127.0.0.1:8080/profile/upload/;
         proxy_set_header Host $host;
         expires 7d;
     }
@@ -193,6 +196,8 @@ health() {
   printf '后端 8080  : '; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/captchaImage || true
   printf 'Nginx 80   : '; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1/ || true
   printf '接口代理   : '; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1/prod-api/captchaImage || true
+  # 前端页面刷新不能落到后端（历史上 /profile/ 代理把 /profile/profile 吞掉，刷新白屏）
+  printf '页面刷新   : '; curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://127.0.0.1/profile/profile || true
   IP=$(curl -s --max-time 5 http://100.100.100.200/latest/meta-data/eipv4 2>/dev/null || hostname -I | awk '{print $1}')
   echo
   echo "访问地址： http://$IP/"
