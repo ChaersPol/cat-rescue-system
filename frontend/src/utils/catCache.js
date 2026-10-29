@@ -1,7 +1,8 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { listCatProfile } from '@/api/cat/profile'
 import { listCatBase } from '@/api/cat/base'
 import { listCatWard } from '@/api/cat/ward'
+import { optionselectWardType } from '@/api/cat/wardtype'
 
 /**
  * 主数据缓存：把「猫 id / 基地 id / 病房 id」这类外键翻译成业务名称，
@@ -117,4 +118,64 @@ export function useBaseCache() {
 export function useWardCache() {
   wardCache.load()
   return { wardMap: wardCache.map, wardLabel: wardCache.label, reloadWardCache: () => wardCache.load(true) }
+}
+
+/**
+ * 病房类型（字典，来自「基础信息 → 病房类型」）
+ * 返回有序数组 + 按 id 取名称/取标签颜色，供病房列表与表单使用。
+ * 增删改类型后调用 reloadWardTypeCache() 让其它页面拿到最新值。
+ */
+const wardTypeState = ref([])
+let wardTypePending = null
+let wardTypeLoaded = false
+
+function loadWardTypes(force) {
+  if (wardTypeLoaded && !force) {
+    return Promise.resolve(wardTypeState.value)
+  }
+  if (wardTypePending) {
+    return wardTypePending
+  }
+  wardTypePending = optionselectWardType()
+    .then(res => {
+      wardTypeState.value = (res && res.data) || []
+      wardTypeLoaded = true
+      return wardTypeState.value
+    })
+    .catch(() => wardTypeState.value)
+    .finally(() => {
+      wardTypePending = null
+    })
+  return wardTypePending
+}
+
+export function useWardTypeCache() {
+  loadWardTypes()
+  const wardTypeMap = computed(() => {
+    const map = {}
+    wardTypeState.value.forEach(t => {
+      map[t.typeId] = t
+    })
+    return map
+  })
+  /** 类型名称：优先按 id 查字典，查不到回落到病房表里的冗余名称 */
+  function wardTypeLabel(typeId, fallbackName) {
+    const item = wardTypeMap.value[typeId]
+    if (item) {
+      return item.typeName
+    }
+    return fallbackName || ''
+  }
+  /** 标签颜色（element-plus 的 tag type） */
+  function wardTypeTag(typeId) {
+    const item = wardTypeMap.value[typeId]
+    return (item && item.tagType) || 'primary'
+  }
+  return {
+    wardTypeList: wardTypeState,
+    wardTypeMap,
+    wardTypeLabel,
+    wardTypeTag,
+    reloadWardTypeCache: () => loadWardTypes(true)
+  }
 }

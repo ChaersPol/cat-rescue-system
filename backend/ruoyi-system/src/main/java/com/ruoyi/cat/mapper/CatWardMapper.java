@@ -1,6 +1,7 @@
 package com.ruoyi.cat.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.ruoyi.cat.domain.CatWard;
 
 /**
@@ -21,4 +22,7 @@ public interface CatWardMapper
     public int deleteCatWardById(Long wardId);
 
     public int deleteCatWardByIds(Long[] wardIds);
+
+    /** 病房类型改名时，同步在用病房的冗余名称列 */
+    public int updateWardTypeNameByTypeId(@Param("typeId") Long typeId, @Param("typeName") String typeName);
 }

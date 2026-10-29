@@ -9,6 +9,11 @@
          <el-form-item label="病房名称" prop="wardName">
             <el-input v-model="queryParams.wardName" placeholder="请输入病房名称" clearable style="width: 200px" @keyup.enter="handleQuery" />
          </el-form-item>
+         <el-form-item label="病房类型" prop="wardTypeId">
+            <el-select v-model="queryParams.wardTypeId" placeholder="全部类型" clearable style="width: 160px">
+               <el-option v-for="t in wardTypeList" :key="t.typeId" :label="t.typeName" :value="t.typeId" />
+            </el-select>
+         </el-form-item>
          <el-form-item>
             <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -40,7 +45,15 @@
             </template>
          </el-table-column>
          <el-table-column label="病房名称" align="center" prop="wardName" :show-overflow-tooltip="true" />
-         <el-table-column label="病房类型" align="center" prop="wardType" :show-overflow-tooltip="true" />
+         <el-table-column label="病房类型" align="center" prop="wardType" :show-overflow-tooltip="true">
+            <template #default="scope">
+               <el-tag v-if="wardTypeLabel(scope.row.wardTypeId, scope.row.wardType)"
+                       :type="wardTypeTag(scope.row.wardTypeId)" effect="light">
+                  {{ wardTypeLabel(scope.row.wardTypeId, scope.row.wardType) }}
+               </el-tag>
+               <span v-else>-</span>
+            </template>
+         </el-table-column>
          <el-table-column label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
          <el-table-column label="状态" align="center" prop="status">
             <template #default="scope">
@@ -67,14 +80,17 @@
             <el-form-item label="病房名称" prop="wardName">
                <el-input v-model="form.wardName" placeholder="请输入病房名称" />
             </el-form-item>
-            <el-form-item label="病房类型" prop="wardType">
-               <el-select v-model="form.wardType" placeholder="请选择或输入病房类型" filterable allow-create default-first-option clearable style="width: 100%">
-                  <el-option label="普通病房" value="普通病房" />
-                  <el-option label="隔离病房" value="隔离病房" />
-                  <el-option label="术后观察室" value="术后观察室" />
-                  <el-option label="犬房" value="犬房" />
-                  <el-option label="犬猫房" value="犬猫房" />
+            <el-form-item label="病房类型" prop="wardTypeId">
+               <el-select v-model="form.wardTypeId" placeholder="请选择病房类型" filterable style="width: 100%">
+                  <el-option v-for="t in wardTypeList" :key="t.typeId" :label="t.typeName" :value="t.typeId">
+                     <el-tag :type="t.tagType || 'primary'" effect="light" size="small">{{ t.typeName }}</el-tag>
+                  </el-option>
                </el-select>
+               <div class="form-tip" v-if="checkPermi(['cat:wardtype:list'])">
+                  没有想要的类型？去
+                  <el-link type="primary" :underline="false" @click="gotoWardType">基础信息 → 病房类型</el-link>
+                  里维护
+               </div>
             </el-form-item>
             <el-form-item label="显示顺序" prop="orderNum">
                <el-input-number v-model="form.orderNum" :min="0" :step="1" style="width: 100%" />
@@ -96,13 +112,15 @@
 </template>
 
 <script setup name="CatWard">
-import { useBaseCache } from "@/utils/catCache"
+import { useBaseCache, useWardTypeCache } from "@/utils/catCache"
 import { listCatWard, getCatWard, delCatWard, addCatWard, updateCatWard } from "@/api/cat/ward"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
 const { baseMap, baseLabel } = useBaseCache()
 const baseOptions = computed(() => Object.values(baseMap.value))
+// 病房类型来自「基础信息 → 病房类型」字典，不再写死在下拉里
+const { wardTypeList, wardTypeLabel, wardTypeTag } = useWardTypeCache()
 
 const list = ref([])
 const open = ref(false)
@@ -121,13 +139,14 @@ const data = reactive({
     pageSize: 10,
     baseId: undefined,
     wardName: undefined,
-    wardType: undefined,
+    wardTypeId: undefined,
     orderNum: undefined,
     status: undefined,
   },
   rules: {
     baseId: [{ required: true, message: '请选择所属基地', trigger: 'change' }],
-    wardName: [{ required: true, message: '请输入病房名称', trigger: 'blur' }]
+    wardName: [{ required: true, message: '请输入病房名称', trigger: 'blur' }],
+    wardTypeId: [{ required: true, message: '请选择病房类型', trigger: 'change' }]
   }
 })
 
@@ -151,11 +170,16 @@ function reset() {
   form.value = {
     baseId: undefined,
     wardName: undefined,
-    wardType: undefined,
+    wardTypeId: undefined,
     orderNum: undefined,
     status: undefined,
   }
   proxy.resetForm("formRef")
+}
+
+/** 跳到病房类型维护页（没有该权限时不显示入口） */
+function gotoWardType() {
+  proxy.$router.push({ path: '/base/wardtype' })
 }
 
 function handleQuery() {
@@ -226,3 +250,12 @@ function handleExport() {
 
 getList()
 </script>
+
+<style scoped>
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 18px;
+}
+</style>

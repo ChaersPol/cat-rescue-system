@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatWardTypeMapper">
+
+    <resultMap type="CatWardType" id="CatWardTypeResult">
+        <result property="typeId" column="type_id" />
+        <result property="typeName" column="type_name" />
+        <result property="tagType" column="tag_type" />
+        <result property="orderNum" column="order_num" />
+        <result property="status" column="status" />
+        <result property="wardCount" column="ward_count" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatWardTypeVo">
+        select t.type_id, t.type_name, t.tag_type, t.order_num, t.status,
+               t.create_by, t.create_time, t.update_by, t.update_time, t.remark,
+               (select count(1) from cat_ward w
+                 where w.ward_type_id = t.type_id and w.del_flag = '0') as ward_count
+          from cat_ward_type t
+    </sql>
+
+    <select id="selectCatWardTypeById" parameterType="Long" resultMap="CatWardTypeResult">
+        <include refid="selectCatWardTypeVo"/>
+        where t.type_id = #{typeId}
+    </select>
+
+    <select id="selectCatWardTypeList" parameterType="CatWardType" resultMap="CatWardTypeResult">
+        <include refid="selectCatWardTypeVo"/>
+        <where>
+            <if test="typeName != null and typeName != ''">AND t.type_name like concat('%', #{typeName}, '%')</if>
+            <if test="status != null and status != ''">AND t.status = #{status}</if>
+            AND t.del_flag = '0'
+        </where>
+        order by t.order_num asc, t.type_id asc
+    </select>
+
+    <select id="selectCatWardTypeAll" resultMap="CatWardTypeResult">
+        <include refid="selectCatWardTypeVo"/>
+        where t.status = '0' and t.del_flag = '0'
+        order by t.order_num asc, t.type_id asc
+    </select>
+
+    <select id="countByTypeName" resultType="int">
+        select count(1) from cat_ward_type
+         where del_flag = '0' and type_name = #{typeName}
+        <if test="excludeId != null">and type_id != #{excludeId}</if>
+    </select>
+
+    <select id="countWardByTypeId" parameterType="Long" resultType="int">
+        select count(1) from cat_ward where ward_type_id = #{typeId} and del_flag = '0'
+    </select>
+
+    <insert id="insertCatWardType" parameterType="CatWardType" useGeneratedKeys="true" keyProperty="typeId">
+        insert into cat_ward_type (
+            <if test="typeName != null and typeName != ''">type_name,</if>
+            <if test="tagType != null and tagType != ''">tag_type,</if>
+            <if test="orderNum != null">order_num,</if>
+            <if test="status != null">status,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        )values(
+            <if test="typeName != null and typeName != ''">#{typeName},</if>
+            <if test="tagType != null and tagType != ''">#{tagType},</if>
+            <if test="orderNum != null">#{orderNum},</if>
+            <if test="status != null">#{status},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatWardType" parameterType="CatWardType">
+        update cat_ward_type
+        <set>
+            <if test="typeName != null and typeName != ''">type_name = #{typeName},</if>
+            <if test="tagType != null and tagType != ''">tag_type = #{tagType},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where type_id = #{typeId}
+    </update>
+
+    <delete id="deleteCatWardTypeById" parameterType="Long">
+        update cat_ward_type set del_flag = '2' where type_id = #{typeId}
+    </delete>
+
+    <delete id="deleteCatWardTypeByIds" parameterType="Long">
+        update cat_ward_type set del_flag = '2' where type_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

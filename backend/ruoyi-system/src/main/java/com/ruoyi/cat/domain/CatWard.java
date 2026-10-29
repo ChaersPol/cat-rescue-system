@@ -23,7 +23,9 @@ public class CatWard extends BaseEntity
     /** 病房名称 */
     @Excel(name = "病房名称")
     private String wardName;
-    /** 病房类型 */
+    /** 病房类型id（指向 cat_ward_type，类型库维护在「基础信息 → 病房类型」） */
+    private Long wardTypeId;
+    /** 病房类型名称（冗余列，便于导出与历史数据；由 wardTypeId 自动回填） */
     @Excel(name = "病房类型")
     private String wardType;
     /** 显示顺序 */
@@ -68,6 +70,16 @@ public class CatWard extends BaseEntity
     {
         return wardType;
     }
+
+    public Long getWardTypeId()
+    {
+        return wardTypeId;
+    }
+
+    public void setWardTypeId(Long wardTypeId)
+    {
+        this.wardTypeId = wardTypeId;
+    }
     public void setWardType(String wardType)
     {
         this.wardType = wardType;
@@ -94,6 +106,7 @@ public class CatWard extends BaseEntity
             .append("wardId", getWardId())
             .append("baseId", getBaseId())
             .append("wardName", getWardName())
+            .append("wardTypeId", getWardTypeId())
             .append("wardType", getWardType())
             .append("orderNum", getOrderNum())
             .append("status", getStatus())

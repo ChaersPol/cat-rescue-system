@@ -8,6 +8,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="wardId" column="ward_id" />
         <result property="baseId" column="base_id" />
         <result property="wardName" column="ward_name" />
+        <result property="wardTypeId" column="ward_type_id" />
         <result property="wardType" column="ward_type" />
         <result property="orderNum" column="order_num" />
         <result property="status" column="status" />
@@ -19,7 +20,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatWardVo">
-        select ward_id, base_id, ward_name, ward_type, order_num, status, create_by, create_time, update_by, update_time, remark from cat_ward
+        select ward_id, base_id, ward_name, ward_type_id, ward_type, order_num, status, create_by, create_time, update_by, update_time, remark from cat_ward
     </sql>
 
     <select id="selectCatWardById" parameterType="Long" resultMap="CatWardResult">
@@ -31,19 +32,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatWardVo"/>
         <where>
             <if test="baseId != null">AND base_id = #{baseId}</if>
-            <if test="wardName != null and wardName != ''">AND ward_name = #{wardName}</if>
+            <if test="wardName != null and wardName != ''">AND ward_name like concat('%', #{wardName}, '%')</if>
+            <if test="wardTypeId != null">AND ward_type_id = #{wardTypeId}</if>
             <if test="wardType != null and wardType != ''">AND ward_type = #{wardType}</if>
             <if test="orderNum != null">AND order_num = #{orderNum}</if>
             <if test="status != null and status != ''">AND status = #{status}</if>
             AND del_flag = '0'
         </where>
-        order by ward_id desc
+        order by base_id asc, order_num asc, ward_id asc
     </select>
 
     <insert id="insertCatWard" parameterType="CatWard" useGeneratedKeys="true" keyProperty="wardId">
         insert into cat_ward (
             <if test="baseId != null">base_id,</if>
             <if test="wardName != null">ward_name,</if>
+            <if test="wardTypeId != null">ward_type_id,</if>
             <if test="wardType != null">ward_type,</if>
             <if test="orderNum != null">order_num,</if>
             <if test="status != null">status,</if>
@@ -52,6 +55,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         )values(
             <if test="baseId != null">#{baseId},</if>
             <if test="wardName != null">#{wardName},</if>
+            <if test="wardTypeId != null">#{wardTypeId},</if>
             <if test="wardType != null">#{wardType},</if>
             <if test="orderNum != null">#{orderNum},</if>
             <if test="status != null">#{status},</if>
@@ -65,6 +69,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="baseId != null">base_id = #{baseId},</if>
             <if test="wardName != null and wardName != ''">ward_name = #{wardName},</if>
+            <if test="wardTypeId != null">ward_type_id = #{wardTypeId},</if>
             <if test="wardType != null and wardType != ''">ward_type = #{wardType},</if>
             <if test="orderNum != null">order_num = #{orderNum},</if>
             <if test="status != null and status != ''">status = #{status},</if>
@@ -72,6 +77,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         </set>
         where ward_id = #{wardId}
+    </update>
+
+    <update id="updateWardTypeNameByTypeId">
+        update cat_ward set ward_type = #{typeName}
+         where ward_type_id = #{typeId} and del_flag = '0'
     </update>
 
     <delete id="deleteCatWardById" parameterType="Long">
