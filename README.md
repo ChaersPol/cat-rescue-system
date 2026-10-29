@@ -177,13 +177,18 @@ npm run dev
 
 导出内容：基本信息 + 二维码、标签、疫苗、驱虫、诊断、用药、外送转诊、流转轨迹、死亡记录。
 
-PDF 中文依赖 TTF 字体（不支持 `.ttc`），按以下顺序自动探测：
+PDF 中文依赖 TTF 字体，按以下顺序自动探测：
 
-1. `cat_config` 中的 `pdf.font.path`（推荐在部署环境显式配置）
-2. `classpath:fonts/cjk.ttf`（可自行放入 `ruoyi-system/src/main/resources/fonts/`）
+1. `cat_config` 中的 `pdf.font.path`（可选，用于替换成自有字体）
+2. **jar 内置字体 `fonts/cjk.ttf`（Noto Sans SC Regular，OFL-1.1）**——默认命中，开箱即用
 3. 常见系统字体：macOS `Arial Unicode.ttf`、Linux Noto CJK、Windows `simhei.ttf/msyh.ttf`
 
-若均未找到，接口会返回明确提示，在「系统配置」新增 `pdf.font.path` 指向字体文件即可。
+内置字体已覆盖简体中文与拉丁字母，部署到没有装中文字体的服务器也能直接导出，
+**正常情况下无需任何配置**。只有在想换字体时才需要在「系统配置」新增 `pdf.font.path`，
+指向一个包含中文和拉丁字形的 TTF 文件（不要用 `.ttc` 字体集合）。
+
+> 换字体时注意：有些 CJK 字体（如 `DroidSansFallback.ttf`）**只带中文字形、不带数字和字母**，
+> 换成这类字体后 PDF 里的编号、日期、数量会变成空白。
 
 > 前端下载约定：RuoYi 的 `proxy.download()` 固定 `POST`，只适用于导出接口；本档案 PDF 是 `GET` 流式接口，必须用 `proxy.downloadGet(url, params, filename)`（`src/utils/request.js` 新增，内部以 `responseType: 'blob'` 走 GET），否则会返回 405。
 
@@ -483,6 +488,6 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 
 ## 待完善项
 
-- 部署环境建议显式配置 `pdf.font.path`，避免依赖操作系统自带字体
+- 公网部署时注意上传目录（`uploadPath`）的备份，`upload/demo/**` 是随仓库分发的演示素材
 - 移动端目前是「PC 页面 + 移动端专用首页/扫码页」的混合形态，未做完整的移动端路由与手势优化
 - 疫苗、用药、转诊等台账页的数据范围仍按全量展示，只有猫咪档案与统计看板做了病房授权隔离（见上文）

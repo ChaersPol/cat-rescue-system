@@ -3,12 +3,17 @@ package com.ruoyi.cat.service;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -52,14 +57,23 @@ import com.ruoyi.cat.mapper.CatWardMapper;
  * 单猫档案 PDF 导出服务
  * <p>
  * 汇总基本档案、标签、疫苗、驱虫、诊断、用药、转诊、流转、死亡记录，输出 A4 PDF。
- * 中文字体按「cat_config 配置 -> 内置字体 -> 系统字体」顺序自动探测，
+ * 中文字体按「cat_config 配置 -> jar 内置字体 -> 系统字体」顺序自动探测，
  * 可通过 cat_config 的 pdf.font.path 指定任意 CJK TTF 字体文件路径。
+ * <p>
+ * jar 内已打包 Noto Sans SC Regular（OFL-1.1，覆盖简体中文 + 拉丁字母 + 数字），
+ * 部署到没有装中文字体的 Linux 服务器也能直接导出，无需再做任何配置。
+ * 内置字体在类路径里，OpenPDF 只吃文件路径，所以启动后首次导出会解压到临时目录。
  *
  * @author ruoyi
  */
 @Service
 public class CatArchivePdfService
 {
+    private static final Logger log = LoggerFactory.getLogger(CatArchivePdfService.class);
+
+    /** 内置字体在 jar 内解压出来的临时文件（进程内复用，避免每次导出都写盘） */
+    private File bundledFontFile;
+
     /** 候选中文字体（TTF，不支持 ttc 字体集合） */
     private static final String[] FONT_CANDIDATES = {
         "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
@@ -117,12 +131,11 @@ public class CatArchivePdfService
         catch (Exception ignored)
         {
         }
-        // 2. 打包在 resources/fonts 下的字体
-        String bundled = getClass().getClassLoader().getResource("fonts/cjk.ttf") != null
-            ? getClass().getClassLoader().getResource("fonts/cjk.ttf").getFile() : null;
+        // 2. 打包在 resources/fonts/cjk.ttf 的字体（随 jar 分发，换服务器不需要额外装字体）
+        File bundled = bundledFont();
         if (bundled != null)
         {
-            paths.add(bundled);
+            paths.add(bundled.getAbsolutePath());
         }
         // 3. 常见系统字体
         for (String p : FONT_CANDIDATES)
@@ -153,6 +166,42 @@ public class CatArchivePdfService
             }
         }
         throw new IllegalStateException("未找到可用的中文字体，无法导出 PDF。请在「系统配置」中新增 pdf.font.path，指向一个中文 TTF 字体文件");
+    }
+
+    /**
+     * 把 jar 里的 fonts/cjk.ttf 释放成磁盘临时文件
+     * <p>
+     * OpenPDF 的 {@code BaseFont.createFont} 只接受文件路径，而 jar 内资源
+     * 用 {@code getResource(...).getFile()} 拿到的是 {@code jar:file:...!/fonts/cjk.ttf}，
+     * 不是真实路径（打成 jar 后必然失败，本地 IDE 里跑却是好的）。
+     * 所以这里读成流写到临时目录，进程内只解压一次。
+     *
+     * @return 临时字体文件；资源不存在或解压失败时返回 null
+     */
+    private synchronized File bundledFont()
+    {
+        if (bundledFontFile != null && bundledFontFile.isFile() && bundledFontFile.length() > 0)
+        {
+            return bundledFontFile;
+        }
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("fonts/cjk.ttf"))
+        {
+            if (in == null)
+            {
+                return null;
+            }
+            File tmp = File.createTempFile("cat-rescue-cjk-", ".ttf");
+            tmp.deleteOnExit();
+            Files.copy(in, tmp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            bundledFontFile = tmp;
+            log.info("已释放内置中文字体: {} ({} KB)", tmp.getAbsolutePath(), tmp.length() / 1024);
+            return tmp;
+        }
+        catch (Exception e)
+        {
+            log.warn("内置中文字体释放失败，将回退到系统字体: {}", e.getMessage());
+            return null;
+        }
     }
 
     /**
