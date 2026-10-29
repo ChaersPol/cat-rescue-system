@@ -66,7 +66,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="catId != null">cat_id = #{catId},</if>
             <if test="folder != null and folder != ''">folder = #{folder},</if>
             <if test="fileType != null and fileType != ''">file_type = #{fileType},</if>
-            <if test="fileUrl != null and fileUrl != ''">file_url = #{fileUrl},</if>
+            <!-- 允许写入空串，删掉照片后能把 file_url 清空 -->
+            <if test="fileUrl != null">file_url = #{fileUrl},</if>
             <if test="thumbUrl != null">thumb_url = #{thumbUrl},</if>
             <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>

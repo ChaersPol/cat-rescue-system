@@ -180,6 +180,11 @@ secrets.yml
 # ------------------------------------------------------------
 # 说明：uploadPath/upload/demo 下是演示用的猫咪照片与视频（约 5.6MB），
 #       为了让 clone 下来就能看到效果，默认保留入库。
-#       如需忽略所有上传文件，取消下面两行注释即可。
+#       但用户真实上传的文件（upload/2026/10/29/... 这类按日期分目录的）绝不能入库：
+#       里面是领养协议、病历照片等个人隐私，而本仓库是公开的。
+#       演示目录照旧保留，实测 git status 不会再冒出上传文件。
+backend/ruoyi-admin/uploadPath/upload/20*/
+backend/ruoyi-admin/uploadPath/upload/19*/
+# 如需忽略所有上传文件（含 demo），取消下面两行注释即可。
 # backend/ruoyi-admin/uploadPath/upload/
 # !backend/ruoyi-admin/uploadPath/upload/demo/

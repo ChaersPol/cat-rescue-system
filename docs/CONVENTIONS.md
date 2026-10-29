@@ -117,3 +117,46 @@
 - `cat/profile/index.vue` `handlePrintCards()` 曾写 `const ids = ids.value...` → TDZ 报错
   `Cannot access 'ids' before initialization`，勾选的猫全部丢失。局部变量改名为 `selectedIds`。
 - `system/notice/index.vue` 曾把 `prop="noticeId"` 的列标成「序号」，已改名「公告ID」。
+
+---
+
+## 八、上传文件的「真实删除」与孤儿回收
+
+RuoYi 原生的 `<file-upload>` / `<image-upload>` 在页面上点删除时**只把地址从表单里去掉**，
+磁盘上的文件永远留着（假删除）。本项目已改为真删，新增功能时必须遵守：
+
+- **页面删除 → 调 `deleteUploadFile(url)`**（`@/api/common`）→ `POST /common/delete`，
+  服务端按 `/profile/...` 解析成磁盘路径（校验不得越出上传根目录）并物理删除，
+  连同同目录 `thumb/` 下的缩略图一起删。
+- **业务记录被删除**（如删相册、删领养记录）时，若页面能提前拿到 `fileUrl` / `thumbUrl`，
+  在 `delXxx` 成功后再逐个 `deleteUploadFile`，让文件立刻消失，不必等定时任务。
+- **兜底靠定时任务**：`FileCleanTask` 每天 03:30 调 `FileStorageService.sweep()`，
+  把「全库文本字段里搜不到该文件相对路径」且超过宽限期（默认 24h）的文件删掉。
+  这样「替换附件、编辑换图、记录被删」的旧文件最多留一天。
+- **判定用子串而非正则**：把所有含 `upload/`、`avatar/` 的文本拼成语料，看路径是否出现在语料里。
+  文件名带空格 / 中文 / 括号都不会漏判；宁可多留一个，也不误删在用的文件。
+- **`upload/demo/**` 是随仓库分发的演示素材，永远跳过**（不然 `git status` 会一片 D）。
+- 手动试跑 / 清理（仅超管）：
+  `POST /common/storage/sweep?dryRun=true&graceHours=24`，确认清单没问题再把 `dryRun` 改 `false`。
+  配置项在 `application.yml` 的 `cat.file-clean.{enabled,grace-hours,cron}`。
+
+### ⚠️ update 语句里资源字段必须允许写空串（踩过大坑）
+
+RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**附件 / 图片地址**这类字段，
+这个条件会让「清空」静默失效：
+
+1. 用户点删除 → 磁盘文件被真删 ✅
+2. 点保存 → `agreementUrl = ''`，被 `<if>` 挡掉 → 数据库仍保留旧地址 ❌
+3. 再次打开记录 → 附件还显示 → 点预览打到已删除的文件 → 空白/500
+
+**所有资源类字段（url / photos / image / avatar / file）在 `<update>` 里一律写 `xxx != null`**，
+不加 `!= ''`；查询条件（`<where>` 里的 AND）保持原样不动，空串不该参与过滤。
+
+已按此改过的：`cat_adoption.agreement_url`、`cat_expense.receipt_url`、`cat_diagnosis.check_photos`、
+`cat_photo.file_url`、`cat_visit.photos`、`cat_medication.photos`、`cat_death.photos`。
+新增带附件的业务表时照此办理。
+
+### 已知取舍
+
+删除是「点删除即删盘」，所以**删了附件却没点保存就关掉弹窗**，数据库会留下一个指向已删文件的地址。
+出现这种情况时，重新打开该记录再删一次并保存即可清空；`sweep` 也能回收反向情况（磁盘有、库里没有）的孤儿文件。

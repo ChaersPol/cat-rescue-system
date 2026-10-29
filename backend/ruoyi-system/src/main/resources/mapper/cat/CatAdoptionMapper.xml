@@ -72,7 +72,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="adopterPhone != null and adopterPhone != ''">adopter_phone = #{adopterPhone},</if>
             <if test="adopterAddress != null and adopterAddress != ''">adopter_address = #{adopterAddress},</if>
             <if test="adoptionDate != null">adoption_date = #{adoptionDate},</if>
-            <if test="agreementUrl != null and agreementUrl != ''">agreement_url = #{agreementUrl},</if>
+            <!-- 允许写入空串：用户在页面上删掉协议后要能把 agreement_url 清空，
+                 否则数据库仍指向一个已被物理删除的文件，预览必然空白 -->
+            <if test="agreementUrl != null">agreement_url = #{agreementUrl},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
         </set>

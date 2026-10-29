@@ -100,7 +100,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="items != null and items != ''">items = #{items},</if>
             <if test="amount != null">amount = #{amount},</if>
             <if test="payMethod != null and payMethod != ''">pay_method = #{payMethod},</if>
-            <if test="receiptUrl != null and receiptUrl != ''">receipt_url = #{receiptUrl},</if>
+            <!-- 允许写入空串，删掉票据后能把 receipt_url 清空 -->
+            <if test="receiptUrl != null">receipt_url = #{receiptUrl},</if>
             <if test="baseId != null">base_id = #{baseId},</if>
             <if test="catId != null">cat_id = #{catId},</if>
             <if test="referralId != null">referral_id = #{referralId},</if>

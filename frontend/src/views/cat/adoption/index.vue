@@ -94,12 +94,15 @@
                <el-input v-model="form.adopterAddress" placeholder="请输入领养人住址" />
             </el-form-item>
             <el-form-item label="领养协议" prop="agreementUrl">
-               <file-upload
-                  v-model="form.agreementUrl"
-                  :limit="1"
-                  :fileSize="20"
-                  :fileType="['doc', 'docx', 'pdf', 'png', 'jpg', 'jpeg']"
-               />
+               <div style="width: 100%">
+                  <file-upload
+                     v-model="form.agreementUrl"
+                     :limit="1"
+                     :fileSize="20"
+                     :fileType="['doc', 'docx', 'pdf', 'png', 'jpg', 'jpeg']"
+                  />
+                  <div class="upload-tip">PDF / 图片可直接在线预览；Word 文档浏览器无法预览，只能下载查看</div>
+               </div>
             </el-form-item>
             <el-form-item label="备注" prop="remark">
                <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -119,6 +122,30 @@
             </div>
          </template>
       </el-dialog>
+
+      <!-- 协议预览：图片直接显示，PDF 用浏览器内置阅读器（iframe） -->
+      <el-dialog
+         v-model="previewOpen"
+         :title="previewTitle"
+         width="78%"
+         top="4vh"
+         append-to-body
+         destroy-on-close
+         class="agreement-preview"
+      >
+         <div class="preview-body" v-loading="previewLoading">
+            <img v-if="previewType === 'image'" :src="previewUrl" class="preview-img" />
+            <video v-else-if="previewType === 'video'" :src="previewUrl" controls class="preview-video" />
+            <iframe v-else :src="previewUrl" class="preview-frame" @load="previewLoading = false"></iframe>
+         </div>
+         <template #footer>
+            <div class="dialog-footer">
+               <el-button icon="Download" @click="handleDownload(previewRow)">下载原件</el-button>
+               <el-button icon="TopRight" @click="openInNewTab(previewUrl)">新窗口打开</el-button>
+               <el-button type="primary" @click="previewOpen = false">关 闭</el-button>
+            </div>
+         </template>
+      </el-dialog>
    </div>
 </template>
 
@@ -127,6 +154,7 @@ import { listCatAdoption, getCatAdoption, delCatAdoption, addCatAdoption, update
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from "@/api/cat/profile"
 import { catLabelOf, formatCatLabel } from "@/utils/catCache"
+import { resolveFileUrl, previewKind, fileName as pickFileName, fileExtLabel } from "@/utils/fileUrl"
 
 const { proxy } = getCurrentInstance()
 
@@ -275,16 +303,90 @@ function handleExport() {
   proxy.download("cat/adoption/export", { ...queryParams.value }, `领养台账_${new Date().getTime()}.xlsx`)
 }
 
-// 协议预览：图片/PDF 由浏览器内置查看器打开
+// ---------------- 协议预览与下载 ----------------
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewType = ref('')
+const previewTitle = ref('领养协议')
+const previewLoading = ref(false)
+const previewRow = ref({})
+
 function handlePreview(row) {
-  window.open(proxy.getFileUrl(row.agreementUrl), '_blank')
+  const url = resolveFileUrl(row.agreementUrl)
+  if (!url) {
+    proxy.$modal.msgWarning("该记录没有上传领养协议")
+    return
+  }
+  const kind = previewKind(row.agreementUrl)
+  // Word / Excel / PPT：浏览器无法内嵌渲染，引导下载，避免「点了没反应」
+  if (kind === 'office') {
+    proxy.$modal.confirm(`${fileExtLabel(row.agreementUrl)} 无法在浏览器里直接预览，点「确定」下载后用本机程序查看。`).then(() => {
+      handleDownload(row)
+    }).catch(() => {})
+    return
+  }
+  // 其它未知格式也别硬塞 iframe，交给新窗口
+  if (kind === 'other') {
+    openInNewTab(url)
+    return
+  }
+  previewRow.value = row
+  previewUrl.value = url
+  previewType.value = kind
+  previewTitle.value = `${fileExtLabel(row.agreementUrl)} · ${pickFileName(row.agreementUrl)}`
+  previewLoading.value = kind !== 'image' && kind !== 'video'
+  previewOpen.value = true
 }
 
+function openInNewTab(url) {
+  if (url) window.open(url, "_blank")
+}
+
+// 下载原件：后端 /common/download/resource 是 GET 接口，必须用 downloadGet
 function handleDownload(row) {
-  const name = (row.agreementUrl || '').split('/').pop()
-  proxy.download('common/download/resource', { resource: '/profile/' + name.replace(/^profile\//, '') }, name)
+  const url = row && row.agreementUrl
+  if (!url) {
+    proxy.$modal.msgWarning("该记录没有上传领养协议")
+    return
+  }
+  proxy.downloadGet("common/download/resource", { resource: url }, pickFileName(url) || "领养协议")
 }
 
 loadCats()
 getList()
 </script>
+<style>
+.upload-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #909399;
+}
+/* 协议预览弹窗：内容区留出足够高度，避免图片被压成一条线 */
+.agreement-preview .preview-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  max-height: 76vh;
+  overflow: auto;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+.agreement-preview .preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 76vh;
+  object-fit: contain;
+}
+.agreement-preview .preview-video {
+  max-width: 100%;
+  max-height: 76vh;
+}
+.agreement-preview .preview-frame {
+  width: 100%;
+  height: 76vh;
+  border: 0;
+  background: #fff;
+}
+</style>

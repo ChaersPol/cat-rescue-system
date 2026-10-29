@@ -84,7 +84,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="planDate != null">plan_date = #{planDate},</if>
             <if test="visitStatus != null and visitStatus != ''">visit_status = #{visitStatus},</if>
             <if test="visitContent != null and visitContent != ''">visit_content = #{visitContent},</if>
-            <if test="photos != null and photos != ''">photos = #{photos},</if>
+            <!-- 允许写入空串，删掉照片后能把 photos 清空 -->
+            <if test="photos != null">photos = #{photos},</if>
             <if test="visitBy != null and visitBy != ''">visit_by = #{visitBy},</if>
             <if test="visitTime != null">visit_time = #{visitTime},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>

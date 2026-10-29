@@ -201,6 +201,7 @@
 
 <script setup name="CatPhoto">
 import { listCatPhoto, getCatPhoto, delCatPhoto, addCatPhoto, updateCatPhoto, rebuildCatPhotoThumb, getCatPhotoThumbStatus } from '@/api/cat/photo'
+import { deleteUploadFile } from '@/api/common'
 import { useCatCache } from '@/utils/catCache'
 
 const { proxy } = getCurrentInstance()
@@ -383,9 +384,19 @@ function handleSelectionChange(selection) {
 
 function handleDelete(row) {
   const delIds = row.photoId || ids.value
-  proxy.$modal.confirm('是否确认删除该照片？缩略图会随原文件一并保留在磁盘上。').then(function () {
+  const idList = Array.isArray(delIds) ? delIds : [delIds]
+  // 先记下要删的记录对应的文件，删完数据库后再把磁盘文件一并清掉
+  const files = []
+  list.value.forEach(item => {
+    if (idList.includes(item.photoId)) {
+      if (item.fileUrl) files.push(item.fileUrl)
+      if (item.thumbUrl) files.push(item.thumbUrl)
+    }
+  })
+  proxy.$modal.confirm('删除后服务器上的照片文件也会一并清除，且无法恢复，是否继续？').then(function () {
     return delCatPhoto(delIds)
   }).then(() => {
+    files.forEach(f => deleteUploadFile(f).catch(() => {}))
     getList()
     proxy.$modal.msgSuccess('删除成功')
   }).catch(() => {})

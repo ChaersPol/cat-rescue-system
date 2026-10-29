@@ -219,6 +219,7 @@
 import { getCatArchive, archiveCatProfile, unarchiveCatProfile, regenerateCatQrCode } from "@/api/cat/profile"
 import { listCatBase } from "@/api/cat/base"
 import { listCatWard } from "@/api/cat/ward"
+import { resolveFileUrl, previewKind, fileName as pickFileName, fileExtLabel } from "@/utils/fileUrl"
 
 const { proxy } = getCurrentInstance()
 const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no, cat_death_type } = useDict(
@@ -227,7 +228,6 @@ const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no, cat_death_typ
 
 const route = useRoute()
 const router = useRouter()
-const baseUrl = import.meta.env.VITE_APP_BASE_API
 
 const loading = ref(true)
 const profile = ref({})
@@ -257,10 +257,9 @@ const locationText = computed(() => {
   return b || w || '—'
 })
 
+// 统一走 utils/fileUrl：拼环境前缀 + 编码中文文件名（照片名里常有中文，不编码会 404）
 function resolveUrl(url) {
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url
-  return baseUrl + (url.startsWith('/') ? url : '/' + url)
+  return resolveFileUrl(url)
 }
 
 function baseName(id) {
@@ -386,7 +385,15 @@ function openVideo(p) {
 }
 
 function openAgreement() {
-  const url = adoption.value.agreementUrl
+  const url = adoption.value && adoption.value.agreementUrl
+  if (!url) return
+  // Word / Excel 浏览器打不开，引导下载而不是开一个空白页
+  if (previewKind(url) === 'office') {
+    proxy.$modal.confirm(`${fileExtLabel(url)} 无法在浏览器里直接预览，点「确定」下载后用本机程序查看。`).then(() => {
+      proxy.downloadGet("common/download/resource", { resource: url }, pickFileName(url) || "领养协议")
+    }).catch(() => {})
+    return
+  }
   window.open(resolveUrl(url), '_blank')
 }
 

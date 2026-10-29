@@ -2,6 +2,7 @@ package com.ruoyi.web.controller.common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -18,7 +19,9 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.file.FileUploadUtils;
 import com.ruoyi.common.utils.file.FileUtils;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.framework.config.ServerConfig;
+import com.ruoyi.web.service.FileStorageService;
 
 /**
  * 通用请求处理
@@ -33,6 +36,9 @@ public class CommonController
 
     @Autowired
     private ServerConfig serverConfig;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     private static final String FILE_DELIMITER = ",";
 
@@ -158,5 +164,51 @@ public class CommonController
         {
             log.error("下载文件失败", e);
         }
+    }
+
+    /**
+     * 删除已上传的文件（真实删除磁盘文件）
+     *
+     * <p>上传组件在页面上点「删除」时调用。以前只把地址从表单里去掉，文件一直留在服务器上，
+     * 属于「假删除」；现在改为调用本接口把文件连同缩略图一起物理删除。</p>
+     *
+     * @param fileName 文件访问地址，如 /profile/upload/2026/10/29/xxx.docx（也兼容完整 URL）
+     */
+    @PostMapping("/delete")
+    public AjaxResult deleteUploadFile(String fileName)
+    {
+        if (StringUtils.isEmpty(fileName))
+        {
+            return AjaxResult.error("请指定要删除的文件");
+        }
+        if (fileName.contains(".."))
+        {
+            return AjaxResult.error("文件路径不合法");
+        }
+        boolean deleted = fileStorageService.deleteByUrl(fileName);
+        // 文件本来就不存在也视为成功，前端不必关心是否已被清理过
+        return AjaxResult.success(deleted ? "已删除" : "文件不存在或已清理");
+    }
+
+    /**
+     * 扫描并清理没有被任何数据引用的上传文件
+     *
+     * <p>用来兜底「附件被替换 / 编辑后旧文件残留 / 业务记录删除后图片没人管」的情况。
+     * 每次都会重新扫描数据库里的引用关系，因此不会误删仍在用的文件。</p>
+     *
+     * @param dryRun     为空或 false 时执行真实删除；true 只统计不删（试跑）
+     * @param graceHours 宽限期（小时），默认 24，最近上传的文件不动，防止刚上传还没保存就被清掉
+     */
+    @PostMapping("/storage/sweep")
+    public AjaxResult sweepStorage(Boolean dryRun, Integer graceHours)
+    {
+        if (!SecurityUtils.getLoginUser().getUser().isAdmin())
+        {
+            return AjaxResult.error("只有超级管理员可以执行存储清理");
+        }
+        boolean dry = dryRun != null && dryRun;
+        int grace = graceHours == null ? 24 : Math.max(0, graceHours);
+        Map<String, Object> result = fileStorageService.sweep(dry, grace);
+        return AjaxResult.success(result);
     }
 }

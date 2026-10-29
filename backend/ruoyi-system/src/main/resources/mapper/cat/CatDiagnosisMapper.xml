@@ -99,7 +99,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="diagnosisResult != null and diagnosisResult != ''">diagnosis_result = #{diagnosisResult},</if>
             <if test="checkItems != null and checkItems != ''">check_items = #{checkItems},</if>
             <if test="medicalAdvice != null and medicalAdvice != ''">medical_advice = #{medicalAdvice},</if>
-            <if test="checkPhotos != null and checkPhotos != ''">check_photos = #{checkPhotos},</if>
+            <!-- 允许写入空串，删掉检查照片后能把 check_photos 清空 -->
+            <if test="checkPhotos != null">check_photos = #{checkPhotos},</if>
             <if test="correctionNote != null and correctionNote != ''">correction_note = #{correctionNote},</if>
             <if test="correctionBy != null and correctionBy != ''">correction_by = #{correctionBy},</if>
             <if test="correctionTime != null">correction_time = #{correctionTime},</if>

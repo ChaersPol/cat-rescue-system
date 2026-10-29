@@ -50,6 +50,7 @@
 <script setup>
 import { getToken } from "@/utils/auth"
 import { isExternal } from "@/utils/validate"
+import { deleteUploadFile } from "@/api/common"
 import Sortable from 'sortablejs'
 
 const props = defineProps({
@@ -188,10 +189,19 @@ function handleUploadSuccess(res, file) {
 function handleDelete(file) {
   const findex = fileList.value.map(f => f.name).indexOf(file.name)
   if (findex > -1 && uploadList.value.length === number.value) {
+    const removed = fileList.value[findex]
     fileList.value.splice(findex, 1)
     emit("update:modelValue", listToString(fileList.value))
+    // 页面删掉的同时，把磁盘上的文件也删掉，否则服务器会越堆越多
+    removeOnServer(removed && removed.url)
     return false
   }
+}
+
+/** 调用后端真实删除（失败不阻塞表单，定时清理任务会兜底） */
+function removeOnServer(url) {
+  if (!url) return
+  deleteUploadFile(url).catch(() => {})
 }
 
 // 上传结束处理

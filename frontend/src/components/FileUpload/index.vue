@@ -42,6 +42,7 @@
 
 <script setup>
 import { getToken } from "@/utils/auth"
+import { deleteUploadFile } from "@/api/common"
 import Sortable from 'sortablejs'
 
 const props = defineProps({
@@ -173,10 +174,21 @@ function handleUploadSuccess(res, file) {
   }
 }
 
-// 删除文件
+// 删除文件：页面移除 + 服务器文件一并删除
 function handleDelete(index) {
-  fileList.value.splice(index, 1)
-  emit("update:modelValue", listToString(fileList.value))
+  const file = fileList.value[index]
+  if (!file) return
+  proxy.$modal.confirm("删除后服务器上的文件也会被清除且无法恢复，确定删除吗？").then(() => {
+    fileList.value.splice(index, 1)
+    emit("update:modelValue", listToString(fileList.value))
+    removeOnServer(file.url)
+  }).catch(() => {})
+}
+
+/** 调用后端真实删除（失败不阻塞表单，定时清理任务会兜底） */
+function removeOnServer(url) {
+  if (!url) return
+  deleteUploadFile(url).catch(() => {})
 }
 
 // 上传结束处理
