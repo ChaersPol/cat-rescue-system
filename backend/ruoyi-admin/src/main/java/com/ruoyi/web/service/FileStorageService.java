@@ -63,8 +63,24 @@ public class FileStorageService
     /** 返回清单最多列出多少条，避免响应过大 */
     private static final int MAX_LIST = 500;
 
-    /** 语料上限（字符），防止极端情况下把内存吃满 */
-    private static final int MAX_CORPUS = 80 * 1024 * 1024;
+    /**
+     * 语料上限（字符）。
+     *
+     * <p>实测本项目全部资源引用不到 100KB，8MB 已是极宽裕的上限。原值 80MB 在
+     * 512MB 堆上很危险：StringBuilder 内部是 UTF-16，80M 字符占 160MB，
+     * 再 toString 复制一份就是 320MB 峰值。</p>
+     *
+     * <p><b>注意</b>：语料一旦被截断就不再完整，此时若继续清理，会把
+     * 「引用没被收进来」的文件误判成孤儿删掉。所以超限时直接放弃本次清理。</p>
+     */
+    private static final int MAX_CORPUS = 8 * 1024 * 1024;
+
+    /**
+     * 单表单列最多扫描的行数。
+     *
+     * <p>同样出于「安全第一」：超限说明扫描不完整，必须放弃本次清理而不是删文件。</p>
+     */
+    private static final int MAX_ROWS_PER_COLUMN = 50000;
 
     /** 记录操作日志的表，内容全是历史请求参数，不能作为「文件仍被引用」的依据 */
     private static final String[] SKIP_TABLES = { "sys_oper_log", "sys_logininfor" };
@@ -245,14 +261,22 @@ public class FileStorageService
             {
                 if (corpus.length() > MAX_CORPUS)
                 {
-                    log.warn("语料已达上限 {} 字符，后续字段不再扫描", MAX_CORPUS);
-                    break;
+                    // 语料不完整 -> 引用判定不可信 -> 必须放弃清理，否则会误删在用文件
+                    throw new IllegalStateException(
+                            "语料已达上限 " + MAX_CORPUS + " 字符，扫描不完整，本次清理已放弃（避免误删）");
                 }
                 String query = "SELECT `" + column[1] + "` FROM `" + column[0] + "`";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(query))
                 {
+                    int rows = 0;
                     while (rs.next())
                     {
+                        if (++rows > MAX_ROWS_PER_COLUMN)
+                        {
+                            throw new IllegalStateException(
+                                    "表 " + column[0] + " 行数超过 " + MAX_ROWS_PER_COLUMN
+                                            + "，扫描不完整，本次清理已放弃（避免误删）");
+                        }
                         String value = rs.getString(1);
                         if (value == null || value.isEmpty())
                         {
@@ -265,6 +289,12 @@ public class FileStorageService
                         }
                         corpus.append(value).append('\n');
                     }
+                }
+                catch (IllegalStateException e)
+                {
+                    // 扫描不完整必须往上层抛，绝不能在这里被当成「字段读不到」跳过，
+                    // 否则后续会拿残缺语料去删文件
+                    throw e;
                 }
                 catch (Exception e)
                 {

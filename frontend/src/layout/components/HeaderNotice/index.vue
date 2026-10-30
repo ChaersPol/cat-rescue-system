@@ -73,14 +73,40 @@ function loadHeader() {
   })
 }
 
+// 启动/停止静默轮询。
+// 只在页面可见时轮询：用户把标签页挂在后台一整夜时，每分钟一次请求毫无意义，
+// 只会白白消耗服务器资源（2026-10-30 排查时发现有个标签页整夜轮询了 5 小时）
+function startRefreshTimer() {
+  stopRefreshTimer()
+  refreshTimer.value = setInterval(loadHeader, 60000)
+}
+
+function stopRefreshTimer() {
+  if (refreshTimer.value) {
+    clearInterval(refreshTimer.value)
+    refreshTimer.value = null
+  }
+}
+
+// 切回页面时立刻补一次，避免看到过期的角标
+function onVisibilityChange() {
+  if (document.hidden) {
+    stopRefreshTimer()
+  } else {
+    loadHeader()
+    startRefreshTimer()
+  }
+}
+
 onMounted(() => {
   loadHeader()
-  // 每分钟静默刷新一次，保证别处处理完提醒后角标能跟上
-  refreshTimer.value = setInterval(loadHeader, 60000)
+  startRefreshTimer()
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onBeforeUnmount(() => {
-  clearInterval(refreshTimer.value)
+  stopRefreshTimer()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   clearTimeout(noticeLeaveTimer.value)
 })
 
