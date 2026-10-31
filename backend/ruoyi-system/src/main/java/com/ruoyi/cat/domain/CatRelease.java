@@ -35,8 +35,8 @@ public class CatRelease extends BaseEntity
     /** 放归时状态 */
     @Excel(name = "放归时状态")
     private String releaseStatus;
-    /** 标记状态 */
-    @Excel(name = "标记状态", readConverterExp = "0=未标记,1=已标记")
+    /** 标记状态（1已放归） */
+    @Excel(name = "标记状态", readConverterExp = "1=已放归")
     private String marked;
     public Long getReleaseId()
     {

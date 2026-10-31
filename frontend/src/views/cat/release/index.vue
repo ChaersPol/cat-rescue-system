@@ -4,6 +4,11 @@
          <el-form-item label="猫咪" prop="catId">
             <cat-select v-model="queryParams.catId" placeholder="全部猫咪" />
          </el-form-item>
+         <el-form-item label="标记状态" prop="marked">
+            <el-select v-model="queryParams.marked" placeholder="全部" clearable style="width: 120px">
+               <el-option label="已放归" value="1" />
+            </el-select>
+         </el-form-item>
          <el-form-item label="放归日期">
             <el-date-picker v-model="dateRange" value-format="YYYY-MM-DD" type="daterange" range-separator="-"
                start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px" />
@@ -40,6 +45,12 @@
          </el-table-column>
          <el-table-column label="放归日期" align="center" prop="releaseDate" :show-overflow-tooltip="true" />
          <el-table-column label="放归点位" align="center" prop="releasePoint" :show-overflow-tooltip="true" />
+         <el-table-column label="标记状态" align="center" prop="marked" width="100">
+            <template #default="scope">
+               <el-tag v-if="scope.row.marked === '1'" type="success">已放归</el-tag>
+               <span v-else class="text-muted">未标记</span>
+            </template>
+         </el-table-column>
          <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:release:edit', 'cat:release:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:release:edit']">修改</el-button>
@@ -63,6 +74,12 @@
             </el-form-item>
             <el-form-item label="放归时状态" prop="releaseStatus">
                <el-input v-model="form.releaseStatus" placeholder="如：精神良好、体重 3.2kg" />
+            </el-form-item>
+            <el-form-item label="标记状态" prop="marked">
+               <el-select v-model="form.marked" placeholder="请选择标记状态" style="width: 100%">
+                  <el-option label="已放归" value="1" />
+               </el-select>
+               <div class="form-tip">放归登记后猫咪状态自动变更为「已放归」并归档</div>
             </el-form-item>
             <el-form-item label="备注" prop="remark">
                <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -103,12 +120,14 @@ const data = reactive({
     pageNum: 1,
     pageSize: 10,
     catId: undefined,
+    marked: undefined,
     releaseDate: undefined,
     releasePoint: undefined,
   },
   rules: {
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
-    releaseDate: [{ required: true, message: '请选择放归日期', trigger: 'change' }]
+    releaseDate: [{ required: true, message: '请选择放归日期', trigger: 'change' }],
+    marked: [{ required: true, message: '请选择标记状态', trigger: 'change' }]
   }
 })
 
@@ -137,6 +156,7 @@ function reset() {
     releaseDate: undefined,
     releasePoint: undefined,
     releaseStatus: undefined,
+    marked: '1',
     remark: undefined,
   }
   proxy.clearFormValidate("formRef")
@@ -220,3 +240,12 @@ function handleExport() {
 
 getList()
 </script>
+
+<style scoped>
+.form-tip {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+</style>

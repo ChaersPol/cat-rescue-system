@@ -10,6 +10,7 @@ import com.ruoyi.cat.domain.CatRelease;
 import com.ruoyi.cat.mapper.CatReleaseMapper;
 import com.ruoyi.cat.service.ICatReleaseService;
 import com.ruoyi.cat.service.ICatTransferService;
+import com.ruoyi.common.utils.StringUtils;
 
 /**
  * TNR放归登记 服务层实现
@@ -41,6 +42,12 @@ public class CatReleaseServiceImpl implements ICatReleaseService
     @Transactional
     public int insertCatRelease(CatRelease catRelease)
     {
+        // 标记状态固定为「已放归」：前端未传或传空时兜底，
+        // 否则 <if test="marked != null"> 会把空串写进去、覆盖掉表上的默认值 '1'
+        if (StringUtils.isEmpty(catRelease.getMarked()))
+        {
+            catRelease.setMarked("1");
+        }
         int rows = catReleaseMapper.insertCatRelease(catRelease);
         // 放归后：猫咪状态变更为已放归，归档
         if (rows > 0 && catRelease.getCatId() != null)
