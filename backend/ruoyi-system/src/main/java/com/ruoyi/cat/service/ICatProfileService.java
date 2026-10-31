@@ -41,4 +41,9 @@ public interface ICatProfileService
      * 批量重新生成二维码（历史数据补码）
      */
     public int regenerateAllQrCode();
+
+    /**
+     * 外送医院候选（档案与转诊里用过的医院名去重），供表单下拉选择
+     */
+    public List<String> selectHospitalOptions();
 }

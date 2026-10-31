@@ -316,4 +316,10 @@ public class CatProfileServiceImpl implements ICatProfileService
             catProfileMapper.batchCatTag(catId, tagIds);
         }
     }
+
+    @Override
+    public List<String> selectHospitalOptions()
+    {
+        return catProfileMapper.selectHospitalOptions();
+    }
 }

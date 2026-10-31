@@ -262,7 +262,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="baseId != null">base_id = #{baseId},</if>
             <if test="wardId != null">ward_id = #{wardId},</if>
             <if test="ownerBaseId != null">owner_base_id = #{ownerBaseId},</if>
-            <if test="hospitalName != null and hospitalName != ''">hospital_name = #{hospitalName},</if>
+            <!-- 医院名允许空串写入：状态从「外送医院治疗中」改回其它状态时要能清掉旧医院 -->
+            <if test="hospitalName != null">hospital_name = #{hospitalName},</if>
             <if test="qrCode != null and qrCode != ''">qr_code = #{qrCode},</if>
             <if test="archived != null and archived != ''">archived = #{archived},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
@@ -306,4 +307,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <update id="clearCatHospital" parameterType="Long">
         update cat_profile set hospital_name = '', update_time = sysdate() where cat_id = #{catId}
     </update>
+
+    <!-- 外送医院候选：档案与转诊记录里用过的医院名去重，供表单下拉选择（也可输入新医院） -->
+    <select id="selectHospitalOptions" resultType="java.lang.String">
+        select hospital_name from (
+            select hospital_name from cat_profile
+             where del_flag = '0' and hospital_name is not null and hospital_name &lt;&gt; ''
+            union
+            select hospital_name from cat_referral
+             where del_flag = '0' and hospital_name is not null and hospital_name &lt;&gt; ''
+        ) t order by hospital_name
+    </select>
 </mapper>

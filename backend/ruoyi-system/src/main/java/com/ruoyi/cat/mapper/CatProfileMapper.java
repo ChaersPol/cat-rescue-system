@@ -83,4 +83,9 @@ public interface CatProfileMapper
      * 清空外送医院名称（医院返回/治愈返回等场景）
      */
     public int clearCatHospital(Long catId);
+
+    /**
+     * 查询历史使用过的外送医院名称（档案 + 转诊记录），供表单下拉选择
+     */
+    public List<String> selectHospitalOptions();
 }

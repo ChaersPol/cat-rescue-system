@@ -56,34 +56,30 @@
       <div ref="tableWrap">
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
          <el-table-column type="selection" width="45" align="center" v-if="$route.meta.canRemove" />
-         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
-         <el-table-column label="档案编号" align="center" prop="archiveNo" width="160" :show-overflow-tooltip="true" />
-         <el-table-column label="猫咪名字" align="center" prop="catName" width="90" :show-overflow-tooltip="true">
+         <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="50" align="center" />
+         <el-table-column label="档案编号" align="center" prop="archiveNo" min-width="152" :show-overflow-tooltip="true" />
+         <el-table-column label="猫咪名字" align="center" prop="catName" min-width="82" :show-overflow-tooltip="true">
             <template #default="scope">
                {{ scope.row.catName }}
                <el-tag v-if="scope.row.archived === '1'" size="small" type="warning" effect="plain" style="margin-left: 4px">归档</el-tag>
             </template>
          </el-table-column>
-         <el-table-column v-if="wideTable" label="品种" align="center" prop="breed" width="85" :show-overflow-tooltip="true" />
-         <el-table-column v-if="wideTable" label="性别" align="center" prop="sex" width="60">
+         <el-table-column v-if="wideTable" label="品种" align="center" prop="breed" min-width="75" :show-overflow-tooltip="true" />
+         <el-table-column v-if="wideTable" label="性别" align="center" prop="sex" min-width="55">
             <template #default="scope">
                <dict-tag :options="cat_sex" :value="scope.row.sex" />
             </template>
          </el-table-column>
-         <el-table-column label="年龄" align="center" prop="ageEstimate" width="90" :show-overflow-tooltip="true" />
-         <el-table-column label="状态" align="center" prop="status" width="90" :show-overflow-tooltip="true">
+         <el-table-column label="年龄" align="center" prop="ageEstimate" min-width="70" :show-overflow-tooltip="true" />
+         <el-table-column label="状态" align="center" prop="status" min-width="150" :show-overflow-tooltip="true">
             <template #default="scope">
                <dict-tag :options="cat_status" :value="scope.row.status" />
+               <span v-if="statusDetail(scope.row)" class="status-detail">{{ statusDetail(scope.row) }}</span>
             </template>
          </el-table-column>
-         <el-table-column v-if="wideTable" label="所在基地" align="center" prop="baseId" min-width="150" :show-overflow-tooltip="true">
-            <template #default="scope">{{ baseName(scope.row.baseId) }}</template>
-         </el-table-column>
-         <el-table-column v-if="wideTable" label="所在病房" align="center" prop="wardId" min-width="130" :show-overflow-tooltip="true">
+         <!-- 基地名已在状态里体现，这里只留病房，避免重复占宽 -->
+         <el-table-column label="所在病房" align="center" prop="wardId" :min-width="wideTable ? 118 : 98" :show-overflow-tooltip="true">
             <template #default="scope">{{ wardName(scope.row.wardId) || '—' }}</template>
-         </el-table-column>
-         <el-table-column v-else label="所在位置" align="center" min-width="150" :show-overflow-tooltip="true">
-            <template #default="scope">{{ locationText(scope.row) }}</template>
          </el-table-column>
          <el-table-column label="操作" align="center" width="300" class-name="small-padding fixed-width">
             <template #default="scope">
@@ -151,21 +147,29 @@
                </el-col>
                <el-col :span="12">
                   <el-form-item label="状态" prop="status">
-                     <el-select v-model="form.status" placeholder="请选择状态" clearable style="width: 100%">
+                     <el-select v-model="form.status" placeholder="请选择状态" clearable style="width: 100%" @change="onStatusChange">
                         <el-option v-for="dict in cat_status" :key="dict.value" :label="dict.label" :value="dict.value" />
                      </el-select>
+                     <div v-if="statusHint" class="status-hint">{{ statusHint }}</div>
                   </el-form-item>
                </el-col>
             </el-row>
             <el-row>
                <el-col :span="8">
                   <el-form-item label="所在基地" prop="baseId">
-                     <el-select v-model="form.baseId" placeholder="请选择基地" clearable style="width: 100%" @change="onBaseChange">
+                     <el-select v-model="form.baseId" :placeholder="needBase ? '必须选择所在基地' : '请选择基地'" clearable style="width: 100%" @change="onBaseChange">
                         <el-option v-for="base in baseList" :key="base.baseId" :label="base.baseName" :value="base.baseId" />
                      </el-select>
                   </el-form-item>
                </el-col>
-               <el-col :span="8">
+               <el-col :span="8" v-if="needHospital">
+                  <el-form-item label="外送医院" prop="hospitalName">
+                     <el-select v-model="form.hospitalName" placeholder="选择或输入外送医院" filterable allow-create default-first-option clearable style="width: 100%">
+                        <el-option v-for="name in hospitalOptions" :key="name" :label="name" :value="name" />
+                     </el-select>
+                  </el-form-item>
+               </el-col>
+               <el-col :span="8" v-else>
                   <el-form-item label="所在病房" prop="wardId">
                      <el-select v-model="form.wardId" placeholder="请选择病房" clearable style="width: 100%">
                         <el-option v-for="ward in formWardList" :key="ward.wardId" :label="ward.wardName" :value="ward.wardId" />
@@ -256,6 +260,7 @@
             </el-descriptions-item>
             <el-descriptions-item label="所在基地">{{ baseName(viewForm.baseId) || '—' }}</el-descriptions-item>
             <el-descriptions-item label="所在病房">{{ wardName(viewForm.wardId) || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="外送医院">{{ viewForm.hospitalName || '—' }}</el-descriptions-item>
             <el-descriptions-item label="是否绝育">
                <dict-tag :options="cat_neutered" :value="viewForm.neutered" />
             </el-descriptions-item>
@@ -282,7 +287,7 @@
 </template>
 
 <script setup name="CatProfile">
-import { listCatProfile, getCatProfile, delCatProfile, addCatProfile, updateCatProfile, regenerateCatQrCode, regenerateAllCatQrCode, archiveCatProfile, unarchiveCatProfile } from "@/api/cat/profile"
+import { listCatProfile, getCatProfile, delCatProfile, addCatProfile, updateCatProfile, regenerateCatQrCode, regenerateAllCatQrCode, archiveCatProfile, unarchiveCatProfile, listHospitalOptions } from "@/api/cat/profile"
 import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
@@ -295,6 +300,7 @@ const list = ref([])
 const baseList = ref([])
 const wardList = ref([])
 const tagList = ref([])
+const hospitalOptions = ref([])
 const open = ref(false)
 const viewOpen = ref(false)
 const loading = ref(true)
@@ -310,7 +316,8 @@ const qrTick = ref(0)
 // 表格可用宽度：窄窗口下自动收起「品种 / 性别」两列，避免列被裁切或出现横向滚动
 const tableWrap = ref(null)
 const tableWidth = ref(1200)
-const wideTable = computed(() => tableWidth.value >= 1050)
+// 状态列带上具体基地后变宽，宽表阈值相应提到 1100，否则各列最小宽加起来会撑破容器
+const wideTable = computed(() => tableWidth.value >= 1100)
 let tableObserver = null
 
 onMounted(() => {
@@ -343,16 +350,64 @@ const data = reactive({
     baseId: undefined,
     tagIds: undefined,
     archived: undefined
-  },
-  rules: {
-    catName: [{ required: true, message: "猫咪名字不能为空", trigger: "blur" }]
   }
 })
 
-const { queryParams, form, viewForm, rules } = toRefs(data)
+const { queryParams, form, viewForm } = toRefs(data)
 const router = useRouter()
 // 表单草稿：新增档案填到一半误关也不丢
 const draft = useFormDraft('cat-profile-form', form)
+
+// 状态与所在位置的对应关系：
+// 1在养、2基地内治疗中 → 必须选所在基地；3外送医院治疗中 → 必须填医院
+const needBase = computed(() => ["1", "2"].includes(String(form.value.status || "")))
+const needHospital = computed(() => String(form.value.status || "") === "3")
+const statusHint = computed(() => {
+  const s = String(form.value.status || "")
+  if (s === "1") return "在养需要指定猫咪当前所在的基地"
+  if (s === "2") return "基地内治疗中需要指定治疗所在的基地"
+  if (s === "3") return "外送医院治疗中需要指定外送的医院"
+  return ""
+})
+
+// 校验规则随状态变化：基地、医院按需必填
+const rules = computed(() => {
+  const result = {
+    catName: [{ required: true, message: "猫咪名字不能为空", trigger: "blur" }]
+  }
+  if (needBase.value) {
+    result.baseId = [{ required: true, message: "请选择猫咪当前所在基地", trigger: "change" }]
+  }
+  if (needHospital.value) {
+    result.hospitalName = [{ required: true, message: "请选择或输入外送医院", trigger: "change" }]
+  }
+  return result
+})
+
+// 状态后面补上具体位置，比如「在养（北苑流浪猫基地）」「外送医院治疗中（瑞鹏宠物医院）」
+function statusDetail(row) {
+  const s = String((row && row.status) || "")
+  if (s === "1" || s === "2") {
+    const b = baseName(row.baseId)
+    return b || ""
+  }
+  if (s === "3") {
+    return row.hospitalName || ""
+  }
+  return ""
+}
+
+// 切换状态后清掉上一种状态的校验残留，避免红字一直挂着
+function onStatusChange() {
+  // 外送期间猫不在基地病房，清掉旧病房，避免「外送医院治疗中 + 幼猫房 B」这种矛盾组合
+  if (String(form.value.status || "") === "3") {
+    form.value.wardId = undefined
+  }
+  proxy.$nextTick(() => {
+    const formRef = proxy.$refs["formRef"]
+    if (formRef) formRef.clearValidate(["baseId", "hospitalName"])
+  })
+}
 
 function baseName(baseId) {
   const base = baseList.value.find(b => b.baseId === baseId)
@@ -362,14 +417,6 @@ function baseName(baseId) {
 function wardName(wardId) {
   const ward = wardList.value.find(w => w.wardId === wardId)
   return ward ? ward.wardName : ''
-}
-
-// 窄屏下基地与病房合并成一列展示
-function locationText(row) {
-  const b = baseName(row.baseId)
-  const w = wardName(row.wardId)
-  if (b && w) return b + ' / ' + w
-  return b || w || '—'
 }
 
 // 表单里的病房下拉跟随所选基地联动
@@ -398,6 +445,13 @@ function getWardList() {
 function getTagList() {
   listCatTag().then(response => {
     tagList.value = response.rows
+  })
+}
+
+// 外送医院候选：取历史用过的医院名，允许下拉选旧的、也能直接输入新医院
+function getHospitalOptions() {
+  listHospitalOptions().then(response => {
+    hospitalOptions.value = response.data || []
   })
 }
 
@@ -444,6 +498,7 @@ function reset() {
     status: '1',
     baseId: undefined,
     wardId: undefined,
+    hospitalName: undefined,
     tagIds: [],
     remark: undefined
   }
@@ -625,9 +680,26 @@ getList()
 getBaseList()
 getTagList()
 getWardList()
+getHospitalOptions()
 </script>
 
 <style scoped>
+/* 状态下面的具体位置（基地名 / 医院名），独立一行小字 */
+.status-detail {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--el-text-color-secondary);
+}
+/* 状态下方的联动提示，说明为什么必须再选基地 / 医院 */
+.status-hint {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-color-warning);
+}
 .qr-box {
   display: flex;
   align-items: flex-start;

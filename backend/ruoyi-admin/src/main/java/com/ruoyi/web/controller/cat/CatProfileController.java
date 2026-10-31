@@ -23,6 +23,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.utils.SecurityUtils;
@@ -447,6 +448,12 @@ public class CatProfileController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody CatProfile catId)
     {
+        // 与 Service 的默认值保持一致，避免「默认在养但没选基地」绕过校验
+        if (StringUtils.isEmpty(catId.getStatus()))
+        {
+            catId.setStatus("1");
+        }
+        checkStatusLocation(catId);
         return toAjax(catIdService.insertCatProfile(catId));
     }
 
@@ -455,7 +462,53 @@ public class CatProfileController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody CatProfile catId)
     {
+        checkStatusLocation(catId);
         return toAjax(catIdService.updateCatProfile(catId));
+    }
+
+    /**
+     * 状态与所在位置的对应校验：状态要能落到具体基地 / 具体医院。
+     *
+     * <p>1在养、2基地内治疗中 → 必须选所在基地；3外送医院治疗中 → 必须填医院名称。
+     * 4~8（已放归 / 已领养 / 已离世 / TNR治疗中 / 姑息照料）不要求。
+     * 只作用于档案表单入口，流转、转诊等内部更新不受影响。</p>
+     */
+    private void checkStatusLocation(CatProfile catProfile)
+    {
+        String status = catProfile.getStatus();
+        if (StringUtils.isEmpty(status))
+        {
+            // 未提交状态视为不修改状态，不做校验
+            return;
+        }
+        if ("1".equals(status) || "2".equals(status))
+        {
+            if (catProfile.getBaseId() == null)
+            {
+                String label = "1".equals(status) ? "在养" : "基地内治疗中";
+                throw new ServiceException("状态为「" + label + "」时，必须选择猫咪当前所在基地");
+            }
+        }
+        else if ("3".equals(status))
+        {
+            if (StringUtils.isEmpty(catProfile.getHospitalName()))
+            {
+                throw new ServiceException("状态为「外送医院治疗中」时，必须填写外送的医院名称");
+            }
+            return;
+        }
+        // 已不在外送状态：清掉上一段的医院名，避免状态改回后详情里还挂着旧医院
+        catProfile.setHospitalName("");
+    }
+
+    /**
+     * 外送医院候选：取档案与转诊记录里用过的医院名（去重），供表单下拉选择，也允许输入新医院
+     */
+    @PreAuthorize("@ss.hasPermi('cat:profile:list')")
+    @GetMapping("/hospitalOptions")
+    public AjaxResult hospitalOptions()
+    {
+        return success(catIdService.selectHospitalOptions());
     }
 
     @PreAuthorize("@ss.hasPermi('cat:profile:remove')")

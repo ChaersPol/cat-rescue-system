@@ -100,3 +100,11 @@ export function listCatCards(catIds) {
     params: { catIds: Array.isArray(catIds) ? catIds.join(',') : catIds }
   })
 }
+
+// 外送医院候选（档案与转诊里用过的医院名去重）
+export function listHospitalOptions() {
+  return request({
+    url: '/cat/profile/hospitalOptions',
+    method: 'get'
+  })
+}
