@@ -25,7 +25,7 @@
         <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:flow:export']">导出</el-button>
       </el-col>
       <el-col :span="12">
-        <span class="tip">流转记录为不可删除的业务凭证，发起流转会自动更新猫咪状态与所在基地/病房。</span>
+        <span class="form-tip is-bar">流转记录为<b>不可删除</b>的业务凭证，发起流转会自动更新猫咪状态与所在基地/病房。</span>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
@@ -354,10 +354,5 @@ getList()
 .arrow {
   margin: 0 6px;
   color: var(--el-text-color-placeholder);
-}
-.tip {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 32px;
 }
 </style>

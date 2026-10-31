@@ -60,7 +60,15 @@
           <el-tag :type="statusTag(scope.row.visitStatus)" size="small">{{ statusLabel(scope.row.visitStatus) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="回访内容" align="center" prop="visitContent" min-width="240" :show-overflow-tooltip="true" />
+      <el-table-column label="回访内容" align="center" prop="visitContent" min-width="220" :show-overflow-tooltip="true" />
+      <el-table-column label="回访照片" align="center" width="100">
+        <template #default="scope">
+          <el-button v-if="fileItems(scope.row.photos).length" link type="primary" @click="openPhotos(scope.row)">
+            {{ fileItems(scope.row.photos).length }} 张
+          </el-button>
+          <span v-else class="text-muted">—</span>
+        </template>
+      </el-table-column>
       <el-table-column label="回访人" align="center" prop="visitBy" width="110" />
       <el-table-column label="实际回访时间" align="center" prop="visitTime" width="160" />
       <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width" v-if="checkPermi(['cat:visit:edit', 'cat:visit:remove'])">
@@ -101,6 +109,9 @@
         <el-form-item label="回访内容" prop="visitContent">
           <el-input v-model="form.visitContent" type="textarea" :rows="3" placeholder="记录猫咪适应情况、饮食、健康、与主人互动等" />
         </el-form-item>
+        <el-form-item label="回访照片" prop="photos">
+          <media-upload v-model="form.photos" :limit="9" :image-size="10" image-only />
+        </el-form-item>
         <el-form-item label="回访人" prop="visitBy">
           <el-input v-model="form.visitBy" placeholder="请输入回访人" />
         </el-form-item>
@@ -115,6 +126,23 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 回访照片预览 -->
+    <el-dialog v-model="photosVisible" :title="photosTitle" width="760px" append-to-body destroy-on-close>
+      <el-empty v-if="!photos.length" description="暂无回访照片" :image-size="60" />
+      <div v-else class="photo-grid">
+        <el-image
+          v-for="(u, i) in photos"
+          :key="i"
+          :src="resolveFileUrl(u)"
+          :preview-src-list="photoUrls"
+          :initial-index="i"
+          fit="cover"
+          preview-teleported
+          class="photo-cell"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -122,6 +150,7 @@
 import { listCatVisit, getCatVisit, delCatVisit, addCatVisit, updateCatVisit } from '@/api/cat/visit'
 import { listCatProfile } from '@/api/cat/profile'
 import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { resolveFileUrl } from '@/utils/fileUrl'
 
 const { proxy } = getCurrentInstance()
 
@@ -134,6 +163,9 @@ const multiple = ref(true)
 const total = ref(0)
 const title = ref('')
 const catOptions = ref([])
+const photosVisible = ref(false)
+const photosTitle = ref('')
+const photos = ref([])
 
 const data = reactive({
   form: {},
@@ -168,6 +200,23 @@ function isOverdue(row) {
   return new Date(row.planDate).getTime() < Date.now() - 86400000
 }
 
+/** 逗号分隔的路径串 → 数组（空串过滤掉） */
+function fileItems(str) {
+  if (!str) return []
+  return String(str)
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+const photoUrls = computed(() => photos.value.map(u => resolveFileUrl(u)))
+
+function openPhotos(row) {
+  photos.value = fileItems(row.photos)
+  photosTitle.value = '回访照片 - ' + catName(row.catId)
+  photosVisible.value = true
+}
+
 function loadCats() {
   listCatProfile({ pageNum: 1, pageSize: 999 }).then(res => {
     catOptions.value = res.rows || []
@@ -197,6 +246,7 @@ function reset() {
     planDate: undefined,
     visitStatus: '0',
     visitContent: undefined,
+    photos: undefined,
     visitBy: undefined,
     visitTime: undefined
   }
@@ -295,5 +345,19 @@ getList()
 .overdue {
   color: #f56c6c;
   font-weight: 600;
+}
+
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.photo-cell {
+  width: 120px;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--el-fill-color-darker);
 }
 </style>

@@ -79,7 +79,7 @@
                <el-select v-model="form.marked" placeholder="请选择标记状态" style="width: 100%">
                   <el-option label="已放归" value="1" />
                </el-select>
-               <div class="form-tip">放归登记后猫咪状态自动变更为「已放归」并归档</div>
+               <div class="form-tip">放归登记后猫咪状态自动变更为<b>「已放归」</b>并归档</div>
             </el-form-item>
             <el-form-item label="备注" prop="remark">
                <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -240,12 +240,3 @@ function handleExport() {
 
 getList()
 </script>
-
-<style scoped>
-.form-tip {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  line-height: 1.6;
-  margin-top: 4px;
-}
-</style>

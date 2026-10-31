@@ -71,14 +71,14 @@
           <el-input v-else v-model="form.configValue" placeholder="请输入配置值" />
         </el-form-item>
         <el-form-item v-if="isDayKey(form.configKey)" label="说明">
-          <span class="tip">提醒扫描时按此天数判定到期范围。例如设为 7，则「7 天内到期」和「过期 7 天内」的记录都会生成提醒。</span>
+          <span class="form-tip">提醒扫描时按此天数判定到期范围。例如设为 <b>7</b>，则<b>「7 天内到期」</b>和<b>「过期 7 天内」</b>的记录都会生成提醒。</span>
         </el-form-item>
         <el-form-item v-if="form.configKey === 'scan.base.url'" label="说明">
-          <span class="tip">
-            这就是「手机扫猫咪二维码后会打开的网址」。要填手机能访问到的地址，不能填 localhost：<br />
-            · 局域网内测：填电脑的局域网地址，例如 http://192.168.1.113<br />
-            · 正式使用：填域名，例如 https://cat.example.com<br />
-            改完记得去「猫咪档案」点「批量更新二维码」，否则贴纸上的旧码还是指向老地址。
+          <span class="form-tip">
+            这就是「手机扫猫咪二维码后会打开的网址」。要填手机能访问到的地址，<b>不能填 localhost</b>：<br />
+            · 局域网内测：填电脑的局域网地址，例如 <b>http://192.168.1.113</b><br />
+            · 正式使用：填域名，例如 <b>https://cat.example.com</b><br />
+            改完记得去「猫咪档案」点<b>「批量更新二维码」</b>，否则贴纸上的旧码还是指向老地址。
           </span>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
@@ -221,11 +221,3 @@ function handleDelete(row) {
 
 getList()
 </script>
-
-<style scoped>
-.tip {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.6;
-}
-</style>

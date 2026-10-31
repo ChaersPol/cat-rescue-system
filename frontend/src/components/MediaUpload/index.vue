@@ -41,12 +41,19 @@
         </div>
       </template>
     </el-upload>
-    <div class="el-upload__tip" v-if="!disabled">
-      支持照片
-      <b>png/jpg/jpeg/webp</b>（单个不超过
-      <b>{{ imageSize }}MB</b>）与视频
-      <b>mp4/mov/m4v/webm</b>（单个不超过
-      <b>{{ videoSize }}MB</b>），最多 {{ limit }} 项
+    <div class="el-upload__tip form-tip" v-if="!disabled">
+      <template v-if="imageOnly">
+        支持照片
+        <b>png/jpg/jpeg/webp</b>（单个不超过
+        <b>{{ imageSize }}MB</b>），最多 <b>{{ limit }}</b> 张
+      </template>
+      <template v-else>
+        支持照片
+        <b>png/jpg/jpeg/webp</b>（单个不超过
+        <b>{{ imageSize }}MB</b>）与视频
+        <b>mp4/mov/m4v/webm</b>（单个不超过
+        <b>{{ videoSize }}MB</b>），最多 <b>{{ limit }}</b> 项
+      </template>
     </div>
 
     <!-- 图片大图预览 -->
@@ -87,6 +94,11 @@ const props = defineProps({
   videoSize: {
     type: Number,
     default: 50
+  },
+  // 仅照片模式：拒绝视频，提示文案也不提视频（回访照片这类场景用）
+  imageOnly: {
+    type: Boolean,
+    default: false
   },
   disabled: {
     type: Boolean,
@@ -162,7 +174,15 @@ function beforeUpload(file) {
   const ext = extOf(file.name)
   const isVideo = VIDEO_EXT.includes(ext)
   if (!isVideo && !IMAGE_EXT.includes(ext)) {
-    proxy.$modal.msgError(`只支持上传照片（${IMAGE_EXT.join("/")}）或视频（${VIDEO_EXT.join("/")}）!`)
+    proxy.$modal.msgError(
+      props.imageOnly
+        ? `只支持上传照片（${IMAGE_EXT.join("/")}）!`
+        : `只支持上传照片（${IMAGE_EXT.join("/")}）或视频（${VIDEO_EXT.join("/")}）!`
+    )
+    return false
+  }
+  if (isVideo && props.imageOnly) {
+    proxy.$modal.msgError(`该处只支持上传照片（${IMAGE_EXT.join("/")}），不支持视频!`)
     return false
   }
   if (file.name.includes(",")) {

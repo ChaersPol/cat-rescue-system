@@ -20,10 +20,10 @@
       <el-button type="primary">选取文件</el-button>
     </el-upload>
     <!-- 上传提示 -->
-    <div class="el-upload__tip" v-if="showTip && !disabled">
+    <div class="el-upload__tip form-tip" v-if="showTip && !disabled">
       请上传
-      <template v-if="fileSize"> 大小不超过 <b style="color: #f56c6c">{{ fileSize }}MB</b> </template>
-      <template v-if="fileType"> 格式为 <b style="color: #f56c6c">{{ fileType.join("/") }}</b> </template>
+      <template v-if="fileSize"> 大小不超过 <b>{{ fileSize }}MB</b> </template>
+      <template v-if="fileType"> 格式为 <b>{{ fileType.join("/") }}</b> </template>
       的文件
     </div>
     <!-- 文件列表 -->

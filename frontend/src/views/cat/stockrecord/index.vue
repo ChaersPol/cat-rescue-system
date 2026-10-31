@@ -26,7 +26,7 @@
         <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['cat:stockrecord:export']">导出</el-button>
       </el-col>
       <el-col :span="12">
-        <span class="tip">出入库记录不允许修改或删除，如需更正请使用「冲销」生成反向记录。</span>
+        <span class="form-tip is-bar">出入库记录<b>不允许修改或删除</b>，如需更正请使用<b>「冲销」</b>生成反向记录。</span>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
@@ -232,11 +232,6 @@ getList()
 </script>
 
 <style scoped>
-.tip {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 32px;
-}
 .in {
   color: #67c23a;
   font-weight: 600;

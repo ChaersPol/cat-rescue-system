@@ -457,6 +457,31 @@
   color: #888888;
 }
 
+/**
+ * 提示文字的通用规则（全站唯一写法，页面里不要再自定义 .tip）：
+ *   <div class="form-tip">说明文字（灰色），关键限制（格式/大小/数量/状态/后果）用 <b> 标红</b></div>
+ * - 颜色：说明灰(--el-text-color-secondary)，关键限制红(--el-color-danger) 且加粗
+ * - 位置：表单控件下方（默认 margin-top:4px）；放在工具栏/表格上方时加 is-bar，与 32px 按钮齐高
+ */
+.form-tip,
+.el-upload__tip.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+
+  b,
+  strong {
+    font-weight: 600;
+    color: var(--el-color-danger);
+  }
+}
+
+.form-tip.is-bar {
+  margin-top: 0;
+  line-height: 32px;
+}
+
 /* image */
 .img-circle {
   border-radius: 50%;

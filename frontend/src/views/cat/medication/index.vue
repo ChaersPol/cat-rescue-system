@@ -77,7 +77,7 @@
                      <el-input-number v-model="batchDays" :min="1" :max="60" :disabled="form.medicationId != undefined" controls-position="right" style="width: 100%" />
                   </el-col>
                </el-row>
-               <div class="form-tip">第二个数字是「连续天数」：填 7 表示从开始日期起连续录入 7 天，同一天同一种药不会重复生成。</div>
+               <div class="form-tip">第二个数字是<b>「连续天数」</b>：填 <b>7</b> 表示从开始日期起连续录入 <b>7</b> 天，同一天同一种药不会重复生成。</div>
             </el-form-item>
             <el-form-item label="时间段" prop="timePeriod">
                <el-select v-model="form.timePeriod" placeholder="请选择时间段" style="width: 100%">
@@ -281,12 +281,3 @@ function handleExport() {
 
 getList()
 </script>
-
-<style scoped>
-.form-tip {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  line-height: 1.6;
-  margin-top: 4px;
-}
-</style>
