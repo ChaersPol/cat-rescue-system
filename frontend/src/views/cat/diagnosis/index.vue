@@ -143,8 +143,8 @@ import { useFormDraft } from "@/utils/formDraft"
 import useUserStore from "@/store/modules/user"
 
 const { proxy } = getCurrentInstance()
-const { catLabel } = useCatCache()
-const { baseMap, baseLabel } = useBaseCache()
+const { catLabel, reloadCatCache } = useCatCache()
+const { baseMap, baseLabel, reloadBaseCache } = useBaseCache()
 
 // 需求文档 6.2：站内诊断记录仅限于医疗基地，因此可选基地只取 base_type=2（医疗基地），
 // 饲养基地不出现在可选项里。
@@ -283,6 +283,10 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 主数据（基地/猫咪）可能刚在别的页签新增过，打开弹窗前强制拉一次，
+  // 否则下拉里看不到新记录，用户会以为刚才没保存成功
+  reloadBaseCache()
+  reloadCatCache()
   reset()
   const savedDraft = draft.restore()
   if (savedDraft) {
@@ -294,6 +298,8 @@ function handleAdd() {
 }
 
 function handleUpdate(row) {
+  reloadBaseCache()
+  reloadCatCache()
   reset()
   const id = row.diagnosisId || ids.value
   getCatDiagnosis(id).then(response => {

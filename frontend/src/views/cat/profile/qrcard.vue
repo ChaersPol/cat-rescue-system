@@ -120,6 +120,7 @@
 <script setup name="CatQrCard">
 import { listCatProfile, listCatCards } from "@/api/cat/profile"
 import { listCatBase } from "@/api/cat/base"
+import { onMasterDataChanged, MASTER_KIND } from "@/utils/catCache"
 
 const { proxy } = getCurrentInstance()
 const { cat_status, cat_sex, cat_neutered } = useDict("cat_status", "cat_sex", "cat_neutered")
@@ -252,6 +253,11 @@ function applyRouteCatIds() {
 
 getBaseList()
 loadCats().then(() => applyRouteCatIds())
+
+// 基地改名/新增后，打印卡的基地筛选与卡片上的基地名立即更新
+onMasterDataChanged(MASTER_KIND.BASE, () => {
+  getBaseList()
+})
 </script>
 
 <style scoped>

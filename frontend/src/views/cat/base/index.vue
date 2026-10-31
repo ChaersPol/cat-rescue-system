@@ -103,6 +103,7 @@
 
 <script setup name="CatBase">
 import { listCatBase, getCatBase, delCatBase, addCatBase, updateCatBase } from '@/api/cat/base'
+import { invalidateMasterData, MASTER_KIND } from '@/utils/catCache'
 
 const { proxy } = getCurrentInstance()
 const { cat_base_type, sys_normal_disable } = proxy.useDict('cat_base_type', 'sys_normal_disable')
@@ -202,12 +203,15 @@ function submitForm() {
         updateCatBase(form.value).then(() => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false
+          // 通知其它页面（站内诊断、病房、流转…）的基地下拉/名称翻译立即刷新
+          invalidateMasterData(MASTER_KIND.BASE)
           getList()
         })
       } else {
         addCatBase(form.value).then(() => {
           proxy.$modal.msgSuccess('新增成功')
           open.value = false
+          invalidateMasterData(MASTER_KIND.BASE)
           getList()
         })
       }
@@ -220,6 +224,7 @@ function handleDelete(row) {
   proxy.$modal.confirm('是否确认删除选中的基地？').then(function () {
     return delCatBase(delIds)
   }).then(() => {
+    invalidateMasterData(MASTER_KIND.BASE)
     getList()
     proxy.$modal.msgSuccess('删除成功')
   }).catch(() => {})

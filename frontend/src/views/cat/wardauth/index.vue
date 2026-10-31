@@ -161,6 +161,8 @@ function resetQuery() {
 }
 
 function handleAuth(row) {
+  // 病房/基地可能在别的页签刚变化，打开授权弹窗前重拉，避免授权树缺新病房
+  loadWards()
   currentUser.value = row
   open.value = true
   authLoading.value = true

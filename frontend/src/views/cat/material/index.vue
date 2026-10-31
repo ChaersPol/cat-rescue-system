@@ -203,12 +203,15 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 物资分类可能在别的页签刚新增，打开弹窗前重拉下拉
+  loadCategories()
   reset()
   open.value = true
   title.value = "添加物资"
 }
 
 function handleUpdate(row) {
+  loadCategories()
   reset()
   const id = row.materialId || ids.value
   getCatMaterial(id).then(response => {

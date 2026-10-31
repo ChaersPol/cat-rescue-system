@@ -263,12 +263,15 @@ function resetQuery() {
 }
 
 function handleAdd() {
+  // 猫咪/基地/病房可能刚在别的页签变化，打开弹窗前重拉选项
+  loadOptions()
   reset()
   open.value = true
   title.value = '发起流转'
 }
 
 function handleUpdate(row) {
+  loadOptions()
   reset()
   getCatFlow(row.flowId).then(response => {
     form.value = response.data

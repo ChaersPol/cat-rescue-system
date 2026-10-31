@@ -27,7 +27,7 @@
 
 <script setup name="CatSelect">
 import { listCatProfile, getCatProfile } from "@/api/cat/profile"
-import { formatCatLabel } from "@/utils/catCache"
+import { formatCatLabel, onMasterDataChanged, MASTER_KIND } from "@/utils/catCache"
 
 /**
  * 猫咪选择器：用「名字（档案编号）」展示，避免表单里只能看到一个数字 id。
@@ -53,6 +53,14 @@ const options = ref([])
 const loading = ref(false)
 const loaded = ref(false)
 
+// 猫咪列表有效期：新增猫咪档案后，别的页面已挂载的选择器不能一直用旧列表
+const CACHE_TTL = 60 * 1000
+let loadedAt = 0
+
+function isStale() {
+  return !loadedAt || Date.now() - loadedAt >= CACHE_TTL
+}
+
 const innerValue = computed({
   get: () => (props.modelValue === undefined || props.modelValue === null ? undefined : props.modelValue),
   set: (val) => emit("update:modelValue", val)
@@ -63,8 +71,11 @@ function buildLabel(item) {
   return formatCatLabel(item.catName, item.archiveNo)
 }
 
-function loadOptions() {
+function loadOptions(force) {
   if (loading.value) {
+    return
+  }
+  if (!force && !isStale()) {
     return
   }
   loading.value = true
@@ -72,6 +83,7 @@ function loadOptions() {
     .then(response => {
       options.value = response.rows || []
       loaded.value = true
+      loadedAt = Date.now()
       ensureSelectedPresent()
     })
     .finally(() => {
@@ -99,7 +111,8 @@ function ensureSelectedPresent() {
 }
 
 function handleVisibleChange(visible) {
-  if (visible && !loaded.value) {
+  // 每次展开都检查一次：新增猫咪后立刻能选到，不用刷新页面
+  if (visible && isStale()) {
     loadOptions()
   }
 }
@@ -113,8 +126,23 @@ watch(
   }
 )
 
+// 猫咪档案增删改后，本组件的列表也立即重拉（下拉正打开时也能看到新猫）
+const offMasterData = onMasterDataChanged(MASTER_KIND.CAT, () => {
+  if (loaded.value) {
+    loadOptions(true)
+  } else {
+    loadedAt = 0
+  }
+})
+
 onMounted(() => {
   loadOptions()
+})
+
+onBeforeUnmount(() => {
+  if (typeof offMasterData === 'function') {
+    offMasterData()
+  }
 })
 </script>
 

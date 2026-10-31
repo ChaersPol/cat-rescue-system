@@ -103,12 +103,11 @@
 
 <script setup name="CatWardType">
 import { listCatWardType, getCatWardType, delCatWardType, addCatWardType, updateCatWardType } from "@/api/cat/wardtype"
-import { useWardTypeCache } from "@/utils/catCache"
+import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
-// 增删改后要让病房页/其它页的类型下拉缓存失效
-const { reloadWardTypeCache } = useWardTypeCache()
+// 增删改后广播，让病房页/其它页的类型下拉缓存失效（catCache 已订阅并自动重拉）
 
 const colorOptions = [
   { value: 'primary', label: '蓝色（默认）' },
@@ -212,14 +211,14 @@ function submitForm() {
           proxy.$modal.msgSuccess("修改成功，相关病房的类型名称已同步")
           open.value = false
           getList()
-          reloadWardTypeCache()
+          invalidateMasterData(MASTER_KIND.WARD_TYPE)
         })
       } else {
         addCatWardType(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
-          reloadWardTypeCache()
+          invalidateMasterData(MASTER_KIND.WARD_TYPE)
         })
       }
     }
@@ -232,7 +231,7 @@ function handleDelete(row) {
     return delCatWardType(delIds)
   }).then(() => {
     getList()
-    reloadWardTypeCache()
+    invalidateMasterData(MASTER_KIND.WARD_TYPE)
     proxy.$modal.msgSuccess("删除成功")
   }).catch(() => {})
 }

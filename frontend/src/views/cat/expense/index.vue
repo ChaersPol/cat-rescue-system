@@ -116,7 +116,7 @@ import { listCatMaterial } from "@/api/cat/material"
 
 const { proxy } = getCurrentInstance()
 const { cat_expense_type } = proxy.useDict('cat_expense_type')
-const { baseMap } = useBaseCache()
+const { baseMap, reloadBaseCache } = useBaseCache()
 const baseOptions = computed(() => Object.values(baseMap.value))
 // 入库单下拉（物资采购与入库单一一对应）
 const stockOptions = ref([])
@@ -219,12 +219,17 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 基地/入库单/物资可能在别的页签刚新增，打开弹窗前刷新，避免下拉缺最新记录
+  reloadBaseCache()
+  loadStockOptions()
   reset()
   open.value = true
   title.value = "添加财务支出"
 }
 
 function handleUpdate(row) {
+  reloadBaseCache()
+  loadStockOptions()
   reset()
   const id = row.expenseId || ids.value
   getCatExpense(id).then(response => {

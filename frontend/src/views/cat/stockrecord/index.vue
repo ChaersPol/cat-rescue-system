@@ -181,6 +181,8 @@ function resetQuery() {
 }
 
 function handleAdd() {
+  // 物资可能在别的页签刚新增，打开弹窗前重拉下拉
+  loadMaterials()
   form.value = {
     recordId: undefined,
     materialId: undefined,

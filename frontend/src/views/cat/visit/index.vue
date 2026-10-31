@@ -219,6 +219,8 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 猫咪档案可能在别的页签刚新增，打开弹窗前重拉下拉
+  loadCats()
   reset()
   open.value = true
   title.value = '新增回访计划'

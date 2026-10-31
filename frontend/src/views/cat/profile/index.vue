@@ -292,6 +292,7 @@ import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
 import { useFormDraft } from "@/utils/formDraft"
+import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 
 const { proxy } = getCurrentInstance()
 const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no } = useDict("cat_status", "cat_sex", "cat_source", "cat_neutered", "cat_yes_no")
@@ -522,6 +523,11 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 基地/病房/标签/医院可能在别的页签刚维护过，打开弹窗前重拉下拉
+  getBaseList()
+  getWardList()
+  getTagList()
+  getHospitalOptions()
   reset()
   const saved = draft.restore()
   if (saved) {
@@ -534,6 +540,9 @@ function handleAdd() {
 }
 
 function handleUpdate(row) {
+  getBaseList()
+  getWardList()
+  getTagList()
   reset()
   const id = row.catId || ids.value
   getCatProfile(id).then(response => {
@@ -555,6 +564,7 @@ function handleArchive(row) {
     return archiveCatProfile(row.catId)
   }).then(() => {
     proxy.$modal.msgSuccess('已归档')
+    invalidateMasterData(MASTER_KIND.CAT)
     getList()
   }).catch(() => {})
 }
@@ -562,6 +572,7 @@ function handleArchive(row) {
 function handleUnarchive(row) {
   unarchiveCatProfile(row.catId).then(() => {
     proxy.$modal.msgSuccess('已取消归档')
+    invalidateMasterData(MASTER_KIND.CAT)
     getList()
   })
 }
@@ -581,6 +592,8 @@ function submitForm() {
           proxy.$modal.msgSuccess("修改成功")
           draft.pause()
           open.value = false
+          // 猫咪名称/编号变了，其它页面的 <cat-select> 与列表翻译立即刷新
+          invalidateMasterData(MASTER_KIND.CAT)
           getList()
         })
       } else {
@@ -589,6 +602,7 @@ function submitForm() {
           draft.clear()
           draft.pause()
           open.value = false
+          invalidateMasterData(MASTER_KIND.CAT)
           getList()
         })
       }
@@ -601,6 +615,7 @@ function handleDelete(row) {
   proxy.$modal.confirm('是否确认删除该猫咪档案？删除后不可恢复。').then(function () {
     return delCatProfile(delIds)
   }).then(() => {
+    invalidateMasterData(MASTER_KIND.CAT)
     getList()
     proxy.$modal.msgSuccess("删除成功")
   }).catch(() => {})

@@ -112,15 +112,15 @@
 </template>
 
 <script setup name="CatWard">
-import { useBaseCache, useWardTypeCache } from "@/utils/catCache"
+import { useBaseCache, useWardTypeCache, invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 import { listCatWard, getCatWard, delCatWard, addCatWard, updateCatWard } from "@/api/cat/ward"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
-const { baseMap, baseLabel } = useBaseCache()
+const { baseMap, baseLabel, reloadBaseCache } = useBaseCache()
 const baseOptions = computed(() => Object.values(baseMap.value))
 // 病房类型来自「基础信息 → 病房类型」字典，不再写死在下拉里
-const { wardTypeList, wardTypeLabel, wardTypeTag } = useWardTypeCache()
+const { wardTypeList, wardTypeLabel, wardTypeTag, reloadWardTypeCache } = useWardTypeCache()
 
 const list = ref([])
 const open = ref(false)
@@ -199,12 +199,17 @@ function handleSelectionChange(selection) {
 }
 
 function handleAdd() {
+  // 基地/病房类型可能在别的页签刚新增，打开弹窗前重拉
+  reloadBaseCache()
+  reloadWardTypeCache()
   reset()
   open.value = true
   title.value = "添加病房"
 }
 
 function handleUpdate(row) {
+  reloadBaseCache()
+  reloadWardTypeCache()
   reset()
   const id = row.wardId || ids.value
   getCatWard(id).then(response => {
@@ -221,12 +226,15 @@ function submitForm() {
         updateCatWard(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
+          // 其它页面的病房下拉/名称翻译立即刷新
+          invalidateMasterData(MASTER_KIND.WARD)
           getList()
         })
       } else {
         addCatWard(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
+          invalidateMasterData(MASTER_KIND.WARD)
           getList()
         })
       }
@@ -239,6 +247,7 @@ function handleDelete(row) {
   proxy.$modal.confirm('是否确认删除该数据？').then(function () {
     return delCatWard(delIds)
   }).then(() => {
+    invalidateMasterData(MASTER_KIND.WARD)
     getList()
     proxy.$modal.msgSuccess("删除成功")
   }).catch(() => {})
