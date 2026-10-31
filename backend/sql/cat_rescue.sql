@@ -149,7 +149,7 @@ CREATE TABLE `cat_base` (
   `update_time` datetime DEFAULT NULL COMMENT '更新时间',
   `del_flag` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '0' COMMENT '删除标志（0存在 2删除）',
   PRIMARY KEY (`base_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=104 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='基地表';
+) ENGINE=InnoDB AUTO_INCREMENT=106 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='基地表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -299,7 +299,7 @@ CREATE TABLE `cat_diagnosis` (
   `remark` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`diagnosis_id`),
   KEY `idx_cat` (`cat_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=107 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='站内诊断记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='站内诊断记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -308,7 +308,7 @@ CREATE TABLE `cat_diagnosis` (
 
 LOCK TABLES `cat_diagnosis` WRITE;
 /*!40000 ALTER TABLE `cat_diagnosis` DISABLE KEYS */;
-INSERT INTO `cat_diagnosis` VALUES (100,104,101,'2026-08-25 09:30:00','王医生','口腔异味、流涎、进食困难','慢性口炎（中度）','口腔检查、血常规、体温 39.1℃','流质饮食，口服抗生素 7 天，必要时考虑拔牙','',NULL,NULL,NULL,'admin','2026-08-25 09:30:00','',NULL,'0',NULL),(101,104,101,'2026-09-20 10:00:00','王医生','进食改善，口腔仍红肿','口炎好转中','口腔检查、体重 4.5kg','继续口腔护理，每月复查','',NULL,NULL,NULL,'admin','2026-09-20 10:00:00','',NULL,'0',NULL),(102,105,101,'2026-09-01 17:00:00','王医生','右后腿跛行，局部肿胀','右后肢软组织挫伤并轻度感染','触诊、X 光（外院）、体温 38.6℃','清创消毒，口服消炎药 5 天，限制活动','',NULL,NULL,NULL,'admin','2026-09-01 17:00:00','',NULL,'0',NULL),(103,106,100,'2026-09-05 10:30:00','助理小李','背部及耳后脱毛、皮屑增多','疑似真菌性皮肤病','伍德灯检查、皮肤刮片镜检','外用药浴每周 2 次，隔离观察，避免接触其他猫','',NULL,NULL,NULL,'admin','2026-09-05 10:30:00','',NULL,'0',NULL),(104,106,100,'2026-10-05 10:00:00','助理小李','脱毛区域缩小，新生绒毛','真菌感染好转','伍德灯复查','继续药浴 2 周后复查','',NULL,NULL,NULL,'admin','2026-10-05 10:00:00','',NULL,'0',NULL),(105,117,101,'2026-09-20 08:30:00','王医生','TNR 绝育术后第 1 天','术后恢复良好','体温 38.5℃、切口干燥','抗感染 3 天，观察切口，7 天后评估放归','',NULL,NULL,NULL,'admin','2026-09-20 08:30:00','',NULL,'0',NULL),(106,119,100,'2026-09-01 09:00:00','助理小李','行动迟缓，食欲一般','截肢后慢性应激、体重下降','体重 3.3kg、血常规','高营养流质饮食，减少应激，姑息照料','',NULL,NULL,NULL,'admin','2026-09-01 09:00:00','',NULL,'0',NULL);
+INSERT INTO `cat_diagnosis` VALUES (100,104,101,'2026-08-25 09:30:00','王医生','口腔异味、流涎、进食困难','慢性口炎（中度）','口腔检查、血常规、体温 39.1℃','流质饮食，口服抗生素 7 天，必要时考虑拔牙','',NULL,NULL,NULL,'admin','2026-08-25 09:30:00','',NULL,'0',NULL),(101,104,101,'2026-09-20 10:00:00','王医生','进食改善，口腔仍红肿','口炎好转中','口腔检查、体重 4.5kg','继续口腔护理，每月复查','',NULL,NULL,NULL,'admin','2026-09-20 10:00:00','',NULL,'0',NULL),(102,105,101,'2026-09-01 17:00:00','王医生','右后腿跛行，局部肿胀','右后肢软组织挫伤并轻度感染','触诊、X 光（外院）、体温 38.6℃','清创消毒，口服消炎药 5 天，限制活动','',NULL,NULL,NULL,'admin','2026-09-01 17:00:00','',NULL,'0',NULL),(103,106,100,'2026-09-05 10:30:00','助理小李','背部及耳后脱毛、皮屑增多','疑似真菌性皮肤病','伍德灯检查、皮肤刮片镜检','外用药浴每周 2 次，隔离观察，避免接触其他猫','',NULL,NULL,NULL,'admin','2026-09-05 10:30:00','',NULL,'0',NULL),(104,106,100,'2026-10-05 10:00:00','助理小李','脱毛区域缩小，新生绒毛','真菌感染好转','伍德灯复查','继续药浴 2 周后复查','',NULL,NULL,NULL,'admin','2026-10-05 10:00:00','',NULL,'0',NULL),(105,117,101,'2026-09-20 08:30:00','王医生','TNR 绝育术后第 1 天','术后恢复良好','体温 38.5℃、切口干燥','抗感染 3 天，观察切口，7 天后评估放归','',NULL,NULL,NULL,'admin','2026-09-20 08:30:00','',NULL,'0',NULL),(106,119,101,'2026-09-01 09:00:00','助理小李','行动迟缓，食欲一般','截肢后慢性应激、体重下降','体重 3.3kg、血常规','高营养流质饮食，减少应激，姑息照料','',NULL,NULL,NULL,'admin','2026-09-01 09:00:00','','2026-10-31 15:13:30','0',NULL);
 /*!40000 ALTER TABLE `cat_diagnosis` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1387,7 +1387,7 @@ CREATE TABLE `sys_logininfor` (
   PRIMARY KEY (`info_id`),
   KEY `idx_sys_logininfor_s` (`status`),
   KEY `idx_sys_logininfor_lt` (`login_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
+) ENGINE=InnoDB AUTO_INCREMENT=284 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1528,7 +1528,7 @@ CREATE TABLE `sys_oper_log` (
   KEY `idx_sys_oper_log_bt` (`business_type`),
   KEY `idx_sys_oper_log_s` (`status`),
   KEY `idx_sys_oper_log_ot` (`oper_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=331 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
+) ENGINE=InnoDB AUTO_INCREMENT=358 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1693,7 +1693,7 @@ CREATE TABLE `sys_user` (
 
 LOCK TABLES `sys_user` WRITE;
 /*!40000 ALTER TABLE `sys_user` DISABLE KEYS */;
-INSERT INTO `sys_user` VALUES (1,201,'admin','系统超管','00','liwen@cat-rescue.local','13800138000','0','','$2a$10$mnn0stY85Q4DY9xjIGawgu8wmp5QO.mFUCrfsTdE6W.0J2ZlAUw7C','0','0','127.0.0.1','2026-10-31 13:44:06','2026-10-27 11:40:16','admin','2026-10-27 11:40:16','','2026-10-27 11:40:17','系统内置超级管理员账户，不在用户管理中显示'),(2,203,'doctor01','王建国','00','wangjg@cat-rescue.local','13800138001','0','','$2a$10$/oWSlfUFY5XpPKw4kUH8qO.zW06SToSMES.FIRZdn1vGDyeo4Nnw.','0','0','127.0.0.1','2026-10-28 09:24:36','2026-10-27 13:33:13','admin','2026-10-27 11:40:16','','2026-10-27 13:33:13','医疗基地主治医生'),(100,203,'doctor02','陈静','00','chenjing@cat-rescue.local','13800138002','1','','$2a$10$Xr9Snp.rKsJw6j.XQ8BO3.OmtO7BrHN5IWxNI.7blGYsSIz.Bgk.6','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:34:21','admin','2026-10-27 11:40:17','','2026-10-27 13:34:21','医疗基地住院医师'),(101,205,'assist01','张小敏','00','zhangxm@cat-rescue.local','13800138003','1','','$2a$10$mgNudn3BWit5LBBrVkKEmOAFHK9i/TU.avSB2.oz7J6lsuYJN1XEe','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','A基地区护理助理，管理普通病房A区/隔离观察房/幼猫房'),(102,206,'assist02','赵丽','00','zhaoli@cat-rescue.local','13800138004','1','','$2a$10$81yQPzITp1XltbHpgzWZvuOpSpcGEn0opmEuAk/WU6G8JIZG/QFJ2','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','B基地区护理助理，管理普通病房B区/隔离观察房B/幼猫房B'),(103,203,'assist03','孙倩','00','sunqian@cat-rescue.local','13800138005','1','','$2a$10$wP6UL5V7vsdyvoftwlpuJOCkZ8Dr01N18zJja0uUSnSZh2p/qKvnS','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','医疗基地护理助理，管理治疗病房/传染病隔离房/术后观察房'),(104,208,'stock01','周涛','00','zhoutao@cat-rescue.local','13800138006','0','','$2a$10$yChcOcROBgMAxupcns7LAOMuUHOqALGWmzr./.85C4wzojuchH4l.','0','0','127.0.0.1','2026-10-27 13:48:54','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','物资管理员，负责出入库登记'),(105,207,'adopt01','吴倩','00','wuqian@cat-rescue.local','13800138007','1','','$2a$10$l4Y49LezCVkU2RkJeG7UD.FgPcdQjDyXtIZHFOfZDAe8.ZvXESanW','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','领养回访专员'),(106,201,'manager01','李文','00','manager01@catrescue.local','13800000001','0','','$2a$10$93VVLlV56FFD0.3UzCPIyugSu150D0YQwFnmzZa3A7LwiXtBfZIVK','0','0','127.0.0.1','2026-10-29 15:41:04','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','站长，业务管理员');
+INSERT INTO `sys_user` VALUES (1,201,'admin','系统超管','00','liwen@cat-rescue.local','13800138000','0','','$2a$10$mnn0stY85Q4DY9xjIGawgu8wmp5QO.mFUCrfsTdE6W.0J2ZlAUw7C','0','0','127.0.0.1','2026-10-31 14:41:41','2026-10-27 11:40:16','admin','2026-10-27 11:40:16','','2026-10-27 11:40:17','系统内置超级管理员账户，不在用户管理中显示'),(2,203,'doctor01','王建国','00','wangjg@cat-rescue.local','13800138001','0','','$2a$10$/oWSlfUFY5XpPKw4kUH8qO.zW06SToSMES.FIRZdn1vGDyeo4Nnw.','0','0','127.0.0.1','2026-10-28 09:24:36','2026-10-27 13:33:13','admin','2026-10-27 11:40:16','','2026-10-27 13:33:13','医疗基地主治医生'),(100,203,'doctor02','陈静','00','chenjing@cat-rescue.local','13800138002','1','','$2a$10$Xr9Snp.rKsJw6j.XQ8BO3.OmtO7BrHN5IWxNI.7blGYsSIz.Bgk.6','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:34:21','admin','2026-10-27 11:40:17','','2026-10-27 13:34:21','医疗基地住院医师'),(101,205,'assist01','张小敏','00','zhangxm@cat-rescue.local','13800138003','1','','$2a$10$mgNudn3BWit5LBBrVkKEmOAFHK9i/TU.avSB2.oz7J6lsuYJN1XEe','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','A基地区护理助理，管理普通病房A区/隔离观察房/幼猫房'),(102,206,'assist02','赵丽','00','zhaoli@cat-rescue.local','13800138004','1','','$2a$10$81yQPzITp1XltbHpgzWZvuOpSpcGEn0opmEuAk/WU6G8JIZG/QFJ2','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','B基地区护理助理，管理普通病房B区/隔离观察房B/幼猫房B'),(103,203,'assist03','孙倩','00','sunqian@cat-rescue.local','13800138005','1','','$2a$10$wP6UL5V7vsdyvoftwlpuJOCkZ8Dr01N18zJja0uUSnSZh2p/qKvnS','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','医疗基地护理助理，管理治疗病房/传染病隔离房/术后观察房'),(104,208,'stock01','周涛','00','zhoutao@cat-rescue.local','13800138006','0','','$2a$10$yChcOcROBgMAxupcns7LAOMuUHOqALGWmzr./.85C4wzojuchH4l.','0','0','127.0.0.1','2026-10-27 13:48:54','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','物资管理员，负责出入库登记'),(105,207,'adopt01','吴倩','00','wuqian@cat-rescue.local','13800138007','1','','$2a$10$l4Y49LezCVkU2RkJeG7UD.FgPcdQjDyXtIZHFOfZDAe8.ZvXESanW','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','领养回访专员'),(106,201,'manager01','李文','00','manager01@catrescue.local','13800000001','0','','$2a$10$93VVLlV56FFD0.3UzCPIyugSu150D0YQwFnmzZa3A7LwiXtBfZIVK','0','0','127.0.0.1','2026-10-31 15:44:59','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','站长，业务管理员');
 /*!40000 ALTER TABLE `sys_user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1754,4 +1754,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-31 13:48:08
+-- Dump completed on 2026-10-31 16:25:52
