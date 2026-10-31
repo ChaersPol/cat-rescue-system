@@ -35,9 +35,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="vaccineDate != null">AND vaccine_date = #{vaccineDate}</if>
             <if test="nextDate != null">AND next_date = #{nextDate}</if>
             <if test="responsible != null and responsible != ''">AND responsible = #{responsible}</if>
+            <if test="dueDays != null">AND next_date is not null AND next_date &lt;= date_add(curdate(), interval #{dueDays} day)</if>
             AND del_flag = '0'
         </where>
-        order by vaccine_id desc
+        <!-- 按到期筛选时，最紧急（过期最久 / 最近到期）排前面，别让用户翻页找 -->
+        <choose>
+            <when test="dueDays != null">order by next_date asc, vaccine_id desc</when>
+            <otherwise>order by vaccine_id desc</otherwise>
+        </choose>
     </select>
 
     <insert id="insertCatVaccine" parameterType="CatVaccine" useGeneratedKeys="true" keyProperty="vaccineId">

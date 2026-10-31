@@ -203,7 +203,14 @@ function handleQuery() {
 
 function resetQuery() {
   proxy.resetForm('queryRef')
-  handleQuery()
+  // 路由带过来的筛选项（看板死因分布）不算表单初始值，要显式清掉
+  queryParams.value.deathType = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
+  } else {
+    getList()
+  }
 }
 
 function handleAdd() {
@@ -270,6 +277,21 @@ function handleDelete(row) {
 function handleExport() {
   proxy.download('cat/death/export', { ...queryParams.value }, `death_${new Date().getTime()}.xlsx`)
 }
+
+// 从看板「死因分布」等入口带过来的筛选条件，进页面即生效
+const route = useRoute()
+const router = useRouter()
+function applyRouteQuery() {
+  const q = route.query || {}
+  queryParams.value.deathType = q.deathType || undefined
+  queryParams.value.catId = q.catId ? Number(q.catId) : undefined
+  queryParams.value.pageNum = 1
+}
+applyRouteQuery()
+watch(() => route.query, () => {
+  applyRouteQuery()
+  getList()
+})
 
 loadCats()
 getList()

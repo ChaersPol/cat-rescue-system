@@ -209,6 +209,12 @@ function handleQuery() {
 function resetQuery() {
   dateRange.value = []
   proxy.resetForm("queryRef")
+  // 路由带过来的筛选项（看板支出卡片的 expenseType）不算表单初始值，要显式清掉
+  queryParams.value.expenseType = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} })
+  }
   handleQuery()
 }
 
@@ -275,6 +281,7 @@ function handleExport() {
 
 // 从看板「支出结构」柱子点击进来时，按费用类型预筛选
 const route = useRoute()
+const router = useRouter()
 if (route.query.expenseType) {
    queryParams.value.expenseType = String(route.query.expenseType)
 }

@@ -2,7 +2,6 @@ package com.ruoyi.web.controller.cat;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -144,31 +143,15 @@ public class CatDashboardController
         abnormalQuery.setVisitStatus("2");
         result.put("visitAbnormal", catVisitMapper.selectCatVisitList(abnormalQuery).size());
 
-        // 待疫苗 / 待驱虫（7 天内到期或已过期未接种）
-        Calendar limit = Calendar.getInstance();
-        limit.add(Calendar.DAY_OF_MONTH, 7);
-        Date limitDate = limit.getTime();
-        List<CatVaccine> vaccines = catVaccineMapper.selectCatVaccineList(new CatVaccine());
-        java.util.Set<Long> dueVaccineCats = new java.util.HashSet<>();
-        for (CatVaccine v : vaccines)
-        {
-            if (v.getNextDate() != null && !v.getNextDate().after(limitDate))
-            {
-                dueVaccineCats.add(v.getCatId());
-            }
-        }
-        result.put("dueVaccine", dueVaccineCats.size());
+        // 待疫苗 / 待驱虫（7 天内到期或已过期）：直接复用列表页的 dueDays 条件，
+        // 保证卡片数字 = 点进去看到的条数（之前按「猫只数」去重，会和列表条数对不上）
+        CatVaccine vaccineQuery = new CatVaccine();
+        vaccineQuery.setDueDays(7);
+        result.put("dueVaccine", catVaccineMapper.selectCatVaccineList(vaccineQuery).size());
 
-        List<CatDeworm> deworms = catDewormMapper.selectCatDewormList(new CatDeworm());
-        java.util.Set<Long> dueDewormCats = new java.util.HashSet<>();
-        for (CatDeworm d : deworms)
-        {
-            if (d.getNextDate() != null && !d.getNextDate().after(limitDate))
-            {
-                dueDewormCats.add(d.getCatId());
-            }
-        }
-        result.put("dueDeworm", dueDewormCats.size());
+        CatDeworm dewormQuery = new CatDeworm();
+        dewormQuery.setDueDays(7);
+        result.put("dueDeworm", catDewormMapper.selectCatDewormList(dewormQuery).size());
 
         // 领养数量
         result.put("adoptionCount", catAdoptionMapper.selectCatAdoptionList(new CatAdoption()).size());
@@ -237,29 +220,44 @@ public class CatDashboardController
         BigDecimal medicalExpense = BigDecimal.ZERO;
         BigDecimal materialExpense = BigDecimal.ZERO;
         BigDecimal monthExpense = BigDecimal.ZERO;
+        BigDecimal monthMedicalExpense = BigDecimal.ZERO;
+        BigDecimal monthMaterialExpense = BigDecimal.ZERO;
         String currentMonth = new SimpleDateFormat("yyyy-MM").format(new Date());
         for (CatExpense e : expenses)
         {
             BigDecimal amount = e.getAmount() == null ? BigDecimal.ZERO : e.getAmount();
             totalExpense = totalExpense.add(amount);
-            if (e.getExpenseDate() != null
-                    && currentMonth.equals(new SimpleDateFormat("yyyy-MM").format(e.getExpenseDate())))
+            // 本期（本月）支出：总支出与医疗、物资采购分项都按本月口径，
+            // 看板顶部指标要口径一致，累计值只用于下方结构图
+            boolean isThisMonth = e.getExpenseDate() != null
+                    && currentMonth.equals(new SimpleDateFormat("yyyy-MM").format(e.getExpenseDate()));
+            if (isThisMonth)
             {
                 monthExpense = monthExpense.add(amount);
             }
             if ("2".equals(e.getExpenseType()))
             {
                 medicalExpense = medicalExpense.add(amount);
+                if (isThisMonth)
+                {
+                    monthMedicalExpense = monthMedicalExpense.add(amount);
+                }
             }
             else if ("1".equals(e.getExpenseType()))
             {
                 materialExpense = materialExpense.add(amount);
+                if (isThisMonth)
+                {
+                    monthMaterialExpense = monthMaterialExpense.add(amount);
+                }
             }
         }
         result.put("totalExpense", totalExpense);
         result.put("medicalExpense", medicalExpense);
         result.put("materialExpense", materialExpense);
         result.put("monthExpense", monthExpense);
+        result.put("monthMedicalExpense", monthMedicalExpense);
+        result.put("monthMaterialExpense", monthMaterialExpense);
 
         return AjaxResult.success(result);
     }

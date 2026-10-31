@@ -8,6 +8,12 @@
             <el-date-picker v-model="dateRange" value-format="YYYY-MM-DD" type="daterange" range-separator="-"
                start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px" />
          </el-form-item>
+         <el-form-item label="绝育状态" prop="neuterStatus">
+            <el-select v-model="queryParams.neuterStatus" placeholder="全部" clearable style="width: 130px">
+               <el-option label="待绝育" value="0" />
+               <el-option label="已绝育" value="1" />
+            </el-select>
+         </el-form-item>
          <el-form-item>
             <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -38,9 +44,16 @@
                {{ catLabel(scope.row.catId) }}
             </template>
          </el-table-column>
-         <el-table-column label="抓捕时间" align="center" prop="captureTime" :show-overflow-tooltip="true" />
+         <el-table-column label="抓捕时间" align="center" prop="captureTime" width="140" :show-overflow-tooltip="true" />
          <el-table-column label="抓捕点位" align="center" prop="capturePoint" :show-overflow-tooltip="true" />
-         <el-table-column label="手术日期" align="center" prop="surgeryDate" :show-overflow-tooltip="true" />
+         <el-table-column label="手术日期" align="center" prop="surgeryDate" width="132">
+            <template #default="scope">
+               <div>{{ scope.row.surgeryDate || '—' }}</div>
+               <div class="due-tip" :class="scope.row.surgeryDate ? 'is-success' : 'is-danger'">
+                  {{ scope.row.surgeryDate ? '已绝育' : `待绝育 · 已抓捕 ${daysSinceCapture(scope.row.captureTime)} 天` }}
+               </div>
+            </template>
+         </el-table-column>
          <el-table-column label="结果" align="center" prop="result">
             <template #default="scope">
                <dict-tag :options="cat_tnr_result" :value="scope.row.result" />
@@ -130,6 +143,7 @@ const data = reactive({
     capturePoint: undefined,
     surgeryDate: undefined,
     result: undefined,
+    neuterStatus: undefined,
   },
   rules: {
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
@@ -148,6 +162,14 @@ function getList() {
     total.value = response.total
     loading.value = false
   })
+}
+
+/** 抓捕至今多少天（只用于「待绝育」的悬停说明） */
+function daysSinceCapture(captureTime) {
+  if (!captureTime) return '—'
+  const t = new Date(String(captureTime).replace(/-/g, '/'))
+  if (isNaN(t.getTime())) return '—'
+  return Math.max(Math.floor((Date.now() - t.getTime()) / 86400000), 0)
 }
 
 function cancel() {
@@ -179,7 +201,14 @@ function handleQuery() {
 function resetQuery() {
   dateRange.value = []
   proxy.resetForm("queryRef")
-  handleQuery()
+  // 路由带过来的筛选项（看板「待绝育 / 已绝育」）不算表单初始值，要显式清掉
+  queryParams.value.neuterStatus = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
+  } else {
+    getList()
+  }
 }
 
 function handleSelectionChange(selection) {
@@ -246,6 +275,21 @@ function handleDelete(row) {
 function handleExport() {
   proxy.download("cat/tnr/export", { ...queryParams.value }, `tnr_${new Date().getTime()}.xlsx`)
 }
+
+// 从看板「待绝育 / 已绝育」等入口带过来的筛选条件，进页面即生效
+const route = useRoute()
+const router = useRouter()
+function applyRouteQuery() {
+  const q = route.query || {}
+  queryParams.value.neuterStatus = q.neuterStatus === '0' || q.neuterStatus === '1' ? q.neuterStatus : undefined
+  queryParams.value.catId = q.catId ? Number(q.catId) : undefined
+  queryParams.value.pageNum = 1
+}
+applyRouteQuery()
+watch(() => route.query, () => {
+  applyRouteQuery()
+  getList()
+})
 
 getList()
 </script>

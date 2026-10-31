@@ -482,6 +482,34 @@
   line-height: 32px;
 }
 
+/**
+ * 表格单元格里的第二行状态小字（与档案页 .status-detail 同一思路）：
+ *   <div class="due-tip is-danger">已过期 21 天</div>
+ * - 用途：日期类字段下方补充"还剩几天 / 过期多久"，比单开一列省宽度，也不挤其他列
+ * - 颜色：is-danger 过期、is-warning 临期、is-success 已完成、is-muted 正常
+ */
+.due-tip {
+  margin-top: 1px;
+  font-size: 11px;
+  line-height: 1.3;
+
+  &.is-danger {
+    color: var(--el-color-danger);
+  }
+
+  &.is-warning {
+    color: var(--el-color-warning);
+  }
+
+  &.is-success {
+    color: var(--el-color-success);
+  }
+
+  &.is-muted {
+    color: var(--el-text-color-placeholder);
+  }
+}
+
 /* image */
 .img-circle {
   border-radius: 50%;

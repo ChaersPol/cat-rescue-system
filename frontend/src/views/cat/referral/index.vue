@@ -304,7 +304,14 @@ function handleQuery() {
 
 function resetQuery() {
   proxy.resetForm('queryRef')
-  handleQuery()
+  // 路由带过来的筛选项（看板「外送治疗中」= status 0）要显式清掉
+  queryParams.value.status = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
+  } else {
+    getList()
+  }
 }
 
 function handleAdd() {
@@ -386,6 +393,7 @@ function handleExport() {
 
 // 从看板「外送治疗中」等入口带过来的筛选条件，进页面即生效
 const route = useRoute()
+const router = useRouter()
 function applyRouteQuery() {
   const q = route.query || {}
   queryParams.value.status = q.status || undefined

@@ -95,7 +95,10 @@
           <el-input v-model="form.supplier" placeholder="入库供应商" />
         </el-form-item>
         <el-form-item label="领用基地" prop="receiverBase" v-if="form.recordType === '2'">
-          <el-input v-model="form.receiverBase" placeholder="领用基地" />
+          <el-select v-model="form.receiverBase" placeholder="请选择领用基地" filterable style="width: 100%">
+            <el-option v-for="b in baseOptions" :key="b.baseId" :label="b.baseName" :value="b.baseName" />
+          </el-select>
+          <div class="form-tip">只能选择<b>基地管理</b>中已登记的基地，需新增请先到基地管理维护。</div>
         </el-form-item>
         <el-form-item label="领用人" prop="receiver" v-if="form.recordType === '2'">
           <el-input v-model="form.receiver" placeholder="领用人" />
@@ -123,6 +126,7 @@
 <script setup name="CatStockRecord">
 import { listCatStockRecord, addCatStockRecord, reverseCatStockRecord } from '@/api/cat/stockrecord'
 import { listCatMaterial } from '@/api/cat/material'
+import { listCatBase } from '@/api/cat/base'
 
 const { proxy } = getCurrentInstance()
 
@@ -132,6 +136,7 @@ const loading = ref(true)
 const showSearch = ref(true)
 const total = ref(0)
 const materialOptions = ref([])
+const baseOptions = ref([])
 
 const data = reactive({
   form: {},
@@ -161,6 +166,13 @@ function loadMaterials() {
   })
 }
 
+// 领用基地只允许选系统里已登记的启用基地，避免录入手写名称
+function loadBases() {
+  listCatBase({ pageNum: 1, pageSize: 999, status: '0' }).then(res => {
+    baseOptions.value = res.rows || []
+  })
+}
+
 function getList() {
   loading.value = true
   listCatStockRecord(queryParams.value).then(response => {
@@ -181,8 +193,9 @@ function resetQuery() {
 }
 
 function handleAdd() {
-  // 物资可能在别的页签刚新增，打开弹窗前重拉下拉
+  // 物资、基地可能在别的页签刚新增，打开弹窗前重拉下拉
   loadMaterials()
+  loadBases()
   form.value = {
     recordId: undefined,
     materialId: undefined,

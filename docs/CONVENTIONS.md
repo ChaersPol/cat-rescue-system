@@ -187,3 +187,35 @@ RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**�
   `class="el-upload__tip form-tip"`，自动套用同一套样式
 - `MediaUpload` 加 `image-only` 时只收照片（拒绝视频），文案也只提照片——
   回访照片、诊断照片这类"只存图"的场景必须用它
+
+### 表格里的第二行状态小字（`.due-tip`）
+
+日期类字段（下次接种、下次驱虫、手术日期…）要显示"还剩几天 / 过期多久"时，
+**不要为它单开一列**——多一列会把日期列挤到显示不全。写在原单元格里当第二行：
+
+```html
+<el-table-column label="下次接种" align="center" prop="nextDate" width="110">
+   <template #default="scope">
+      <div>{{ scope.row.nextDate || '—' }}</div>
+      <div v-if="scope.row.nextDate" class="due-tip" :class="dueInfo(scope.row.nextDate).cls">
+         {{ dueInfo(scope.row.nextDate).text }}
+      </div>
+   </template>
+</el-table-column>
+```
+
+- 颜色只有四种：`is-danger` 已过期、`is-warning` 临期（7 天内 / 今天）、
+  `is-success` 已完成、`is-muted` 正常
+- 字号 11px，紧贴上一行（`margin-top: 1px`），与档案页 `.status-detail` 同一思路
+- 天数按**自然日**算（`new Date(y, m-1, d)` 相减），不要用时间戳直接除，否则会被时区/时分秒差 1 天
+
+### 看板卡片跳转必须带筛选条件
+
+看板上的每张卡 / 每个图表点位跳到列表页时，`router.push` 的 `query` 必须能还原成
+目标页搜索表单里的条件（`status` / `dueDays` / `neuterStatus` / `visitStatus` / `deathType` / `expenseType` …），
+目标页在 `applyRouteQuery()` 里读 `route.query` 落到 `queryParams`，并 `watch(route.query)` 处理
+同一路由只变 query 的情况。**卡片数字必须等于点进去后列表的「共 N 条」**，
+口径不一致就改后端口径（例如待疫苗/待驱虫直接复用列表页的 `dueDays` 条件）。
+
+筛选条件只在原有 RuoYi 搜索表单里体现（下拉选中态），**不要在页面上另加提示条/横幅**。
+「重置」要连同路由带来的条件一起清掉，否则用户点了重置筛选依旧生效。

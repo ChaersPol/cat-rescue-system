@@ -51,9 +51,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="anesthesiaNote != null and anesthesiaNote != ''">AND anesthesia_note = #{anesthesiaNote}</if>
             <if test="postObservation != null and postObservation != ''">AND post_observation = #{postObservation}</if>
             <if test="result != null and result != ''">AND result = #{result}</if>
+            <!-- 看板「待绝育 / 已绝育」：以是否登记手术日期为准（用 SQL 判断，避免 OGNL 字符串比较踩坑） -->
+            <if test="neuterStatus != null and neuterStatus != ''">
+                AND ((#{neuterStatus} = '1' AND surgery_date is not null) OR (#{neuterStatus} = '0' AND surgery_date is null))
+            </if>
             AND del_flag = '0'
         </where>
-        order by tnr_id desc
+        <!-- 按绝育状态筛选时按抓捕时间正序，抓得最久还没做手术的排最前 -->
+        <choose>
+            <when test="neuterStatus != null and neuterStatus != ''">order by capture_time asc, tnr_id desc</when>
+            <otherwise>order by tnr_id desc</otherwise>
+        </choose>
     </select>
 
     <insert id="insertCatTnr" parameterType="CatTnr" useGeneratedKeys="true" keyProperty="tnrId">

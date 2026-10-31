@@ -57,6 +57,8 @@ public class CatTnr extends BaseEntity
     /** 结果（0待定 1放归 2转入基地饲养） */
     @Excel(name = "结果", dictType = "cat_tnr_result")
     private String result;
+    /** 查询用：绝育状态（0 待绝育=未登记手术日期，1 已绝育），非表字段 */
+    private String neuterStatus;
     public Long getTnrId()
     {
         return tnrId;
@@ -168,6 +170,14 @@ public class CatTnr extends BaseEntity
     public void setResult(String result)
     {
         this.result = result;
+    }
+    public String getNeuterStatus()
+    {
+        return neuterStatus;
+    }
+    public void setNeuterStatus(String neuterStatus)
+    {
+        this.neuterStatus = neuterStatus;
     }
     @Override
     public String toString() {

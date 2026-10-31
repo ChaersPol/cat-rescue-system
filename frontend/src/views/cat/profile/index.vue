@@ -513,7 +513,17 @@ function handleQuery() {
 
 function resetQuery() {
   proxy.resetForm("queryRef")
-  handleQuery()
+  // 路由带过来的筛选项（看板卡片 / 标签 / 基地图表）不算表单初始值，要显式清掉
+  queryParams.value.status = undefined
+  queryParams.value.baseId = undefined
+  queryParams.value.tagIds = undefined
+  queryParams.value.archived = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
+  } else {
+    getList()
+  }
 }
 
 function handleSelectionChange(selection) {

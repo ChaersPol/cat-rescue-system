@@ -9,6 +9,12 @@
                <el-option v-for="d in cat_vaccine_type" :key="d.value" :label="d.label" :value="d.value" />
             </el-select>
          </el-form-item>
+         <el-form-item label="到期情况" prop="dueDays">
+            <el-select v-model="queryParams.dueDays" placeholder="全部" clearable style="width: 180px">
+               <el-option label="7 天内到期及已过期" :value="7" />
+               <el-option label="30 天内到期及已过期" :value="30" />
+            </el-select>
+         </el-form-item>
          <el-form-item>
             <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -45,7 +51,14 @@
             </template>
          </el-table-column>
          <el-table-column label="接种日期" align="center" prop="vaccineDate" :show-overflow-tooltip="true" />
-         <el-table-column label="下次接种" align="center" prop="nextDate" :show-overflow-tooltip="true" />
+         <el-table-column label="下次接种" align="center" prop="nextDate" width="110">
+            <template #default="scope">
+               <div>{{ scope.row.nextDate || '—' }}</div>
+               <div v-if="scope.row.nextDate" class="due-tip" :class="dueInfo(scope.row.nextDate).cls">
+                  {{ dueInfo(scope.row.nextDate).text }}
+               </div>
+            </template>
+         </el-table-column>
          <el-table-column label="负责人" align="center" prop="responsible" :show-overflow-tooltip="true" />
          <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:vaccine:edit', 'cat:vaccine:remove'])">
             <template #default="scope">
@@ -118,6 +131,7 @@ const data = reactive({
     vaccineDate: undefined,
     nextDate: undefined,
     responsible: undefined,
+    dueDays: undefined,
   },
   rules: {
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
@@ -135,6 +149,27 @@ function getList() {
     total.value = response.total
     loading.value = false
   })
+}
+
+/** 距今天差几天（按自然日算，避免时区/时分秒干扰） */
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const parts = String(dateStr).slice(0, 10).split('-').map(Number)
+  if (parts.length !== 3 || parts.some(n => isNaN(n))) return null
+  const target = new Date(parts[0], parts[1] - 1, parts[2])
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((target - today) / 86400000)
+}
+
+/** 「下次接种」下方的到期提示：过期红、今天/临期橙、正常灰 */
+function dueInfo(nextDate) {
+  const d = daysUntil(nextDate)
+  if (d === null) return { text: '', cls: '' }
+  if (d < 0) return { text: `已过期 ${-d} 天`, cls: 'is-danger' }
+  if (d === 0) return { text: '今天到期', cls: 'is-warning' }
+  if (d <= 7) return { text: `${d} 天后`, cls: 'is-warning' }
+  return { text: `${d} 天后`, cls: 'is-muted' }
 }
 
 function cancel() {
@@ -161,7 +196,14 @@ function handleQuery() {
 
 function resetQuery() {
   proxy.resetForm("queryRef")
-  handleQuery()
+  // 路由带过来的筛选项（如看板点「待疫苗」的 dueDays=7）不算表单初始值，要显式清掉
+  queryParams.value.dueDays = undefined
+  queryParams.value.pageNum = 1
+  if (Object.keys(route.query || {}).length) {
+    router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
+  } else {
+    getList()
+  }
 }
 
 function handleSelectionChange(selection) {
@@ -219,6 +261,23 @@ function handleDelete(row) {
 function handleExport() {
   proxy.download("cat/vaccine/export", { ...queryParams.value }, `vaccine_${new Date().getTime()}.xlsx`)
 }
+
+// 从看板「待疫苗」等入口带过来的筛选条件，进页面即生效
+const route = useRoute()
+const router = useRouter()
+function applyRouteQuery() {
+  const q = route.query || {}
+  queryParams.value.dueDays = q.dueDays ? Number(q.dueDays) : undefined
+  queryParams.value.catId = q.catId ? Number(q.catId) : undefined
+  queryParams.value.vaccineType = q.vaccineType || undefined
+  queryParams.value.pageNum = 1
+}
+applyRouteQuery()
+// 同路由仅 query 变化时（返回看板再点另一张卡）组件不会重建，需手动刷新
+watch(() => route.query, () => {
+  applyRouteQuery()
+  getList()
+})
 
 getList()
 </script>

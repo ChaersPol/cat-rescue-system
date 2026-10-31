@@ -35,9 +35,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormDrug != null and dewormDrug != ''">AND deworm_drug = #{dewormDrug}</if>
             <if test="dewormDate != null">AND deworm_date = #{dewormDate}</if>
             <if test="nextDate != null">AND next_date = #{nextDate}</if>
+            <if test="dueDays != null">AND next_date is not null AND next_date &lt;= date_add(curdate(), interval #{dueDays} day)</if>
             AND del_flag = '0'
         </where>
-        order by deworm_id desc
+        <!-- 按到期筛选时，最紧急（过期最久 / 最近到期）排前面 -->
+        <choose>
+            <when test="dueDays != null">order by next_date asc, deworm_id desc</when>
+            <otherwise>order by deworm_id desc</otherwise>
+        </choose>
     </select>
 
     <insert id="insertCatDeworm" parameterType="CatDeworm" useGeneratedKeys="true" keyProperty="dewormId">

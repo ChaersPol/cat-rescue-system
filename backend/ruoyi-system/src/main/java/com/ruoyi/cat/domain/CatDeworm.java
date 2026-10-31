@@ -37,6 +37,8 @@ public class CatDeworm extends BaseEntity
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
     @Excel(name = "下次驱虫时间", dateFormat = "yyyy-MM-dd")
     private Date nextDate;
+    /** 查询用：N 天内到期（含已过期），非表字段，对应「待驱虫」看板口径 */
+    private Integer dueDays;
     public Long getDewormId()
     {
         return dewormId;
@@ -92,6 +94,14 @@ public class CatDeworm extends BaseEntity
     public void setNextDate(Date nextDate)
     {
         this.nextDate = nextDate;
+    }
+    public Integer getDueDays()
+    {
+        return dueDays;
+    }
+    public void setDueDays(Integer dueDays)
+    {
+        this.dueDays = dueDays;
     }
     @Override
     public String toString() {

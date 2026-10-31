@@ -37,6 +37,8 @@ public class CatVaccine extends BaseEntity
     /** 负责人 */
     @Excel(name = "负责人")
     private String responsible;
+    /** 查询用：N 天内到期（含已过期），非表字段，对应「待疫苗」看板口径 */
+    private Integer dueDays;
     public Long getVaccineId()
     {
         return vaccineId;
@@ -92,6 +94,14 @@ public class CatVaccine extends BaseEntity
     public void setResponsible(String responsible)
     {
         this.responsible = responsible;
+    }
+    public Integer getDueDays()
+    {
+        return dueDays;
+    }
+    public void setDueDays(Integer dueDays)
+    {
+        this.dueDays = dueDays;
     }
     @Override
     public String toString() {
