@@ -40,6 +40,8 @@ import Editor from "@/components/Editor"
 import FileUpload from "@/components/FileUpload"
 // 图片上传组件
 import ImageUpload from "@/components/ImageUpload"
+// 照片+视频混合上传组件（病历、化验单回传资料）
+import MediaUpload from "@/components/MediaUpload"
 // 图片预览组件
 import ImagePreview from "@/components/ImagePreview"
 // 字典标签组件
@@ -80,6 +82,7 @@ app.component('CatSelect', CatSelect)
 app.component('Pagination', Pagination)
 app.component('FileUpload', FileUpload)
 app.component('ImageUpload', ImageUpload)
+app.component('MediaUpload', MediaUpload)
 app.component('ImagePreview', ImagePreview)
 app.component('RightToolbar', RightToolbar)
 app.component('Editor', Editor)

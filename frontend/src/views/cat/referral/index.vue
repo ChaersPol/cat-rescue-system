@@ -43,6 +43,14 @@
       </el-table-column>
       <el-table-column label="送医时间" align="center" prop="sendDate" width="160" />
       <el-table-column label="医院" align="center" prop="hospitalName" width="180" :show-overflow-tooltip="true" />
+      <el-table-column label="回传资料" align="center" width="96">
+        <template #default="scope">
+          <el-button v-if="fileItems(scope.row.files).length" link type="primary" @click="openFiles(scope.row)">
+            {{ fileItems(scope.row.files).length }} 项
+          </el-button>
+          <span v-else class="text-muted">—</span>
+        </template>
+      </el-table-column>
       <el-table-column label="送医原因" align="center" prop="sendReason" min-width="180" :show-overflow-tooltip="true" />
       <el-table-column label="医院诊断" align="center" prop="hospitalDiagnosis" min-width="180" :show-overflow-tooltip="true" />
       <el-table-column label="状态" align="center" prop="status" width="100">
@@ -57,7 +65,7 @@
           <span v-if="!scope.row.result && !scope.row.dischargeTo">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="250" class-name="small-padding fixed-width" v-if="checkPermi(['cat:referral:edit', 'cat:referral:remove'])">
+      <el-table-column label="操作" align="center" width="230" class-name="small-padding fixed-width" v-if="checkPermi(['cat:referral:edit', 'cat:referral:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Finished" @click="handleDischarge(scope.row)" v-hasPermi="['cat:referral:edit']">出院登记</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:referral:edit']">修改</el-button>
@@ -96,6 +104,9 @@
         <el-form-item label="医院处方" prop="hospitalPrescription">
           <el-input v-model="form.hospitalPrescription" type="textarea" :rows="2" placeholder="医院处方/治疗方案" />
         </el-form-item>
+        <el-form-item label="回传资料" prop="files">
+          <media-upload v-model="form.files" :limit="9" :image-size="10" :video-size="50" />
+        </el-form-item>
         <el-form-item label="处置结论" prop="result">
           <el-select v-model="form.result" placeholder="请选择医院处置结论" clearable style="width: 100%">
             <el-option v-for="d in cat_hospital_result" :key="d.value" :label="d.label" :value="d.value" />
@@ -129,6 +140,32 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 回传资料预览：病历、化验单照片 + 视频 -->
+    <el-dialog v-model="filesVisible" :title="filesTitle" width="780px" append-to-body destroy-on-close>
+      <el-empty v-if="!files.length" description="暂无回传资料" :image-size="60" />
+      <div v-else class="file-grid">
+        <template v-for="(u, i) in files" :key="i">
+          <el-image
+            v-if="kindOf(u) === 'image'"
+            :src="resolveFileUrl(u)"
+            :preview-src-list="imageUrls"
+            :initial-index="imageUrls.indexOf(resolveFileUrl(u))"
+            fit="cover"
+            preview-teleported
+            class="file-cell"
+          />
+          <div v-else class="file-cell is-video" @click="playVideo(u)">
+            <video :src="resolveFileUrl(u)" preload="metadata" muted playsinline></video>
+            <span class="file-play"><el-icon><VideoPlay /></el-icon></span>
+          </div>
+        </template>
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="videoVisible" title="视频预览" width="720px" append-to-body destroy-on-close>
+      <video :src="videoSrc" controls autoplay style="width: 100%; max-height: 70vh; background: #000"></video>
+    </el-dialog>
   </div>
 </template>
 
@@ -138,6 +175,7 @@ import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from '@/api/cat/profile'
 import { catLabelOf, formatCatLabel } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
+import { resolveFileUrl, previewKind } from '@/utils/fileUrl'
 
 const { proxy } = getCurrentInstance()
 const { cat_discharge_to, cat_hospital_result } = proxy.useDict('cat_discharge_to', 'cat_hospital_result')
@@ -152,6 +190,12 @@ const multiple = ref(true)
 const title = ref('')
 const catOptions = ref([])
 const baseOptions = ref([])
+// 回传资料预览（列表里点「N 项」打开）
+const filesVisible = ref(false)
+const filesTitle = ref('回传资料')
+const files = ref([])
+const videoVisible = ref(false)
+const videoSrc = ref('')
 
 const data = reactive({
   form: {},
@@ -184,6 +228,35 @@ function statusTag(s) {
   return { '0': 'warning', '1': 'success', '2': 'danger' }[s] || 'info'
 }
 
+/** 逗号分隔的路径串 → 数组（空串过滤掉） */
+function fileItems(str) {
+  if (!str) return []
+  return String(str)
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function kindOf(url) {
+  return previewKind(url)
+}
+
+// 预览时只把图片交给 el-image 的相册，视频单独走播放弹窗
+const imageUrls = computed(() =>
+  files.value.filter(u => kindOf(u) === 'image').map(u => resolveFileUrl(u))
+)
+
+function openFiles(row) {
+  files.value = fileItems(row.files)
+  filesTitle.value = '回传资料 - ' + catName(row.catId)
+  filesVisible.value = true
+}
+
+function playVideo(url) {
+  videoSrc.value = resolveFileUrl(url)
+  videoVisible.value = true
+}
+
 function loadOptions() {
   listCatProfile({ pageNum: 1, pageSize: 999 }).then(res => { catOptions.value = res.rows || [] })
   listCatBase({ pageNum: 1, pageSize: 999 }).then(res => { baseOptions.value = res.rows || [] })
@@ -214,6 +287,7 @@ function reset() {
     hospitalCheck: undefined,
     hospitalDiagnosis: undefined,
     hospitalPrescription: undefined,
+    files: undefined,
     result: undefined,
     dischargeTo: undefined,
     targetBaseId: undefined,
@@ -234,6 +308,8 @@ function resetQuery() {
 }
 
 function handleAdd() {
+  // 猫咪/基地可能在别的页签刚新增，打开弹窗前重拉，避免下拉缺最新记录
+  loadOptions()
   reset()
   const savedDraft = draft.restore()
   if (savedDraft) {
@@ -245,6 +321,7 @@ function handleAdd() {
 }
 
 function handleUpdate(row) {
+  loadOptions()
   reset()
   getCatReferral(row.referralId).then(response => {
     form.value = response.data
@@ -255,6 +332,7 @@ function handleUpdate(row) {
 }
 
 function handleDischarge(row) {
+  loadOptions()
   reset()
   getCatReferral(row.referralId).then(response => {
     form.value = response.data
@@ -323,3 +401,46 @@ watch(() => route.query, () => {
 loadOptions()
 getList()
 </script>
+
+<style scoped lang="scss">
+.text-muted {
+  color: var(--el-text-color-placeholder);
+}
+
+.file-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.file-cell {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--el-fill-color-darker);
+
+  &.is-video {
+    cursor: pointer;
+  }
+
+  video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.file-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+}
+</style>

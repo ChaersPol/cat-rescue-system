@@ -165,16 +165,25 @@
                   更正（{{ item.correctionBy }} {{ formatTime(item.correctionTime) }}）：{{ item.correctionNote }}
                 </div>
                 <div class="tl-photos" v-if="item.photos">
-                  <el-image
-                    v-for="(u, i) in splitPhotos(item.photos)"
-                    :key="i"
-                    :src="resolveUrl(u)"
-                    :preview-src-list="splitPhotos(item.photos).map(resolveUrl)"
-                    :initial-index="i"
-                    fit="cover"
-                    preview-teleported
-                    class="tl-photo"
-                  />
+                  <template v-for="(u, i) in splitPhotos(item.photos)" :key="i">
+                    <el-image
+                      v-if="previewKind(u) === 'image'"
+                      :src="resolveUrl(u)"
+                      :preview-src-list="imageOnly(splitPhotos(item.photos))"
+                      :initial-index="imageOnly(splitPhotos(item.photos)).indexOf(resolveUrl(u))"
+                      fit="cover"
+                      preview-teleported
+                      class="tl-photo"
+                    />
+                    <div v-else-if="previewKind(u) === 'video'" class="tl-photo tl-video" @click="openVideoUrl(u)">
+                      <video :src="resolveUrl(u)" preload="metadata" muted playsinline></video>
+                      <span class="tl-play"><el-icon><VideoPlay /></el-icon></span>
+                    </div>
+                    <div v-else class="tl-photo tl-file" @click="openAttachment(u)" :title="pickFileName(u)">
+                      <el-icon><Document /></el-icon>
+                      <span>{{ fileExtLabel(u) }}</span>
+                    </div>
+                  </template>
                 </div>
                 <div class="tl-foot" v-if="item.operator">操作人：{{ item.operator }}</div>
               </div>
@@ -220,6 +229,7 @@ import { getCatArchive, archiveCatProfile, unarchiveCatProfile, regenerateCatQrC
 import { listCatBase } from "@/api/cat/base"
 import { listCatWard } from "@/api/cat/ward"
 import { resolveFileUrl, previewKind, fileName as pickFileName, fileExtLabel } from "@/utils/fileUrl"
+import { onMasterDataChanged, MASTER_KIND } from "@/utils/catCache"
 
 const { proxy } = getCurrentInstance()
 const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no, cat_death_type } = useDict(
@@ -282,6 +292,11 @@ function formatTime(t) {
 function splitPhotos(str) {
   if (!str) return []
   return String(str).split(',').map(s => s.trim()).filter(Boolean)
+}
+
+/** 病历时间线里的资料可能是照片/视频/PDF，只有图片进 el-image 的相册 */
+function imageOnly(list) {
+  return (list || []).filter(u => previewKind(u) === 'image').map(u => resolveUrl(u))
 }
 
 const TYPE_COLORS = {
@@ -380,8 +395,25 @@ function handleUnarchive() {
 }
 
 function openVideo(p) {
-  videoUrl.value = resolveUrl(p.fileUrl)
+  openVideoUrl(p.fileUrl)
+}
+
+function openVideoUrl(url) {
+  videoUrl.value = resolveUrl(url)
   videoOpen.value = true
+}
+
+/** 时间线里的非图片资料：PDF 直接新窗口，Word/Excel 引导下载 */
+function openAttachment(url) {
+  if (!url) return
+  const kind = previewKind(url)
+  if (kind === 'office') {
+    proxy.$modal.confirm(`${fileExtLabel(url)} 无法在浏览器里直接预览，点「确定」下载后用本机程序查看。`).then(() => {
+      proxy.downloadGet("common/download/resource", { resource: url }, pickFileName(url) || "病历资料")
+    }).catch(() => {})
+    return
+  }
+  window.open(resolveUrl(url), '_blank')
 }
 
 function openAgreement() {
@@ -400,6 +432,12 @@ function openAgreement() {
 getBaseList()
 getWardList()
 getData()
+
+// 基地/病房在别的页签改名或新增后，本页的名称映射立即刷新（keep-alive 页面不会重新 setup）
+onMasterDataChanged([MASTER_KIND.BASE, MASTER_KIND.WARD], () => {
+  getBaseList()
+  getWardList()
+})
 </script>
 
 <style scoped>
@@ -450,5 +488,21 @@ getData()
 }
 .tl-photos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .tl-photo { width: 60px; height: 60px; border-radius: 4px; }
+.tl-video {
+  position: relative; overflow: hidden; cursor: pointer; background: #000;
+  video { display: block; width: 100%; height: 100%; object-fit: cover; }
+}
+.tl-play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #fff; background: rgba(0, 0, 0, 0.35);
+}
+.tl-file {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  cursor: pointer; font-size: 10px; line-height: 1.2; text-align: center; padding: 0 2px;
+  color: var(--el-text-color-secondary); background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color-lighter);
+  .el-icon { font-size: 16px; }
+  &:hover { color: var(--el-color-primary); border-color: var(--el-color-primary); }
+}
 .tl-foot { font-size: 12px; color: var(--el-text-color-placeholder); margin-top: 4px; }
 </style>
