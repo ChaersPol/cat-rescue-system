@@ -18,7 +18,7 @@ public class CatBase extends BaseEntity
     /** 基地名称 */
     @Excel(name = "基地名称")
     private String baseName;
-    /** 基地类型（1饲养基地 2医疗基地 3放归点位） */
+    /** 基地类型（1饲养基地 2医疗基地） */
     @Excel(name = "基地类型", dictType = "cat_base_type")
     private String baseType;
     /** 基地负责人 */
