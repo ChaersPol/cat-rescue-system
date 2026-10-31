@@ -387,7 +387,7 @@ function reset() {
     postIds: [],
     roleIds: []
   }
-  proxy.resetForm("userRef")
+  proxy.clearFormValidate("userRef")
 }
 
 /** 取消按钮 */

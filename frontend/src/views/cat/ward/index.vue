@@ -174,7 +174,7 @@ function reset() {
     orderNum: undefined,
     status: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 /** 跳到病房类型维护页（没有该权限时不显示入口） */

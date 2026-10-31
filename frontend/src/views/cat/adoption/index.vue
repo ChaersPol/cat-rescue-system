@@ -224,7 +224,7 @@ function reset() {
     agreementUrl: undefined,
     remark: undefined
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {
@@ -259,7 +259,7 @@ function handleUpdate(row) {
   const id = row.adoptionId || ids.value
   getCatAdoption(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改领养登记"
   })
@@ -271,7 +271,6 @@ function submitForm() {
       if (form.value.adoptionId != undefined) {
         updateCatAdoption(form.value).then(() => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

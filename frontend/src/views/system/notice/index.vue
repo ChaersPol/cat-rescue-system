@@ -223,7 +223,7 @@ function reset() {
     noticeContent: undefined,
     status: "0"
   }
-  proxy.resetForm("noticeRef")
+  proxy.clearFormValidate("noticeRef")
 }
 
 /** 搜索按钮操作 */

@@ -194,7 +194,7 @@ function handleAdd() {
     operator: undefined,
     remark: undefined
   }
-  proxy.resetForm('stockRef')
+  proxy.clearFormValidate('stockRef')
   open.value = true
 }
 

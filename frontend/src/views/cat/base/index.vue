@@ -160,7 +160,7 @@ function reset() {
     status: '0',
     remark: undefined
   }
-  proxy.resetForm('baseRef')
+  proxy.clearFormValidate('baseRef')
 }
 
 function handleQuery() {

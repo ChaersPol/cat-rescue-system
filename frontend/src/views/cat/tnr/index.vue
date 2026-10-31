@@ -163,8 +163,12 @@ function reset() {
     capturePoint: undefined,
     surgeryDate: undefined,
     result: undefined,
+    earMarked: undefined,
+    surgeon: undefined,
+    surgeryRecord: undefined,
+    remark: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {
@@ -200,7 +204,7 @@ function handleUpdate(row) {
   const id = row.tnrId || ids.value
   getCatTnr(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改TNR抓捕"
   })
@@ -212,7 +216,6 @@ function submitForm() {
       if (form.value.tnrId != undefined) {
         updateCatTnr(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

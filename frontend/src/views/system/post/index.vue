@@ -207,7 +207,7 @@ function reset() {
     status: "0",
     remark: undefined
   }
-  proxy.resetForm("postRef")
+  proxy.clearFormValidate("postRef")
 }
 
 /** 搜索按钮操作 */

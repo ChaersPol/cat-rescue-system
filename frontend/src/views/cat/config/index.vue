@@ -154,7 +154,7 @@ function reset() {
     configName: undefined,
     remark: undefined
   }
-  proxy.resetForm('configRef')
+  proxy.clearFormValidate('configRef')
 }
 
 function handleQuery() {

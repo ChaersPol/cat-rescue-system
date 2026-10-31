@@ -28,7 +28,7 @@ import './permission' // permission control
 import { useDict } from '@/utils/dict'
 import { getConfigKey } from "@/api/system/config"
 import { checkPermi } from '@/utils/permission'
-import { parseTime, resetForm, addDateRange, handleTree, selectDictLabel, selectDictLabels } from '@/utils/ruoyi'
+import { parseTime, resetForm, clearFormValidate, addDateRange, handleTree, selectDictLabel, selectDictLabels } from '@/utils/ruoyi'
 
 // 分页组件
 import Pagination from '@/components/Pagination'
@@ -55,6 +55,7 @@ app.config.globalProperties.download = download
 app.config.globalProperties.downloadGet = downloadGet
 app.config.globalProperties.parseTime = parseTime
 app.config.globalProperties.resetForm = resetForm
+app.config.globalProperties.clearFormValidate = clearFormValidate
 app.config.globalProperties.handleTree = handleTree
 app.config.globalProperties.addDateRange = addDateRange
 app.config.globalProperties.getConfigKey = getConfigKey

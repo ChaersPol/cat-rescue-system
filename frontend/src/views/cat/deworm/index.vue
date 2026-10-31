@@ -149,8 +149,9 @@ function reset() {
     dewormDrug: undefined,
     dewormDate: undefined,
     nextDate: undefined,
+    remark: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

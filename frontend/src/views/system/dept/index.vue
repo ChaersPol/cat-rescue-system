@@ -214,7 +214,7 @@ function reset() {
     email: undefined,
     status: "0"
   }
-  proxy.resetForm("deptRef")
+  proxy.clearFormValidate("deptRef")
 }
 
 /** 搜索按钮操作 */

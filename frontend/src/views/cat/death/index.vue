@@ -193,7 +193,7 @@ function reset() {
     registrar: undefined,
     remark: undefined
   }
-  proxy.resetForm('deathRef')
+  proxy.clearFormValidate('deathRef')
 }
 
 function handleQuery() {
@@ -221,7 +221,7 @@ function handleUpdate(row) {
   reset()
   getCatDeath(row.deathId).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = '修改死亡记录'
   })
@@ -233,7 +233,6 @@ function submitForm() {
       if (form.value.deathId != undefined) {
         updateCatDeath(form.value).then(() => {
           proxy.$modal.msgSuccess('修改成功')
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

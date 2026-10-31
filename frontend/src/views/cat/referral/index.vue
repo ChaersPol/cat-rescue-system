@@ -220,7 +220,7 @@ function reset() {
     dischargeAdvice: undefined,
     status: '0'
   }
-  proxy.resetForm('referralRef')
+  proxy.clearFormValidate('referralRef')
 }
 
 function handleQuery() {
@@ -248,7 +248,7 @@ function handleUpdate(row) {
   reset()
   getCatReferral(row.referralId).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = '修改转诊记录'
   })
@@ -270,7 +270,6 @@ function submitForm() {
       if (form.value.referralId != undefined) {
         updateCatReferral(form.value).then(() => {
           proxy.$modal.msgSuccess('保存成功，猫咪状态已同步更新')
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

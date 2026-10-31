@@ -249,7 +249,7 @@ function reset() {
     remark: undefined
   }
   wardOptions.value = []
-  proxy.resetForm('flowRef')
+  proxy.clearFormValidate('flowRef')
 }
 
 function handleQuery() {

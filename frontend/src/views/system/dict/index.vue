@@ -246,7 +246,7 @@ function reset() {
     status: "0",
     remark: undefined
   }
-  proxy.resetForm("dictRef")
+  proxy.clearFormValidate("dictRef")
 }
 
 /** 搜索按钮操作 */

@@ -191,8 +191,14 @@ function reset() {
     supplier: undefined,
     items: undefined,
     amount: undefined,
+    catId: undefined,
+    baseId: undefined,
+    payMethod: undefined,
+    stockId: undefined,
+    receiptUrl: undefined,
+    remark: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

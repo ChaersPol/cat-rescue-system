@@ -270,7 +270,7 @@ function reset() {
     status: "0",
     remark: undefined
   }
-  proxy.resetForm("dataRef")
+  proxy.clearFormValidate("dataRef")
 }
 
 /** 搜索按钮操作 */

@@ -307,7 +307,7 @@ function reset() {
   selectedByType['1'] = undefined
   selectedByType['2'] = undefined
   lastFileType.value = '1'
-  proxy.resetForm('photoRef')
+  proxy.clearFormValidate('photoRef')
 }
 
 function handleQuery() {

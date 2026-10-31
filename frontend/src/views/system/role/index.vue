@@ -416,7 +416,7 @@ function reset() {
     deptCheckStrictly: true,
     remark: undefined
   }
-  proxy.resetForm("roleRef")
+  proxy.clearFormValidate("roleRef")
 }
 
 /** 添加角色 */

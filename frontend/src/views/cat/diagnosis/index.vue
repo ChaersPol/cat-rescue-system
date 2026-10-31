@@ -192,7 +192,7 @@ function reset() {
     checkPhotos: undefined,
     remark: undefined
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 // 打开更正弹窗
@@ -249,7 +249,7 @@ function handleUpdate(row) {
   const id = row.diagnosisId || ids.value
   getCatDiagnosis(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改站内诊断"
   })
@@ -261,7 +261,6 @@ function submitForm() {
       if (form.value.diagnosisId != undefined) {
         updateCatDiagnosis(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

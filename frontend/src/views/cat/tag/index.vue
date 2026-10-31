@@ -125,7 +125,7 @@ function reset() {
     tagGroup: undefined,
     status: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

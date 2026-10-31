@@ -208,7 +208,7 @@ function reset() {
     remindDate: undefined,
     targetUser: undefined
   }
-  proxy.resetForm('reminderRef')
+  proxy.clearFormValidate('reminderRef')
 }
 
 function handleQuery() {

@@ -191,7 +191,7 @@ function reset() {
     remark: undefined
   }
   batchDays.value = 1
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {
@@ -227,7 +227,7 @@ function handleUpdate(row) {
   const id = row.medicationId || ids.value
   getCatMedication(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改用药记录"
   })
@@ -239,7 +239,6 @@ function submitForm() {
       if (form.value.medicationId != undefined) {
         updateCatMedication(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

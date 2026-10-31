@@ -125,7 +125,7 @@ function reset() {
     orderNum: undefined,
     status: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

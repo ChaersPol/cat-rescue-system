@@ -377,9 +377,12 @@ function reset() {
     isFrame: "1",
     isCache: "0",
     visible: "0",
-    status: "0"
+    status: "0",
+    routeName: undefined,
+    path: undefined,
+    component: undefined,
   }
-  proxy.resetForm("menuRef")
+  proxy.clearFormValidate("menuRef")
 }
 
 /** 展示下拉图标 */

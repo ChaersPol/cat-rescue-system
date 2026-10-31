@@ -309,7 +309,7 @@ function reset() {
     concurrent: '1',
     status: "0"
   }
-  proxy.resetForm("jobRef")
+  proxy.clearFormValidate("jobRef")
 }
 
 /** 搜索按钮操作 */

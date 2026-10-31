@@ -183,7 +183,7 @@ function reset() {
     stock: undefined,
     minStock: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

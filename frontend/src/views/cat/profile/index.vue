@@ -502,7 +502,7 @@ function reset() {
     tagIds: [],
     remark: undefined
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {
@@ -538,7 +538,7 @@ function handleUpdate(row) {
   const id = row.catId || ids.value
   getCatProfile(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改猫咪档案"
   })
@@ -579,7 +579,6 @@ function submitForm() {
       if (form.value.catId != undefined) {
         updateCatProfile(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

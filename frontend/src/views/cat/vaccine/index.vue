@@ -149,8 +149,9 @@ function reset() {
     vaccineDate: undefined,
     nextDate: undefined,
     responsible: undefined,
+    remark: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {

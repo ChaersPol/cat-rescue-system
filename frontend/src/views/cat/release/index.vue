@@ -136,8 +136,10 @@ function reset() {
     catId: undefined,
     releaseDate: undefined,
     releasePoint: undefined,
+    releaseStatus: undefined,
+    remark: undefined,
   }
-  proxy.resetForm("formRef")
+  proxy.clearFormValidate("formRef")
 }
 
 function handleQuery() {
@@ -173,7 +175,7 @@ function handleUpdate(row) {
   const id = row.releaseId || ids.value
   getCatRelease(id).then(response => {
     form.value = response.data
-    draft.begin()
+    draft.begin('edit')
     open.value = true
     title.value = "修改TNR放归"
   })
@@ -185,7 +187,6 @@ function submitForm() {
       if (form.value.releaseId != undefined) {
         updateCatRelease(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
-          draft.clear()
           draft.pause()
           open.value = false
           getList()

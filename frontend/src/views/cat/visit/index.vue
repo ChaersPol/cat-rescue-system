@@ -200,7 +200,7 @@ function reset() {
     visitBy: undefined,
     visitTime: undefined
   }
-  proxy.resetForm('visitRef')
+  proxy.clearFormValidate('visitRef')
 }
 
 function handleQuery() {

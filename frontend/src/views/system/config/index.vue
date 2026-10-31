@@ -228,7 +228,7 @@ function reset() {
     configType: "Y",
     remark: undefined
   }
-  proxy.resetForm("configRef")
+  proxy.clearFormValidate("configRef")
 }
 
 /** 搜索按钮操作 */

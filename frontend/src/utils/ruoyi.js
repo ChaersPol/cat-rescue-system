@@ -44,11 +44,36 @@ export function parseTime(time, pattern) {
   return time_str
 }
 
-// 表单重置
+// 表单重置（查询条件用：恢复成表单项挂载时的初始值并清校验）
 export function resetForm(refName) {
   if (this.$refs[refName]) {
     this.$refs[refName].resetFields()
   }
+}
+
+/**
+ * 只清校验状态，不动字段值（弹窗表单用）
+ *
+ * 不能对弹窗表单用 resetFields()：Element Plus 的 resetFields 是把字段恢复成
+ * 「表单项首次挂载那一刻的初始值」，而弹窗是懒渲染的，若第一次打开的是编辑某条记录，
+ * 那一整条记录就成了初始值，之后点「新增」resetFields 又会把它填回去 —— 表现为串数据。
+ * 各弹窗的 reset() 已先把 form 重新赋成完整空对象，这里只需要清掉红色校验提示。
+ */
+export function clearFormValidate(refName) {
+  const apply = () => {
+    const formRef = this.$refs[refName]
+    if (formRef) {
+      formRef.clearValidate()
+    }
+  }
+  apply()
+  // 各弹窗的 reset() 是「先把 form 赋成空对象、再调这里」，
+  // 字段从有值变空会再触发一轮校验，红色必填提示会在下一帧甚至弹窗打开后
+  // 才被写回去（表现为「新增」弹窗一打开就挂着红字），所以补两次。
+  if (this.$nextTick) {
+    this.$nextTick(apply)
+  }
+  setTimeout(apply, 60)
 }
 
 // 添加日期范围
