@@ -111,9 +111,9 @@
       </el-col>
     </el-row>
 
-    <!-- 四、支出与死因 -->
+    <!-- 四、支出与死因（助理角色不展示支出，死因卡片自动占满整行） -->
     <el-row :gutter="16" class="dash-row">
-      <el-col :xs="24" :md="12">
+      <el-col v-if="showExpenseCard" :xs="24" :md="12">
         <el-card shadow="never" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -142,7 +142,7 @@
           <div ref="expenseChartRef" class="chart-box chart-box-sm"></div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :md="12">
+      <el-col :xs="24" :md="showExpenseCard ? 12 : 24">
         <el-card shadow="never" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -187,6 +187,7 @@
 <script setup name="CatDashboard">
 import * as echarts from 'echarts'
 import { getDashboardStats } from '@/api/cat/dashboard'
+import useUserStore from '@/store/modules/user'
 
 const stats = ref({})
 const loading = ref(false)
@@ -197,6 +198,14 @@ const expenseChartRef = ref(null)
 const deathChartRef = ref(null)
 const cards = ref([])
 const router = useRouter()
+const userStore = useUserStore()
+
+/**
+ * 助理角色（sys_role.role_key = assistant）只承担登记与协助工作，
+ * 首页不展示财务口径的「支出结构」卡片；管理员/负责人/医生照常展示。
+ * 隐藏后「死因分布」自动占满整行，不留半列空白。
+ */
+const showExpenseCard = computed(() => !userStore.roles.includes('assistant'))
 
 let statusChart = null
 let baseChart = null
@@ -453,7 +462,8 @@ function renderExpenseChart() {
     expenseChart.dispose()
     expenseChart = null
   }
-  if (!expenseChartRef.value) return
+  // 助理角色没有这张卡片，DOM 不存在，直接跳过初始化
+  if (!showExpenseCard.value || !expenseChartRef.value) return
   const total = Number(stats.value.totalExpense || 0)
   const medical = Number(stats.value.medicalExpense || 0)
   const material = Number(stats.value.materialExpense || 0)
