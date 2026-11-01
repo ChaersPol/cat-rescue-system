@@ -96,7 +96,7 @@ const modules = [
   { title: '物资库房', icon: 'Box', path: '/finance/material', desc: '药品物资出入库、库存预警、批次与有效期跟踪。' },
   { title: '财务支出', icon: 'Money', path: '/finance/expense', desc: '收支记账、票据上传，按类型统计支出结构。' },
   { title: 'TNR 与放归', icon: 'Scissor', path: '/tnr/tnr', desc: '捕捉、绝育、放归全流程记录，绝育率一屏可见。' },
-  { title: '提醒通知', icon: 'Bell', path: '/reminder', desc: '待疫苗、待驱虫、回访到期，自动汇总到工作台。' },
+  { title: '提醒通知', icon: 'Bell', path: '/system/reminder', desc: '待疫苗、待驱虫、回访到期，自动汇总到工作台。' },
   { title: '统计看板', icon: 'DataAnalysis', path: '/index', desc: '在册、领养、死亡趋势，点图表直达明细列表。' },
 ]
 

@@ -139,12 +139,12 @@ function openReminder(item) {
     unreadCount.value = Math.max(0, unreadCount.value - 1)
   }
   noticeVisible.value = false
-  router.push('/reminder')
+  router.push('/system/reminder')
 }
 
 function goReminderPage() {
   noticeVisible.value = false
-  router.push('/reminder')
+  router.push('/system/reminder')
 }
 
 // 全部已读（只影响当前登录账号）
