@@ -188,3 +188,6 @@ backend/ruoyi-admin/uploadPath/upload/19*/
 # 如需忽略所有上传文件（含 demo），取消下面两行注释即可。
 # backend/ruoyi-admin/uploadPath/upload/
 # !backend/ruoyi-admin/uploadPath/upload/demo/
+
+# AI 生成的图片中间产物（最终图已放入 frontend/src/assets/images/）
+generated-images/
