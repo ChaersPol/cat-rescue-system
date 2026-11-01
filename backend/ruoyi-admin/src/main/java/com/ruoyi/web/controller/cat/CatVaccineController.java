@@ -19,6 +19,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatVaccine;
+import com.ruoyi.cat.domain.CatReminderSyncResult;
 import com.ruoyi.cat.service.ICatVaccineService;
 import com.ruoyi.cat.util.CatRefNameFiller;
 
@@ -95,7 +96,8 @@ public class CatVaccineController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody CatVaccine vaccineId)
     {
-        return toAjax(vaccineIdService.updateCatVaccine(vaccineId));
+        // 改了「下次接种」会顺带同步已生成的提醒，把同步说明带回前端，别让用户以为只改了台账
+        return withSyncTip(vaccineIdService.updateCatVaccine(vaccineId));
     }
 
     @PreAuthorize("@ss.hasPermi('cat:vaccine:remove')")
@@ -103,6 +105,17 @@ public class CatVaccineController extends BaseController
     @DeleteMapping("/{vaccineIds}")
     public AjaxResult remove(@PathVariable Long[] vaccineIds)
     {
-        return toAjax(vaccineIdService.deleteCatVaccineByIds(vaccineIds));
+        return withSyncTip(vaccineIdService.deleteCatVaccineByIds(vaccineIds));
+    }
+
+    private AjaxResult withSyncTip(CatReminderSyncResult result)
+    {
+        AjaxResult ajax = toAjax(result.getRows());
+        if (result.getSyncTip() != null)
+        {
+            ajax.put("syncTip", result.getSyncTip());
+            ajax.put("syncCount", result.getSyncCount());
+        }
+        return ajax;
     }
 }

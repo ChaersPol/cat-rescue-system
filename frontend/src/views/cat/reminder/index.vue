@@ -419,6 +419,17 @@ function handleDelete(row) {
 
 loadCats()
 getList()
+
+// 在疫苗 / 驱虫台账里直接改「下次接种」时，后台会把这里的提醒日期一起改掉；
+// 页签是 keep-alive 缓存的，切回来补拉一次，避免还显示旧日期。
+let firstActivate = true
+onActivated(() => {
+  if (firstActivate) {
+    firstActivate = false
+    return
+  }
+  getList()
+})
 </script>
 
 <style scoped>

@@ -88,6 +88,8 @@
             </el-form-item>
             <el-form-item label="下次驱虫" prop="nextDate">
                <el-date-picker v-model="form.nextDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择下次驱虫" style="width: 100%" />
+               <!-- 反向同步：提醒页推迟会改这里，这里改了提醒也会跟着改，必须让操作的人知道 -->
+               <div class="form-tip" v-if="form.dewormId">改动这个日期，会同步更新<b>已生成的驱虫提醒</b>日期</div>
             </el-form-item>
             <el-form-item label="备注" prop="remark">
                <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -234,6 +236,10 @@ function submitForm() {
       if (form.value.dewormId != undefined) {
         updateCatDeworm(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
+          // 后台把「下次驱虫」同步到了提醒上，右上角单独说明
+          if (response.syncTip) {
+            proxy.$modal.notifySuccess(response.syncTip)
+          }
           open.value = false
           getList()
         })
@@ -252,9 +258,12 @@ function handleDelete(row) {
   const delIds = row.dewormId || ids.value
   proxy.$modal.confirm('是否确认删除该数据？').then(function () {
     return delCatDeworm(delIds)
-  }).then(() => {
+  }).then((response) => {
     getList()
     proxy.$modal.msgSuccess("删除成功")
+    if (response.syncTip) {
+      proxy.$modal.notifySuccess(response.syncTip)
+    }
   }).catch(() => {})
 }
 

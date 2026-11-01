@@ -4,6 +4,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.cat.domain.CatDeworm;
+import com.ruoyi.cat.domain.CatReminderSyncResult;
 import com.ruoyi.cat.mapper.CatDewormMapper;
 import com.ruoyi.cat.service.ICatDewormService;
 
@@ -17,6 +18,9 @@ public class CatDewormServiceImpl implements ICatDewormService
 {
     @Autowired
     private CatDewormMapper dewormIdMapper;
+
+    @Autowired
+    private CatReminderSyncService reminderSyncService;
 
     @Override
     public CatDeworm selectCatDewormById(Long dewormId)
@@ -37,14 +41,39 @@ public class CatDewormServiceImpl implements ICatDewormService
     }
 
     @Override
-    public int updateCatDeworm(CatDeworm dewormId)
+    public CatReminderSyncResult updateCatDeworm(CatDeworm dewormId)
     {
-        return dewormIdMapper.updateCatDeworm(dewormId);
+        CatReminderSyncResult result = new CatReminderSyncResult();
+        CatDeworm old = dewormId.getDewormId() != null
+            ? dewormIdMapper.selectCatDewormById(dewormId.getDewormId())
+            : null;
+        int rows = dewormIdMapper.updateCatDeworm(dewormId);
+        result.setRows(rows);
+        if (rows > 0 && old != null)
+        {
+            Long catId = dewormId.getCatId() != null ? dewormId.getCatId() : old.getCatId();
+            reminderSyncService.syncFromPlan(CatReminderSyncService.SOURCE_DEWORM, dewormId.getDewormId(),
+                catId, old.getNextDate(), dewormId.getNextDate(), result);
+        }
+        return result;
     }
 
     @Override
-    public int deleteCatDewormByIds(Long[] dewormIds)
+    public CatReminderSyncResult deleteCatDewormByIds(Long[] dewormIds)
     {
-        return dewormIdMapper.deleteCatDewormByIds(dewormIds);
+        CatReminderSyncResult result = new CatReminderSyncResult();
+        int rows = dewormIdMapper.deleteCatDewormByIds(dewormIds);
+        result.setRows(rows);
+        if (rows > 0)
+        {
+            int cleaned = reminderSyncService.removeBySource(CatReminderSyncService.SOURCE_DEWORM, dewormIds);
+            if (cleaned > 0)
+            {
+                result.setSynced(Boolean.TRUE);
+                result.setSyncCount(cleaned);
+                result.setSyncTip("删除成功，同时清理了 " + cleaned + " 条关联的驱虫提醒");
+            }
+        }
+        return result;
     }
 }

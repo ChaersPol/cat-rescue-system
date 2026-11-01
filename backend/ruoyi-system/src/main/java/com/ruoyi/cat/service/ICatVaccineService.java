@@ -2,6 +2,7 @@ package com.ruoyi.cat.service;
 
 import java.util.List;
 import com.ruoyi.cat.domain.CatVaccine;
+import com.ruoyi.cat.domain.CatReminderSyncResult;
 
 /**
  * 疫苗记录 服务层
@@ -16,7 +17,13 @@ public interface ICatVaccineService
 
     public int insertCatVaccine(CatVaccine vaccineId);
 
-    public int updateCatVaccine(CatVaccine vaccineId);
+    /**
+     * 修改疫苗记录；「下次接种」改了会同步对应的提醒日期
+     */
+    public CatReminderSyncResult updateCatVaccine(CatVaccine vaccineId);
 
-    public int deleteCatVaccineByIds(Long[] vaccineIds);
+    /**
+     * 删除疫苗记录；同时清理它生成的提醒
+     */
+    public CatReminderSyncResult deleteCatVaccineByIds(Long[] vaccineIds);
 }

@@ -92,4 +92,36 @@ public interface CatReminderMapper
      * 按岗位名称查询启用用户的登录名，用于指派提醒收件人
      */
     public List<String> selectUserNamesByPostNames(@Param("postNames") List<String> postNames);
+
+    /**
+     * 查询某条业务记录（疫苗/驱虫）对应的全部提醒
+     * 台账改了「下次接种 / 下次驱虫」时，按这个把提醒日期一起改掉
+     */
+    public List<CatReminder> selectRemindersBySource(@Param("sourceType") String sourceType,
+                                                     @Param("sourceId") Long sourceId);
+
+    /**
+     * 历史提醒没有来源 id 时，按「同一只猫 + 同类型 + 原提醒日期」兜底描述一条
+     */
+    public List<CatReminder> selectRemindersByCatAndDate(@Param("catId") Long catId,
+                                                         @Param("reminderType") String reminderType,
+                                                         @Param("remindDate") java.util.Date remindDate);
+
+    /**
+     * 台账改期后同步提醒日期：只动 remind_date，保留推迟次数与原计划日期
+     */
+    public int updateRemindDate(@Param("reminderId") Long reminderId,
+                                @Param("remindDate") java.util.Date remindDate);
+
+    /**
+     * 台账记录被删除时，查询其关联提醒id（用于先清已读记录再删提醒）
+     */
+    public List<Long> selectReminderIdsBySourceIds(@Param("sourceType") String sourceType,
+                                                   @Param("sourceIds") Long[] sourceIds);
+
+    /**
+     * 台账记录被删除时，连带删除其关联提醒
+     */
+    public int deleteRemindersBySourceIds(@Param("sourceType") String sourceType,
+                                          @Param("sourceIds") Long[] sourceIds);
 }

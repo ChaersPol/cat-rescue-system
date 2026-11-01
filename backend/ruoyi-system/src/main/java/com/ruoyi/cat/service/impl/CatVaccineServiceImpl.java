@@ -8,6 +8,7 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.cat.domain.CatVaccine;
+import com.ruoyi.cat.domain.CatReminderSyncResult;
 import com.ruoyi.cat.mapper.CatVaccineMapper;
 import com.ruoyi.cat.service.ICatVaccineService;
 
@@ -24,6 +25,9 @@ public class CatVaccineServiceImpl implements ICatVaccineService
 
     @Autowired
     private CatReminderConflictService conflictService;
+
+    @Autowired
+    private CatReminderSyncService reminderSyncService;
 
     @Override
     public CatVaccine selectCatVaccineById(Long vaccineId)
@@ -75,14 +79,40 @@ public class CatVaccineServiceImpl implements ICatVaccineService
     }
 
     @Override
-    public int updateCatVaccine(CatVaccine vaccineId)
+    public CatReminderSyncResult updateCatVaccine(CatVaccine vaccineId)
     {
-        return vaccineIdMapper.updateCatVaccine(vaccineId);
+        CatReminderSyncResult result = new CatReminderSyncResult();
+        // 改之前先取出旧日期，用来判断「下次接种」到底有没有变
+        CatVaccine old = vaccineId.getVaccineId() != null
+            ? vaccineIdMapper.selectCatVaccineById(vaccineId.getVaccineId())
+            : null;
+        int rows = vaccineIdMapper.updateCatVaccine(vaccineId);
+        result.setRows(rows);
+        if (rows > 0 && old != null)
+        {
+            Long catId = vaccineId.getCatId() != null ? vaccineId.getCatId() : old.getCatId();
+            reminderSyncService.syncFromPlan(CatReminderSyncService.SOURCE_VACCINE, vaccineId.getVaccineId(),
+                catId, old.getNextDate(), vaccineId.getNextDate(), result);
+        }
+        return result;
     }
 
     @Override
-    public int deleteCatVaccineByIds(Long[] vaccineIds)
+    public CatReminderSyncResult deleteCatVaccineByIds(Long[] vaccineIds)
     {
-        return vaccineIdMapper.deleteCatVaccineByIds(vaccineIds);
+        CatReminderSyncResult result = new CatReminderSyncResult();
+        int rows = vaccineIdMapper.deleteCatVaccineByIds(vaccineIds);
+        result.setRows(rows);
+        if (rows > 0)
+        {
+            int cleaned = reminderSyncService.removeBySource(CatReminderSyncService.SOURCE_VACCINE, vaccineIds);
+            if (cleaned > 0)
+            {
+                result.setSynced(Boolean.TRUE);
+                result.setSyncCount(cleaned);
+                result.setSyncTip("删除成功，同时清理了 " + cleaned + " 条关联的疫苗提醒");
+            }
+        }
+        return result;
     }
 }

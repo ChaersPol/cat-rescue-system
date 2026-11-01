@@ -231,4 +231,42 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           <foreach collection="postNames" item="name" open="(" separator="," close=")">#{name}</foreach>
         order by u.user_name
     </select>
+
+    <!-- 台账改期反向同步：按来源业务记录取提醒 -->
+    <select id="selectRemindersBySource" resultMap="CatReminderResult">
+        <include refid="selectCatReminderVo"/>
+        where source_type = #{sourceType} and source_id = #{sourceId}
+        order by reminder_id
+    </select>
+
+    <!-- 台账改期反向同步：历史提醒没有 source_id 时的兜底匹配 -->
+    <select id="selectRemindersByCatAndDate" resultMap="CatReminderResult">
+        <include refid="selectCatReminderVo"/>
+        where cat_id = #{catId}
+          and reminder_type = #{reminderType}
+          and remind_date = #{remindDate}
+        order by reminder_id
+    </select>
+
+    <!-- 台账改期反向同步：只改提醒日期，推迟次数与原计划日期保留不动 -->
+    <update id="updateRemindDate">
+        update cat_reminder
+           set remind_date = #{remindDate},
+               update_time = sysdate()
+         where reminder_id = #{reminderId}
+    </update>
+
+    <select id="selectReminderIdsBySourceIds" resultType="Long">
+        select reminder_id from cat_reminder
+        where source_type = #{sourceType}
+          and source_id in
+          <foreach collection="sourceIds" item="sid" open="(" separator="," close=")">#{sid}</foreach>
+    </select>
+
+    <delete id="deleteRemindersBySourceIds">
+        delete from cat_reminder
+        where source_type = #{sourceType}
+          and source_id in
+          <foreach collection="sourceIds" item="sid" open="(" separator="," close=")">#{sid}</foreach>
+    </delete>
 </mapper>

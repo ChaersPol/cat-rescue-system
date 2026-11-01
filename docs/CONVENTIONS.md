@@ -219,3 +219,38 @@ RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**�
 
 筛选条件只在原有 RuoYi 搜索表单里体现（下拉选中态），**不要在页面上另加提示条/横幅**。
 「重置」要连同路由带来的条件一起清掉，否则用户点了重置筛选依旧生效。
+
+## 十、提醒 ↔ 台账 双向同步（改任何一边，另一边必须跟着变）
+
+疫苗 / 驱虫的「下次接种 / 下次驱虫」和提醒列表里的日期是**同一个计划日的两处投影**，
+两边必须一致，否则用户按其中一处安排就会踩空（曾经出现提醒 11-04、台账还写 11-01）。
+
+### 两个方向
+
+| 方向 | 触发点 | 实现 | 提示 |
+|---|---|---|---|
+| 提醒 → 台账 | 提醒页「推迟」且勾选同步 | `CatReminderServiceImpl.defer()` → `syncPlanDate()`，改 `cat_vaccine/cat_deworm.next_date` | 推迟弹窗目标日期 + 返回 `syncTip` |
+| 台账 → 提醒 | 台账编辑改了下次日期 | `CatVaccineServiceImpl/CatDewormServiceImpl.update*()` → `CatReminderSyncService.syncFromPlan()`，改 `cat_reminder.remind_date` | 表单 `.form-tip` 说明 + 保存后 `notifySuccess` |
+
+### 五条不能破的规则
+
+1. **正向同步改台账必须走 mapper，不能走 service**：`CatReminderServiceImpl` 里用的是
+   `catVaccineMapper.updateCatVaccine`。若改成调 `ICatVaccineService`，台账的 service 会再回调
+   `CatReminderSyncService`，形成「推迟 → 改台账 → 又改提醒」的绕圈。
+2. **只比「计划日期」是否真的变了**：`updateCatVaccine(疫苗 id + 负责人)` 这类不动日期的保存，
+   日期相同就直接返回，不能每次保存都刷一遍提醒（否则每次都会清已读、重新变未读）。
+   比较用 `yyyy-MM-dd` 字符串（`CatReminderSyncService.sameDay`），不要比毫秒。
+3. **`origin_date` / `defer_count` 一律不动**：台账改期是「重新计划」，不能抹掉「推迟过几次」的历史；
+   只改 `remind_date`，并清掉该提醒的 `cat_reminder_read`（计划变了，相关人应重新看到）。
+4. **来源定位优先 `source_id`，兜底才按日期反查**：历史提醒 `source_id` 为空时，用
+   「同猫 + 同类型 + 旧提醒日期」找一条并回填（`updateReminderSource` 只在 `source_id is null` 时写），
+   之后就走精确路径。**不要**只按日期匹配 —— 连续推迟后日期早变了。
+5. **台账删除要连带删提醒**：`cat_vaccine/cat_deworm` 是逻辑删除（`del_flag='2'`），
+   提醒却是物理删除，先清 `cat_reminder_read` 再删 `cat_reminder`，别留悬空已读记录。
+
+### 前端配套
+
+- 台账页签与提醒页签都被 keep-alive 缓存 → 三处都要 `onActivated` 补拉（跳过首次），
+  否则从别的页面改完切回来还是旧日期。
+- 台账编辑弹窗里「下次接种 / 下次驱虫」下方固定一行 `.form-tip`，
+  只在编辑态显示（`v-if="form.vaccineId"` / `form.dewormId`）。

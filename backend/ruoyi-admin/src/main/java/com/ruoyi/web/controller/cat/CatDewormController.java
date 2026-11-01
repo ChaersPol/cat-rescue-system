@@ -19,6 +19,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatDeworm;
+import com.ruoyi.cat.domain.CatReminderSyncResult;
 import com.ruoyi.cat.service.ICatDewormService;
 import com.ruoyi.cat.util.CatRefNameFiller;
 
@@ -77,7 +78,8 @@ public class CatDewormController extends BaseController
     @PutMapping
     public AjaxResult edit(@RequestBody CatDeworm dewormId)
     {
-        return toAjax(dewormIdService.updateCatDeworm(dewormId));
+        // 改了「下次驱虫」会顺带同步已生成的提醒，把同步说明带回前端
+        return withSyncTip(dewormIdService.updateCatDeworm(dewormId));
     }
 
     @PreAuthorize("@ss.hasPermi('cat:deworm:remove')")
@@ -85,6 +87,17 @@ public class CatDewormController extends BaseController
     @DeleteMapping("/{dewormIds}")
     public AjaxResult remove(@PathVariable Long[] dewormIds)
     {
-        return toAjax(dewormIdService.deleteCatDewormByIds(dewormIds));
+        return withSyncTip(dewormIdService.deleteCatDewormByIds(dewormIds));
+    }
+
+    private AjaxResult withSyncTip(CatReminderSyncResult result)
+    {
+        AjaxResult ajax = toAjax(result.getRows());
+        if (result.getSyncTip() != null)
+        {
+            ajax.put("syncTip", result.getSyncTip());
+            ajax.put("syncCount", result.getSyncCount());
+        }
+        return ajax;
     }
 }

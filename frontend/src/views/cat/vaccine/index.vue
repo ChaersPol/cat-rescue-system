@@ -97,6 +97,8 @@
             </el-form-item>
             <el-form-item label="下次接种" prop="nextDate">
                <el-date-picker v-model="form.nextDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择下次接种" style="width: 100%" />
+               <!-- 反向同步：提醒页推迟会改这里，这里改了提醒也会跟着改，必须让操作的人知道 -->
+               <div class="form-tip" v-if="form.vaccineId">改动这个日期，会同步更新<b>已生成的疫苗提醒</b>日期</div>
             </el-form-item>
             <el-form-item label="负责人" prop="responsible">
                <el-input v-model="form.responsible" placeholder="请输入负责人" />
@@ -259,6 +261,10 @@ function submitForm() {
       if (form.value.vaccineId != undefined) {
         updateCatVaccine(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
+          // 后台把「下次接种」同步到了提醒上，右上角单独说明，别让用户以为只是改了台账
+          if (response.syncTip) {
+            proxy.$modal.notifySuccess(response.syncTip)
+          }
           open.value = false
           getList()
         })
@@ -277,9 +283,12 @@ function handleDelete(row) {
   const delIds = row.vaccineId || ids.value
   proxy.$modal.confirm('是否确认删除该数据？').then(function () {
     return delCatVaccine(delIds)
-  }).then(() => {
+  }).then((response) => {
     getList()
     proxy.$modal.msgSuccess("删除成功")
+    if (response.syncTip) {
+      proxy.$modal.notifySuccess(response.syncTip)
+    }
   }).catch(() => {})
 }
 
