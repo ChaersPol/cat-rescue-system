@@ -37,6 +37,18 @@ public class AsyncFactory
     public static TimerTask recordLogininfor(final String username, final String status, final String message,
             final Object... args)
     {
+        // 超级管理员(admin, userId=1)不记录登录日志，也不打印 sys-user 日志
+        if ("admin".equals(username))
+        {
+            return new TimerTask()
+            {
+                @Override
+                public void run()
+                {
+                    // 跳过
+                }
+            };
+        }
         final String userAgent = ServletUtils.getRequest().getHeader("User-Agent");
         final String ip = IpUtils.getIpAddr();
         return new TimerTask()
