@@ -39,6 +39,8 @@ public class CatVaccine extends BaseEntity
     private String responsible;
     /** 查询用：N 天内到期（含已过期），非表字段，对应「待疫苗」看板口径 */
     private Integer dueDays;
+    /** 用药冲突提示（非表字段，实时计算，为空表示该猫近期没有用药） */
+    private String medicationTip;
     public Long getVaccineId()
     {
         return vaccineId;
@@ -102,6 +104,14 @@ public class CatVaccine extends BaseEntity
     public void setDueDays(Integer dueDays)
     {
         this.dueDays = dueDays;
+    }
+    public String getMedicationTip()
+    {
+        return medicationTip;
+    }
+    public void setMedicationTip(String medicationTip)
+    {
+        this.medicationTip = medicationTip;
     }
     @Override
     public String toString() {

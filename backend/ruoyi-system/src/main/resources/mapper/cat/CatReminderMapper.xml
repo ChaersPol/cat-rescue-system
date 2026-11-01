@@ -7,10 +7,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <resultMap type="CatReminder" id="CatReminderResult">
         <result property="reminderId" column="reminder_id" />
         <result property="catId" column="cat_id" />
+        <result property="sourceType" column="source_type" />
+        <result property="sourceId" column="source_id" />
         <result property="reminderType" column="reminder_type" />
         <result property="title" column="title" />
         <result property="content" column="content" />
         <result property="remindDate" column="remind_date" />
+        <result property="originDate" column="origin_date" />
+        <result property="deferCount" column="defer_count" />
         <result property="status" column="status" />
         <result property="targetUser" column="target_user" />
         <result property="readTime" column="read_time" />
@@ -22,7 +26,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatReminderVo">
-        select reminder_id, cat_id, reminder_type, title, content, remind_date, status, target_user, read_time, create_by, create_time, update_by, update_time, remark from cat_reminder
+        select reminder_id, cat_id, source_type, source_id, reminder_type, title, content, remind_date, origin_date, defer_count, status, target_user, read_time, create_by, create_time, update_by, update_time, remark from cat_reminder
     </sql>
 
     <!-- 目标用户过滤：为空表示全员；管理员通过 scopeAll 跳过限制 -->
@@ -38,7 +42,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <!-- 每条记录的 status 返回的是「当前登录用户」的已读状态，不再是表里的全局状态 -->
     <sql id="selectReminderWithReadStatus">
-        select c.reminder_id, c.cat_id, c.reminder_type, c.title, c.content, c.remind_date,
+        select c.reminder_id, c.cat_id, c.source_type, c.source_id,
+               c.reminder_type, c.title, c.content, c.remind_date,
+               c.origin_date, c.defer_count,
                case when r.read_id is not null then '1' else '0' end as status,
                c.target_user, r.read_time, c.create_by, c.create_time, c.update_by, c.update_time, c.remark
         from cat_reminder c
@@ -115,6 +121,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertCatReminder" parameterType="CatReminder" useGeneratedKeys="true" keyProperty="reminderId">
         insert into cat_reminder (
             <if test="catId != null">cat_id,</if>
+            <if test="sourceType != null and sourceType != ''">source_type,</if>
+            <if test="sourceId != null">source_id,</if>
             <if test="reminderType != null">reminder_type,</if>
             <if test="title != null">title,</if>
             <if test="content != null">content,</if>
@@ -126,6 +134,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             create_time
         )values(
             <if test="catId != null">#{catId},</if>
+            <if test="sourceType != null and sourceType != ''">#{sourceType},</if>
+            <if test="sourceId != null">#{sourceId},</if>
             <if test="reminderType != null">#{reminderType},</if>
             <if test="title != null">#{title},</if>
             <if test="content != null">#{content},</if>
@@ -156,6 +166,36 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <delete id="deleteCatReminderById" parameterType="Long">
         delete from cat_reminder where reminder_id = #{reminderId}
+    </delete>
+
+    <!--
+      推迟提醒：只改 remind_date，origin_date 只在第一次推迟时落库（用 ifnull 保住最初值），
+      这样界面上能同时看到「原到期日」和「推迟到哪天」。
+    -->
+    <update id="deferReminder">
+        update cat_reminder
+           set remind_date  = #{remindDate},
+               origin_date  = ifnull(origin_date, #{originDate}),
+               defer_count  = ifnull(defer_count, 0) + 1,
+               update_time  = sysdate()
+         where reminder_id  = #{reminderId}
+    </update>
+
+    <!--
+      补齐提醒的来源业务记录。历史提醒没有 source_id，第一次推迟时
+      按「猫 + 计划日期」反查到具体疫苗/驱虫记录后写回，后续就不用再猜。
+    -->
+    <update id="updateReminderSource">
+        update cat_reminder
+           set source_type = #{sourceType},
+               source_id   = #{sourceId}
+         where reminder_id = #{reminderId}
+           and source_id is null
+    </update>
+
+    <!-- 推迟后清掉所有人的已读记录，让这条提醒重新回到未读、重新提醒一次 -->
+    <delete id="deleteReminderReadByReminderId" parameterType="Long">
+        delete from cat_reminder_read where reminder_id = #{reminderId}
     </delete>
 
     <delete id="deleteCatReminderByIds" parameterType="Long">

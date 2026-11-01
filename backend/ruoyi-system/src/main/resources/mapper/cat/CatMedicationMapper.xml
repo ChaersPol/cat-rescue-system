@@ -97,6 +97,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where medication_id = #{medicationId}
     </update>
 
+    <!-- 疫苗/驱虫提醒判断「是否在用药期间」：一次取出这批猫最近 N 天的用药，Java 侧按猫聚合 -->
+    <select id="selectRecentMedicationByCatIds" resultMap="CatMedicationResult">
+        select medication_id, cat_id, use_date, time_period, drug_name, dosage, administration
+          from cat_medication
+         where del_flag = '0'
+           and use_date is not null
+           and use_date &gt;= date_sub(curdate(), interval #{days} day)
+           and cat_id in
+           <foreach item="catId" collection="catIds" open="(" separator="," close=")">#{catId}</foreach>
+         order by cat_id, use_date desc, medication_id desc
+    </select>
+
     <delete id="deleteCatMedicationById" parameterType="Long">
         update cat_medication set del_flag = '2' where medication_id = #{medicationId}
     </delete>

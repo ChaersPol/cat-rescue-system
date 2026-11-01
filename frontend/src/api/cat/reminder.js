@@ -83,3 +83,12 @@ export function markReadBatchCatReminder(reminderIds) {
     data: reminderIds
   })
 }
+
+// 推迟提醒：把提醒日期顺延 N 天后再提醒（用药期间不能接种疫苗时用）
+export function deferCatReminder(reminderId, days, syncPlanDate = true) {
+  return request({
+    url: '/cat/reminder/defer/' + reminderId,
+    method: 'put',
+    params: { days, syncPlanDate }
+  })
+}

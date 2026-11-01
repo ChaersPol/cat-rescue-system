@@ -70,6 +70,25 @@ public interface CatReminderMapper
     public int deleteReminderReadByReminderIds(Long[] reminderIds);
 
     /**
+     * 推迟提醒：重置提醒日期，首次推迟时记录原始日期，推迟次数 +1
+     */
+    public int deferReminder(@Param("reminderId") Long reminderId,
+                             @Param("remindDate") java.util.Date remindDate,
+                             @Param("originDate") java.util.Date originDate);
+
+    /**
+     * 补齐历史提醒的来源业务记录（仅在 source_id 为空时写入）
+     */
+    public int updateReminderSource(@Param("reminderId") Long reminderId,
+                                    @Param("sourceType") String sourceType,
+                                    @Param("sourceId") Long sourceId);
+
+    /**
+     * 清空某条提醒的全部已读记录（推迟后让所有人重新看到）
+     */
+    public int deleteReminderReadByReminderId(Long reminderId);
+
+    /**
      * 按岗位名称查询启用用户的登录名，用于指派提醒收件人
      */
     public List<String> selectUserNamesByPostNames(@Param("postNames") List<String> postNames);

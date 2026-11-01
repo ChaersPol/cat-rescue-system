@@ -42,3 +42,11 @@ export function delCatVaccine(ids) {
     method: 'delete'
   })
 }
+
+// 查某只猫是否在用药期（在用药期不能接种，需要推迟）
+export function getVaccineMedicationTip(catId) {
+  return request({
+    url: '/cat/vaccine/medicationTip/' + catId,
+    method: 'get'
+  })
+}

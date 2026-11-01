@@ -51,11 +51,16 @@
             </template>
          </el-table-column>
          <el-table-column label="接种日期" align="center" prop="vaccineDate" :show-overflow-tooltip="true" />
-         <el-table-column label="下次接种" align="center" prop="nextDate" width="110">
+         <el-table-column label="下次接种" align="center" prop="nextDate" width="130">
             <template #default="scope">
                <div>{{ scope.row.nextDate || '—' }}</div>
                <div v-if="scope.row.nextDate" class="due-tip" :class="dueInfo(scope.row.nextDate).cls">
                   {{ dueInfo(scope.row.nextDate).text }}
+               </div>
+               <!-- 用药期间不能接种：红字提醒，避免看着「该打了」就直接安排 -->
+               <div v-if="scope.row.medicationTip" class="med-tip">
+                  <el-icon><WarningFilled /></el-icon>
+                  <span>用药中 · 暂缓接种</span>
                </div>
             </template>
          </el-table-column>
@@ -74,6 +79,13 @@
          <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
             <el-form-item label="猫咪" prop="catId">
                <cat-select v-model="form.catId" placeholder="请选择猫咪" />
+            </el-form-item>
+            <!-- 选中的猫正在用药：红字警示，提示不能接种、需要推迟 -->
+            <el-form-item v-if="dialogMedTip">
+               <div class="med-warning">
+                  <el-icon><WarningFilled /></el-icon>
+                  <span>{{ dialogMedTip }}</span>
+               </div>
             </el-form-item>
             <el-form-item label="疫苗类型" prop="vaccineType">
                <el-select v-model="form.vaccineType" placeholder="请选择疫苗类型" style="width: 100%">
@@ -105,7 +117,7 @@
 
 <script setup name="CatVaccine">
 import { useCatCache } from "@/utils/catCache"
-import { listCatVaccine, getCatVaccine, delCatVaccine, addCatVaccine, updateCatVaccine } from "@/api/cat/vaccine"
+import { listCatVaccine, getCatVaccine, delCatVaccine, addCatVaccine, updateCatVaccine, getVaccineMedicationTip } from "@/api/cat/vaccine"
 
 const { proxy } = getCurrentInstance()
 const { cat_vaccine_type } = proxy.useDict('cat_vaccine_type')
@@ -141,6 +153,18 @@ const data = reactive({
 })
 
 const { queryParams, form, rules } = toRefs(data)
+
+// 弹窗里选中猫咪后，如果它正在用药期，红字提示「不能接种、建议推迟」
+const dialogMedTip = ref('')
+watch(() => form.value.catId, catId => {
+  dialogMedTip.value = ''
+  if (!catId || !open.value) return
+  getVaccineMedicationTip(catId).then(res => {
+    if (res && res.inMedication) {
+      dialogMedTip.value = res.tip || '该猫近期在用药，暂缓接种。'
+    }
+  }).catch(() => {})
+})
 
 function getList() {
   loading.value = true
@@ -186,6 +210,7 @@ function reset() {
     responsible: undefined,
     remark: undefined,
   }
+  dialogMedTip.value = ''
   proxy.clearFormValidate("formRef")
 }
 
@@ -280,4 +305,15 @@ watch(() => route.query, () => {
 })
 
 getList()
+
+// 在提醒页推迟疫苗提醒时，这条记录的「下次接种」会被后台一起顺延。
+// 页签是 keep-alive 缓存的，切回来不会重建组件，这里激活时补拉一次，避免看到旧日期。
+let firstActivate = true
+onActivated(() => {
+  if (firstActivate) {
+    firstActivate = false
+    return
+  }
+  getList()
+})
 </script>

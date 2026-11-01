@@ -181,7 +181,7 @@ CREATE TABLE `cat_config` (
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`config_id`),
   UNIQUE KEY `uk_config_key` (`config_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统配置表';
+) ENGINE=InnoDB AUTO_INCREMENT=116 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统配置表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -190,7 +190,7 @@ CREATE TABLE `cat_config` (
 
 LOCK TABLES `cat_config` WRITE;
 /*!40000 ALTER TABLE `cat_config` DISABLE KEYS */;
-INSERT INTO `cat_config` VALUES (100,'scan.permission.mode','B','扫码权限方案（A/B）',NULL,'admin','2026-10-27 11:40:17','',NULL),(101,'scan.base.url','http://localhost:80','扫码前端地址前缀',NULL,'admin','2026-10-27 11:40:17','',NULL),(102,'reminder.advance.days','7','疫苗/驱虫到期提前提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(103,'reminder.overdue.days','7','疫苗/驱虫过期后仍提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(104,'referral.pending.days','7','外送医院待接回提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(105,'reminder.auto.enabled','1','是否启用提醒自动生成（1开启 0关闭）',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(106,'scan.mobile.hint','请使用微信或浏览器扫码查看猫咪档案','扫码页提示语','展示在移动端扫码页顶部','admin','2026-10-27 11:40:17','',NULL),(107,'reminder.post.vaccine','主治医生,住院医师','疫苗提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(108,'reminder.post.deworm','主治医生,住院医师','驱虫提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(109,'reminder.post.visit','领养回访专员','回访提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(110,'reminder.post.stock','物资管理员','库存提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(111,'reminder.post.referral','主治医生,住院医师','转诊提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17');
+INSERT INTO `cat_config` VALUES (100,'scan.permission.mode','B','扫码权限方案（A/B）',NULL,'admin','2026-10-27 11:40:17','',NULL),(101,'scan.base.url','http://localhost:80','扫码前端地址前缀',NULL,'admin','2026-10-27 11:40:17','',NULL),(102,'reminder.advance.days','7','疫苗/驱虫到期提前提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(103,'reminder.overdue.days','7','疫苗/驱虫过期后仍提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(104,'referral.pending.days','7','外送医院待接回提醒天数',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(105,'reminder.auto.enabled','1','是否启用提醒自动生成（1开启 0关闭）',NULL,'',NULL,'admin','2026-10-27 11:40:17'),(106,'scan.mobile.hint','请使用微信或浏览器扫码查看猫咪档案','扫码页提示语','展示在移动端扫码页顶部','admin','2026-10-27 11:40:17','',NULL),(107,'reminder.post.vaccine','主治医生,住院医师','疫苗提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(108,'reminder.post.deworm','主治医生,住院医师','驱虫提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(109,'reminder.post.visit','领养回访专员','回访提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(110,'reminder.post.stock','物资管理员','库存提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(111,'reminder.post.referral','主治医生,住院医师','转诊提醒收件岗位','逗号分隔的岗位名称，留空则全员可见','',NULL,'','2026-10-27 11:40:17'),(112,'reminder.medication.check.days','7','判定用药期间的回溯天数（疫苗/驱虫提醒用）',NULL,'',NULL,'admin','2026-11-01 20:43:57'),(113,'reminder.defer.default.days','7','提醒默认推迟天数',NULL,'',NULL,'admin','2026-11-01 20:43:57');
 /*!40000 ALTER TABLE `cat_config` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -257,7 +257,7 @@ CREATE TABLE `cat_deworm` (
   PRIMARY KEY (`deworm_id`),
   KEY `idx_cat` (`cat_id`),
   KEY `idx_next_date` (`next_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=110 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='驱虫记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=111 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='驱虫记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -523,7 +523,7 @@ CREATE TABLE `cat_medication` (
   PRIMARY KEY (`medication_id`),
   KEY `idx_cat` (`cat_id`),
   KEY `idx_date` (`use_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='每日用药记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='每日用药记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -738,10 +738,14 @@ DROP TABLE IF EXISTS `cat_reminder`;
 CREATE TABLE `cat_reminder` (
   `reminder_id` bigint NOT NULL AUTO_INCREMENT COMMENT '提醒id',
   `cat_id` bigint DEFAULT NULL COMMENT '关联猫咪id',
+  `source_type` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '来源业务类型（vaccine疫苗 deworm驱虫 visit回访）',
+  `source_id` bigint DEFAULT NULL COMMENT '来源业务主键',
   `reminder_type` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '提醒类型（疫苗/驱虫/转诊出院/库存/回访）',
   `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '' COMMENT '提醒标题',
   `content` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '' COMMENT '提醒内容',
   `remind_date` date DEFAULT NULL COMMENT '提醒日期',
+  `origin_date` date DEFAULT NULL COMMENT '原始提醒日期（首次推迟前，空表示未推迟）',
+  `defer_count` int NOT NULL DEFAULT '0' COMMENT '累计推迟次数',
   `status` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '0' COMMENT '状态（0未读 1已读）',
   `target_user` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '' COMMENT '目标用户（为空则全员）',
   `read_time` datetime DEFAULT NULL COMMENT '已读时间',
@@ -753,7 +757,7 @@ CREATE TABLE `cat_reminder` (
   PRIMARY KEY (`reminder_id`),
   KEY `idx_remind_date` (`remind_date`),
   KEY `idx_cat` (`cat_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒通知表';
+) ENGINE=InnoDB AUTO_INCREMENT=129 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒通知表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -762,7 +766,7 @@ CREATE TABLE `cat_reminder` (
 
 LOCK TABLES `cat_reminder` WRITE;
 /*!40000 ALTER TABLE `cat_reminder` DISABLE KEYS */;
-INSERT INTO `cat_reminder` VALUES (100,100,'疫苗','疫苗第二针已完成','手动登记：花卷已完成猫三联第二针接种','2026-09-02','1','','2026-09-03 09:00:00','2026-09-02 10:00:00','','',NULL,NULL),(101,NULL,'库存','猫砂补货通知（已处理）','手动登记：豆腐猫砂已于 10-08 完成补货','2026-10-07','1','admin','2026-10-08 10:20:00','2026-10-07 09:00:00','','',NULL,NULL),(102,112,'回访','领养回访已完成','手动登记：咪咪 1 个月回访已完成，状态良好','2026-10-20','1','','2026-10-20 16:30:00','2026-10-20 09:00:00','','',NULL,NULL),(103,107,'转诊','外送医院费用待结算','手动提醒：灰灰在宠爱动物医院的费用需在本周内结算','2026-10-26','0','admin',NULL,'2026-10-20 09:00:00','','',NULL,NULL),(104,106,'其他','皮肤复查安排','手动提醒：奶片每周药浴 2 次，10-28 安排伍德灯复查','2026-10-28','0','',NULL,'2026-10-22 09:00:00','','',NULL,NULL),(105,113,'回访','回访异常跟进','手动提醒：雪球回访反馈腹泻，需电话跟进是否就医','2026-10-25','0','admin',NULL,'2026-10-22 09:00:00','','',NULL,NULL),(106,118,'其他','术后拆线评估','手动提醒：圆圆绝育术后 7 天，需评估切口并决定放归时间','2026-10-27','0','',NULL,'2026-10-24 09:00:00','','',NULL,NULL),(107,NULL,'库存','物资月度盘点','手动提醒：每月末进行物资盘点，核对库存与台账','2026-10-31','0','',NULL,'2026-10-24 09:00:00','','',NULL,NULL),(108,117,'疫苗','疫苗到期提醒','猫咪「小花」疫苗到期：第一针','2026-11-01','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(109,101,'疫苗','疫苗到期提醒','猫咪「小满」疫苗到期：第一针','2026-10-28','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(110,100,'疫苗','疫苗到期提醒','猫咪「花卷」疫苗到期：第一针','2026-10-30','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(111,105,'驱虫','驱虫到期提醒','猫咪「豆子」驱虫到期：体外驱虫','2026-11-02','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(112,104,'驱虫','驱虫到期提醒','猫咪「阿黄」驱虫到期：体内驱虫','2026-10-27','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(113,101,'驱虫','驱虫到期提醒','猫咪「小满」驱虫到期：体内驱虫','2026-10-31','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(114,100,'驱虫','驱虫到期提醒','猫咪「花卷」驱虫到期：体内驱虫','2026-10-29','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(115,114,'回访','领养回访提醒','猫咪「布丁」领养回访计划「3个月」到期，请登记回访记录','2026-11-28','0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(116,113,'回访','领养回访提醒','猫咪「雪球」领养回访计划「3个月」到期，请登记回访记录','2026-12-10','0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(117,112,'回访','领养回访提醒','猫咪「咪咪」领养回访计划「3个月」到期，请登记回访记录','2026-12-20','0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(118,NULL,'库存','库存不足提醒','物资「猫瘟抗原测试板」库存低于预警值 10.00 份，请及时补货','2026-10-28','0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(119,NULL,'库存','库存不足提醒','物资「一次性检查手套」库存低于预警值 5.00 盒，请及时补货','2026-10-28','0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(120,NULL,'库存','库存不足提醒','物资「豆腐猫砂」库存低于预警值 30.00 kg，请及时补货','2026-10-28','0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(121,NULL,'库存','库存不足提醒','物资「大宠爱驱虫滴剂」库存低于预警值 5.00 支，请及时补货','2026-10-28','0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(122,107,'转诊','外送待接回提醒','猫咪「灰灰」在「宠爱动物医院」治疗已超7天，请跟进接回或出院登记','2026-10-28','0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(123,118,'疫苗','疫苗到期提醒','猫咪「圆圆」疫苗到期：第一针','2026-11-05','0','doctor01,doctor02',NULL,'2026-10-30 08:00:00','','',NULL,NULL),(124,106,'驱虫','驱虫到期提醒','猫咪「奶片」驱虫到期：体外驱虫','2026-11-06','0','doctor01,doctor02',NULL,'2026-10-30 08:00:00','','',NULL,NULL);
+INSERT INTO `cat_reminder` VALUES (100,100,NULL,NULL,'疫苗','疫苗第二针已完成','手动登记：花卷已完成猫三联第二针接种','2026-09-02',NULL,0,'1','','2026-09-03 09:00:00','2026-09-02 10:00:00','','',NULL,NULL),(101,NULL,NULL,NULL,'库存','猫砂补货通知（已处理）','手动登记：豆腐猫砂已于 10-08 完成补货','2026-10-07',NULL,0,'1','admin','2026-10-08 10:20:00','2026-10-07 09:00:00','','',NULL,NULL),(102,112,'visit',101,'回访','领养回访已完成','手动登记：咪咪 1 个月回访已完成，状态良好','2026-10-20',NULL,0,'1','','2026-10-20 16:30:00','2026-10-20 09:00:00','','',NULL,NULL),(103,107,NULL,NULL,'转诊','外送医院费用待结算','手动提醒：灰灰在宠爱动物医院的费用需在本周内结算','2026-10-26',NULL,0,'0','admin',NULL,'2026-10-20 09:00:00','','',NULL,NULL),(104,106,NULL,NULL,'其他','皮肤复查安排','手动提醒：奶片每周药浴 2 次，10-28 安排伍德灯复查','2026-10-28',NULL,0,'0','',NULL,'2026-10-22 09:00:00','','',NULL,NULL),(105,113,NULL,NULL,'回访','回访异常跟进','手动提醒：雪球回访反馈腹泻，需电话跟进是否就医','2026-10-25',NULL,0,'0','admin',NULL,'2026-10-22 09:00:00','','',NULL,NULL),(106,118,NULL,NULL,'其他','术后拆线评估','手动提醒：圆圆绝育术后 7 天，需评估切口并决定放归时间','2026-10-27',NULL,0,'0','',NULL,'2026-10-24 09:00:00','','',NULL,NULL),(107,NULL,NULL,NULL,'库存','物资月度盘点','手动提醒：每月末进行物资盘点，核对库存与台账','2026-10-31',NULL,0,'0','',NULL,'2026-10-24 09:00:00','','',NULL,NULL),(108,117,'vaccine',107,'疫苗','疫苗到期提醒','猫咪「小花」疫苗到期：第一针','2026-11-04','2026-11-01',1,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','','2026-11-01 21:17:06',NULL),(109,101,'vaccine',102,'疫苗','疫苗到期提醒','猫咪「小满」疫苗到期：第一针','2026-10-28',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','','2026-11-01 20:52:12',NULL),(110,100,'vaccine',100,'疫苗','疫苗到期提醒','猫咪「花卷」疫苗到期：第一针','2026-10-30',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(111,105,'deworm',105,'驱虫','驱虫到期提醒','猫咪「豆子」驱虫到期：体外驱虫','2026-11-02',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(112,104,'deworm',104,'驱虫','驱虫到期提醒','猫咪「阿黄」驱虫到期：体内驱虫','2026-10-27',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(113,101,'deworm',101,'驱虫','驱虫到期提醒','猫咪「小满」驱虫到期：体内驱虫','2026-10-31',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(114,100,'deworm',100,'驱虫','驱虫到期提醒','猫咪「花卷」驱虫到期：体内驱虫','2026-10-29',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(115,114,'visit',108,'回访','领养回访提醒','猫咪「布丁」领养回访计划「3个月」到期，请登记回访记录','2026-11-28',NULL,0,'0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(116,113,'visit',105,'回访','领养回访提醒','猫咪「雪球」领养回访计划「3个月」到期，请登记回访记录','2026-12-10',NULL,0,'0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(117,112,'visit',102,'回访','领养回访提醒','猫咪「咪咪」领养回访计划「3个月」到期，请登记回访记录','2026-12-20',NULL,0,'0','adopt01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(118,NULL,NULL,NULL,'库存','库存不足提醒','物资「猫瘟抗原测试板」库存低于预警值 10.00 份，请及时补货','2026-10-28',NULL,0,'0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(119,NULL,NULL,NULL,'库存','库存不足提醒','物资「一次性检查手套」库存低于预警值 5.00 盒，请及时补货','2026-10-28',NULL,0,'0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(120,NULL,NULL,NULL,'库存','库存不足提醒','物资「豆腐猫砂」库存低于预警值 30.00 kg，请及时补货','2026-10-28',NULL,0,'0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(121,NULL,NULL,NULL,'库存','库存不足提醒','物资「大宠爱驱虫滴剂」库存低于预警值 5.00 支，请及时补货','2026-10-28',NULL,0,'0','stock01',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(122,107,NULL,NULL,'转诊','外送待接回提醒','猫咪「灰灰」在「宠爱动物医院」治疗已超7天，请跟进接回或出院登记','2026-10-28',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-28 08:00:00','','',NULL,NULL),(123,118,'vaccine',108,'疫苗','疫苗到期提醒','猫咪「圆圆」疫苗到期：第一针','2026-11-05',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-30 08:00:00','','','2026-11-01 20:55:03',NULL),(124,106,'deworm',106,'驱虫','驱虫到期提醒','猫咪「奶片」驱虫到期：体外驱虫','2026-11-06',NULL,0,'0','doctor01,doctor02',NULL,'2026-10-30 08:00:00','','',NULL,NULL),(125,108,NULL,NULL,'转诊','外送待接回提醒','猫咪「三条腿」在「瑞鹏宠物医院」治疗已超7天，请跟进接回或出院登记','2026-11-01',NULL,0,'0','doctor01,doctor02',NULL,'2026-11-01 08:00:00','','',NULL,NULL);
 /*!40000 ALTER TABLE `cat_reminder` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -781,7 +785,7 @@ CREATE TABLE `cat_reminder_read` (
   PRIMARY KEY (`read_id`),
   UNIQUE KEY `uk_user_reminder` (`user_id`,`reminder_id`) COMMENT '同一用户同一提醒只记一次',
   KEY `idx_reminder` (`reminder_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒已读记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='提醒已读记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -790,7 +794,7 @@ CREATE TABLE `cat_reminder_read` (
 
 LOCK TABLES `cat_reminder_read` WRITE;
 /*!40000 ALTER TABLE `cat_reminder_read` DISABLE KEYS */;
-INSERT INTO `cat_reminder_read` VALUES (1,100,1,'2026-09-03 09:00:00'),(2,101,1,'2026-10-08 10:20:00'),(3,102,1,'2026-10-20 16:30:00'),(4,117,1,'2026-10-28 14:30:20');
+INSERT INTO `cat_reminder_read` VALUES (1,100,1,'2026-09-03 09:00:00'),(2,101,1,'2026-10-08 10:20:00'),(3,102,1,'2026-10-20 16:30:00'),(4,117,1,'2026-10-28 14:30:20'),(6,117,106,'2026-11-01 21:07:42');
 /*!40000 ALTER TABLE `cat_reminder_read` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -930,7 +934,7 @@ CREATE TABLE `cat_vaccine` (
   PRIMARY KEY (`vaccine_id`),
   KEY `idx_cat` (`cat_id`),
   KEY `idx_next_date` (`next_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=110 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='疫苗记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='疫苗记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -939,7 +943,7 @@ CREATE TABLE `cat_vaccine` (
 
 LOCK TABLES `cat_vaccine` WRITE;
 /*!40000 ALTER TABLE `cat_vaccine` DISABLE KEYS */;
-INSERT INTO `cat_vaccine` VALUES (100,100,'第一针','2026-08-05','2026-10-30','助理小周','猫三联第一针，无不良反应','admin','2026-08-05 10:00:00','',NULL,'0'),(101,100,'第二针','2026-09-02','2027-09-02','助理小周','猫三联第二针完成','admin','2026-09-02 10:00:00','',NULL,'0'),(102,101,'第一针','2026-08-08','2026-10-28','助理小周','','admin','2026-08-08 10:00:00','',NULL,'0'),(103,102,'狂犬','2026-08-15','2027-08-15','助理小李','','admin','2026-08-15 10:00:00','',NULL,'0'),(104,104,'第一针','2026-08-25','2026-10-10','助理小李','口炎治疗期间接种，已过期需补种','admin','2026-08-25 10:00:00','',NULL,'0'),(105,105,'第一针','2026-09-05','2026-12-05','助理小李','','admin','2026-09-05 10:00:00','',NULL,'0'),(106,107,'狂犬','2026-09-12','2027-09-12','王医生','外送医院接种','admin','2026-09-12 10:00:00','',NULL,'0'),(107,117,'第一针','2026-09-22','2026-11-01','助理小周','TNR 术后接种','admin','2026-09-22 10:00:00','',NULL,'0'),(108,118,'第一针','2026-09-27','2026-11-05','助理小周','','admin','2026-09-27 10:00:00','',NULL,'0'),(109,119,'狂犬','2026-04-10','2027-04-10','助理小李','截肢术后补种','admin','2026-04-10 10:00:00','',NULL,'0');
+INSERT INTO `cat_vaccine` VALUES (100,100,'第一针','2026-08-05','2026-10-30','助理小周','猫三联第一针，无不良反应','admin','2026-08-05 10:00:00','',NULL,'0'),(101,100,'第二针','2026-09-02','2027-09-02','助理小周','猫三联第二针完成','admin','2026-09-02 10:00:00','',NULL,'0'),(102,101,'第一针','2026-08-08','2026-10-28','助理小周','','admin','2026-08-08 10:00:00','',NULL,'0'),(103,102,'狂犬','2026-08-15','2027-08-15','助理小李','','admin','2026-08-15 10:00:00','',NULL,'0'),(104,104,'第一针','2026-08-25','2026-10-10','助理小李','口炎治疗期间接种，已过期需补种','admin','2026-08-25 10:00:00','',NULL,'0'),(105,105,'第一针','2026-09-05','2026-12-05','助理小李','','admin','2026-09-05 10:00:00','',NULL,'0'),(106,107,'狂犬','2026-09-12','2027-09-12','王医生','外送医院接种','admin','2026-09-12 10:00:00','',NULL,'0'),(107,117,'第一针','2026-09-22','2026-11-04','助理小周','TNR 术后接种','admin','2026-09-22 10:00:00','','2026-11-01 21:17:06','0'),(108,118,'第一针','2026-09-27','2026-11-05','助理小周','','admin','2026-09-27 10:00:00','',NULL,'0'),(109,119,'狂犬','2026-04-10','2027-04-10','助理小李','截肢术后补种','admin','2026-04-10 10:00:00','',NULL,'0');
 /*!40000 ALTER TABLE `cat_vaccine` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1354,7 +1358,7 @@ CREATE TABLE `sys_job_log` (
   `end_time` datetime DEFAULT NULL COMMENT '执行结束时间',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`job_log_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务调度日志表';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务调度日志表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1363,7 +1367,7 @@ CREATE TABLE `sys_job_log` (
 
 LOCK TABLES `sys_job_log` WRITE;
 /*!40000 ALTER TABLE `sys_job_log` DISABLE KEYS */;
-INSERT INTO `sys_job_log` VALUES (1,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：68毫秒','0','','2026-10-28 08:00:00','2026-10-28 08:00:00','2026-10-28 08:00:00'),(2,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：44毫秒','0','','2026-10-30 08:00:00','2026-10-30 08:00:00','2026-10-30 08:00:00'),(3,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：135毫秒','0','','2026-10-31 08:28:06','2026-10-31 08:28:06','2026-10-31 08:28:05');
+INSERT INTO `sys_job_log` VALUES (1,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：68毫秒','0','','2026-10-28 08:00:00','2026-10-28 08:00:00','2026-10-28 08:00:00'),(2,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：44毫秒','0','','2026-10-30 08:00:00','2026-10-30 08:00:00','2026-10-30 08:00:00'),(3,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：135毫秒','0','','2026-10-31 08:28:06','2026-10-31 08:28:06','2026-10-31 08:28:05'),(4,'猫咪到期提醒自动生成','DEFAULT','catTask.generateReminder()','猫咪到期提醒自动生成 总共耗时：77毫秒','0','','2026-11-01 08:00:00','2026-11-01 08:00:00','2026-11-01 08:00:00');
 /*!40000 ALTER TABLE `sys_job_log` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1387,7 +1391,7 @@ CREATE TABLE `sys_logininfor` (
   PRIMARY KEY (`info_id`),
   KEY `idx_sys_logininfor_s` (`status`),
   KEY `idx_sys_logininfor_lt` (`login_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=306 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
+) ENGINE=InnoDB AUTO_INCREMENT=325 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1528,7 +1532,7 @@ CREATE TABLE `sys_oper_log` (
   KEY `idx_sys_oper_log_bt` (`business_type`),
   KEY `idx_sys_oper_log_s` (`status`),
   KEY `idx_sys_oper_log_ot` (`oper_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=366 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
+) ENGINE=InnoDB AUTO_INCREMENT=378 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作日志记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1693,7 +1697,7 @@ CREATE TABLE `sys_user` (
 
 LOCK TABLES `sys_user` WRITE;
 /*!40000 ALTER TABLE `sys_user` DISABLE KEYS */;
-INSERT INTO `sys_user` VALUES (1,201,'admin','系统超管','00','liwen@cat-rescue.local','13800138000','0','','$2a$10$mnn0stY85Q4DY9xjIGawgu8wmp5QO.mFUCrfsTdE6W.0J2ZlAUw7C','0','0','127.0.0.1','2026-10-31 14:41:41','2026-10-27 11:40:16','admin','2026-10-27 11:40:16','','2026-10-27 11:40:17','系统内置超级管理员账户，不在用户管理中显示'),(2,203,'doctor01','王建国','00','wangjg@cat-rescue.local','13800138001','0','','$2a$10$/oWSlfUFY5XpPKw4kUH8qO.zW06SToSMES.FIRZdn1vGDyeo4Nnw.','0','0','127.0.0.1','2026-10-28 09:24:36','2026-10-27 13:33:13','admin','2026-10-27 11:40:16','','2026-10-27 13:33:13','医疗基地主治医生'),(100,203,'doctor02','陈静','00','chenjing@cat-rescue.local','13800138002','1','','$2a$10$Xr9Snp.rKsJw6j.XQ8BO3.OmtO7BrHN5IWxNI.7blGYsSIz.Bgk.6','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:34:21','admin','2026-10-27 11:40:17','','2026-10-27 13:34:21','医疗基地住院医师'),(101,205,'assist01','张小敏','00','zhangxm@cat-rescue.local','13800138003','1','','$2a$10$mgNudn3BWit5LBBrVkKEmOAFHK9i/TU.avSB2.oz7J6lsuYJN1XEe','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','A基地区护理助理，管理普通病房A区/隔离观察房/幼猫房'),(102,206,'assist02','赵丽','00','zhaoli@cat-rescue.local','13800138004','1','','$2a$10$81yQPzITp1XltbHpgzWZvuOpSpcGEn0opmEuAk/WU6G8JIZG/QFJ2','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','B基地区护理助理，管理普通病房B区/隔离观察房B/幼猫房B'),(103,203,'assist03','孙倩','00','sunqian@cat-rescue.local','13800138005','1','','$2a$10$wP6UL5V7vsdyvoftwlpuJOCkZ8Dr01N18zJja0uUSnSZh2p/qKvnS','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','医疗基地护理助理，管理治疗病房/传染病隔离房/术后观察房'),(104,208,'stock01','周涛','00','zhoutao@cat-rescue.local','13800138006','0','','$2a$10$yChcOcROBgMAxupcns7LAOMuUHOqALGWmzr./.85C4wzojuchH4l.','0','0','127.0.0.1','2026-10-27 13:48:54','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','物资管理员，负责出入库登记'),(105,207,'adopt01','吴倩','00','wuqian@cat-rescue.local','13800138007','1','','$2a$10$l4Y49LezCVkU2RkJeG7UD.FgPcdQjDyXtIZHFOfZDAe8.ZvXESanW','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','领养回访专员'),(106,201,'manager01','李文','00','manager01@catrescue.local','13800000001','0','','$2a$10$93VVLlV56FFD0.3UzCPIyugSu150D0YQwFnmzZa3A7LwiXtBfZIVK','0','0','127.0.0.1','2026-10-31 20:26:01','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','站长，业务管理员');
+INSERT INTO `sys_user` VALUES (1,201,'admin','系统超管','00','liwen@cat-rescue.local','13800138000','0','','$2a$10$mnn0stY85Q4DY9xjIGawgu8wmp5QO.mFUCrfsTdE6W.0J2ZlAUw7C','0','0','127.0.0.1','2026-11-01 08:54:01','2026-10-27 11:40:16','admin','2026-10-27 11:40:16','','2026-10-27 11:40:17','系统内置超级管理员账户，不在用户管理中显示'),(2,203,'doctor01','王建国','00','wangjg@cat-rescue.local','13800138001','0','','$2a$10$/oWSlfUFY5XpPKw4kUH8qO.zW06SToSMES.FIRZdn1vGDyeo4Nnw.','0','0','127.0.0.1','2026-10-28 09:24:36','2026-10-27 13:33:13','admin','2026-10-27 11:40:16','','2026-10-27 13:33:13','医疗基地主治医生'),(100,203,'doctor02','陈静','00','chenjing@cat-rescue.local','13800138002','1','','$2a$10$Xr9Snp.rKsJw6j.XQ8BO3.OmtO7BrHN5IWxNI.7blGYsSIz.Bgk.6','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:34:21','admin','2026-10-27 11:40:17','','2026-10-27 13:34:21','医疗基地住院医师'),(101,205,'assist01','张小敏','00','zhangxm@cat-rescue.local','13800138003','1','','$2a$10$mgNudn3BWit5LBBrVkKEmOAFHK9i/TU.avSB2.oz7J6lsuYJN1XEe','0','0','127.0.0.1','2026-11-01 08:44:29','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','A基地区护理助理，管理普通病房A区/隔离观察房/幼猫房'),(102,206,'assist02','赵丽','00','zhaoli@cat-rescue.local','13800138004','1','','$2a$10$81yQPzITp1XltbHpgzWZvuOpSpcGEn0opmEuAk/WU6G8JIZG/QFJ2','0','0','127.0.0.1','2026-10-27 13:33:20','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','B基地区护理助理，管理普通病房B区/隔离观察房B/幼猫房B'),(103,203,'assist03','孙倩','00','sunqian@cat-rescue.local','13800138005','1','','$2a$10$wP6UL5V7vsdyvoftwlpuJOCkZ8Dr01N18zJja0uUSnSZh2p/qKvnS','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','医疗基地护理助理，管理治疗病房/传染病隔离房/术后观察房'),(104,208,'stock01','周涛','00','zhoutao@cat-rescue.local','13800138006','0','','$2a$10$yChcOcROBgMAxupcns7LAOMuUHOqALGWmzr./.85C4wzojuchH4l.','0','0','127.0.0.1','2026-10-27 13:48:54','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','物资管理员，负责出入库登记'),(105,207,'adopt01','吴倩','00','wuqian@cat-rescue.local','13800138007','1','','$2a$10$l4Y49LezCVkU2RkJeG7UD.FgPcdQjDyXtIZHFOfZDAe8.ZvXESanW','0','0','127.0.0.1','2026-10-27 13:33:21','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','领养回访专员'),(106,201,'manager01','李文','00','manager01@catrescue.local','13800000001','0','','$2a$10$93VVLlV56FFD0.3UzCPIyugSu150D0YQwFnmzZa3A7LwiXtBfZIVK','0','0','127.0.0.1','2026-11-01 21:15:42','2026-10-27 13:33:13','admin','2026-10-27 11:40:17','','2026-10-27 13:33:13','站长，业务管理员');
 /*!40000 ALTER TABLE `sys_user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1754,4 +1758,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-31 20:29:14
+-- Dump completed on 2026-11-01 21:22:37

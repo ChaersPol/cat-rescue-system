@@ -510,6 +510,55 @@
   }
 }
 
+/**
+ * 用药冲突提示（疫苗/驱虫）：
+ *   <div class="med-tip"><el-icon><WarningFilled /></el-icon><span>用药中 · 暂缓接种</span></div>
+ * 业务含义：猫咪到了该接种的日期，但还在用药期，按兽医要求不能打，只能推迟。
+ * 这是「别照这个日期去安排」的强提醒，必须红色 + 图标，不能做成灰色小字。
+ */
+.med-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #d93026;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+
+  .el-icon {
+    font-size: 12px;
+    color: #f56c6c;
+  }
+}
+
+/* 表单弹窗里的用药警示块，比表格里的 .med-tip 更详细 */
+.med-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #d93026;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+
+  .el-icon {
+    flex: none;
+    margin-top: 3px;
+    color: #f56c6c;
+  }
+}
+
 /* image */
 .img-circle {
   border-radius: 50%;

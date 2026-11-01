@@ -46,7 +46,17 @@
         </template>
       </el-table-column>
       <el-table-column label="标题" align="center" prop="title" width="150" :show-overflow-tooltip="true" />
-      <el-table-column label="内容" align="center" prop="content" min-width="240" :show-overflow-tooltip="true" />
+      <!-- 内容列不放 show-overflow-tooltip：用药冲突提示需要完整换行显示，不能被省略号截掉 -->
+      <el-table-column label="内容" align="left" prop="content" min-width="300">
+        <template #default="scope">
+          <div>{{ scope.row.content }}</div>
+          <!-- 用药冲突：醒目的红色提示，告诉用户这一针现在打不了 -->
+          <div v-if="scope.row.conflictTip" class="conflict-tip">
+            <el-icon class="conflict-icon"><WarningFilled /></el-icon>
+            <span>{{ scope.row.conflictTip }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="关联猫咪" align="center" prop="catId" width="220">
         <template #default="scope">
           <span v-if="scope.row.catId">{{ catName(scope.row.catId) }}</span>
@@ -56,6 +66,10 @@
       <el-table-column label="提醒日期" align="center" prop="remindDate" width="110">
         <template #default="scope">
           <span :class="{ 'overdue': isOverdue(scope.row) }">{{ parseTime(scope.row.remindDate, '{y}-{m}-{d}') }}</span>
+          <div v-if="scope.row.deferCount > 0" class="defer-hint">
+            已推迟 {{ scope.row.deferCount }} 次
+            <span v-if="scope.row.originDate">（原 {{ parseTime(scope.row.originDate, '{m}-{d}') }}）</span>
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="状态" align="center" prop="status" width="85">
@@ -70,9 +84,10 @@
           <el-tag v-else size="small" type="info" effect="plain">全员</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width" v-if="checkPermi(['cat:reminder:edit', 'cat:reminder:remove'])">
+      <el-table-column label="操作" align="center" width="270" class-name="small-padding fixed-width" v-if="checkPermi(['cat:reminder:edit', 'cat:reminder:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Check" @click="handleMarkRead(scope.row)" v-hasPermi="['cat:reminder:edit']">已读</el-button>
+          <el-button link type="warning" icon="Clock" @click="handleDefer(scope.row)" v-hasPermi="['cat:reminder:edit']">推迟</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:reminder:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:reminder:remove']">删除</el-button>
         </template>
@@ -113,6 +128,53 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 推迟提醒：疫苗到期但猫咪在用药期不能接种时，把提醒顺延几天 -->
+    <el-dialog title="推迟提醒" v-model="deferOpen" width="460px" append-to-body>
+      <div v-if="deferRow.conflictTip" class="defer-conflict">
+        <el-icon><WarningFilled /></el-icon>
+        <span>{{ deferRow.conflictTip }}</span>
+      </div>
+      <el-form label-width="90px">
+        <el-form-item label="顺延天数">
+          <el-radio-group v-model="deferDays">
+            <el-radio-button :value="3">3 天</el-radio-button>
+            <el-radio-button :value="7">7 天</el-radio-button>
+            <el-radio-button :value="14">14 天</el-radio-button>
+            <el-radio-button :value="30">30 天</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="自定义">
+          <el-input-number v-model="deferDays" :min="1" :max="365" controls-position="right" style="width: 140px" />
+          <span class="defer-unit">天</span>
+        </el-form-item>
+        <el-form-item label="原提醒日期">
+          <span class="defer-origin">{{ parseTime(deferRow.remindDate, '{y}-{m}-{d}') || '—' }}</span>
+        </el-form-item>
+        <el-form-item label="推迟后">
+          <span class="defer-new">{{ deferPreview }}</span>
+        </el-form-item>
+        <el-form-item v-if="canSyncPlan" label="同步台账">
+          <el-checkbox v-model="deferSyncPlan">
+            同时把{{ syncPlanLabel }}改为 <b>{{ deferPreview }}</b>
+          </el-checkbox>
+        </el-form-item>
+      </el-form>
+      <div class="defer-note">
+        推迟后这条提醒会重新变成未读，到期当天会再次提醒相关人员。
+        <template v-if="canSyncPlan">
+          <br />
+          <span v-if="deferSyncPlan">台账日期会一起顺延，两处保持一致。</span>
+          <span v-else class="defer-warn">未勾选同步，台账仍显示原日期，两边会对不上。</span>
+        </template>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" :loading="deferLoading" @click="submitDefer">确 定 推 迟</el-button>
+          <el-button @click="deferOpen = false">取 消</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -125,7 +187,8 @@ import {
   updateCatReminder,
   generateCatReminder,
   markReadCatReminder,
-  markReadBatchCatReminder
+  markReadBatchCatReminder,
+  deferCatReminder
 } from '@/api/cat/reminder'
 import { listCatProfile } from '@/api/cat/profile'
 import { catLabelOf, formatCatLabel } from '@/utils/catCache'
@@ -141,6 +204,14 @@ const multiple = ref(true)
 const total = ref(0)
 const title = ref('')
 const catOptions = ref([])
+
+// 推迟提醒
+const deferOpen = ref(false)
+const deferLoading = ref(false)
+const deferDays = ref(7)
+const deferRow = ref({})
+// 推迟时是否同步顺延疫苗/驱虫台账的计划日期，默认同步，避免两边日期对不上
+const deferSyncPlan = ref(true)
 
 const typeOptions = ['疫苗', '驱虫', '回访', '库存', '转诊', '其他']
 
@@ -252,6 +323,52 @@ function handleMarkReadBatch() {
   })
 }
 
+/** 推迟后落到哪天：与后端口径一致，取「原提醒日期」和「今天」中较晚的往后顺延 */
+const deferPreview = computed(() => {
+  const days = Number(deferDays.value) || 0
+  if (days <= 0) return '—'
+  const now = new Date()
+  let base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const raw = deferRow.value.remindDate
+  if (raw) {
+    // 用 / 分隔，避免 Safari 解析 yyyy-MM-dd 时按 UTC 处理导致差一天
+    const d = new Date(String(raw).slice(0, 10).replace(/-/g, '/'))
+    if (!isNaN(d.getTime()) && d.getTime() > base.getTime()) base = d
+  }
+  const target = new Date(base.getTime() + days * 86400000)
+  const pad = n => String(n).padStart(2, '0')
+  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`
+})
+
+/** 只有疫苗 / 驱虫提醒才有「台账计划日期」可同步 */
+const canSyncPlan = computed(() => ['疫苗', '驱虫'].includes(deferRow.value.reminderType))
+const syncPlanLabel = computed(() =>
+  deferRow.value.reminderType === '疫苗' ? '疫苗台账的「下次接种」' : '驱虫台账的「下次驱虫」'
+)
+
+function handleDefer(row) {
+  deferRow.value = { ...row }
+  deferDays.value = 7
+  deferSyncPlan.value = true
+  deferOpen.value = true
+}
+
+function submitDefer() {
+  const days = Number(deferDays.value)
+  if (!days || days <= 0 || days > 365) {
+    return proxy.$modal.msgWarning('推迟天数需在 1~365 天之间')
+  }
+  deferLoading.value = true
+  const sync = canSyncPlan.value ? deferSyncPlan.value : false
+  deferCatReminder(deferRow.value.reminderId, days, sync).then(res => {
+    proxy.$modal.msgSuccess(res.msg || `已推迟 ${days} 天`)
+    deferOpen.value = false
+    getList()
+  }).finally(() => {
+    deferLoading.value = false
+  })
+}
+
 function handleAdd() {
   // 猫咪档案可能在别的页签刚新增，打开弹窗前重拉下拉
   loadCats()
@@ -311,5 +428,79 @@ getList()
 }
 :deep(.unread-row) {
   background-color: var(--el-color-danger-light-9);
+}
+
+/* 用药冲突提示：红字 + 淡红底，扫一眼就能看到「这一针现在打不了」 */
+.conflict-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #d93026;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+}
+.conflict-tip .conflict-icon {
+  flex: none;
+  margin-top: 2px;
+  color: #f56c6c;
+  font-size: 13px;
+}
+
+.defer-hint {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #e6a23c;
+}
+
+/* 推迟弹窗 */
+.defer-conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #d93026;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.defer-conflict .el-icon {
+  flex: none;
+  margin-top: 3px;
+  color: #f56c6c;
+}
+.defer-unit {
+  margin-left: 8px;
+  color: var(--el-text-color-regular);
+}
+.defer-origin {
+  color: var(--el-text-color-secondary);
+}
+.defer-new {
+  color: #d93026;
+  font-weight: 700;
+  font-size: 15px;
+}
+.defer-note {
+  padding-left: 90px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.6;
+}
+/* 未勾选同步台账时的提醒文案，要能一眼看到 */
+.defer-warn {
+  color: var(--el-color-danger);
+  font-weight: 600;
 }
 </style>

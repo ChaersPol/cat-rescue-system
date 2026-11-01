@@ -37,6 +37,9 @@ public class CatVaccineController extends BaseController
     @Autowired
     private CatRefNameFiller refNameFiller;
 
+    @Autowired
+    private com.ruoyi.cat.service.impl.CatReminderConflictService conflictService;
+
     @PreAuthorize("@ss.hasPermi('cat:vaccine:list')")
     @GetMapping("/list")
     public TableDataInfo list(CatVaccine vaccineId)
@@ -44,6 +47,21 @@ public class CatVaccineController extends BaseController
         startPage();
         List<CatVaccine> list = vaccineIdService.selectCatVaccineList(vaccineId);
         return getDataTable(list);
+    }
+
+    /**
+     * 新增/修改疫苗记录时，选了猫咪就能立刻知道它是不是在用药期
+     * 在用药期则不能接种，需要推迟，返回提示文案供页面红字显示
+     */
+    @PreAuthorize("@ss.hasPermi('cat:vaccine:list')")
+    @GetMapping("/medicationTip/{catId}")
+    public AjaxResult medicationTip(@PathVariable("catId") Long catId)
+    {
+        String tip = conflictService.medicationTipForCat(catId, "接种疫苗，建议推迟");
+        AjaxResult result = AjaxResult.success();
+        result.put("inMedication", tip != null);
+        result.put("tip", tip);
+        return result;
     }
 
     @PreAuthorize("@ss.hasPermi('cat:vaccine:export')")

@@ -279,4 +279,15 @@ watch(() => route.query, () => {
 })
 
 getList()
+
+// 在提醒页推迟驱虫提醒时，这条记录的「下次驱虫」会被后台一起顺延；
+// 页签被 keep-alive 缓存，切回来补拉一次，避免看到旧日期。
+let firstActivate = true
+onActivated(() => {
+  if (firstActivate) {
+    firstActivate = false
+    return
+  }
+  getList()
+})
 </script>

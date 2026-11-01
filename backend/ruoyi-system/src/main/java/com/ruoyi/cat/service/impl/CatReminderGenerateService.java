@@ -207,6 +207,8 @@ public class CatReminderGenerateService
             }
             CatReminder reminder = new CatReminder();
             reminder.setCatId(v.getCatId());
+            reminder.setSourceType("vaccine");
+            reminder.setSourceId(v.getVaccineId());
             reminder.setReminderType("疫苗");
             reminder.setTitle("疫苗到期提醒");
             reminder.setContent("猫咪「" + catName(v.getCatId()) + "」疫苗到期：" + nvl(v.getVaccineType()));
@@ -246,6 +248,8 @@ public class CatReminderGenerateService
             }
             CatReminder reminder = new CatReminder();
             reminder.setCatId(d.getCatId());
+            reminder.setSourceType("deworm");
+            reminder.setSourceId(d.getDewormId());
             reminder.setReminderType("驱虫");
             reminder.setTitle("驱虫到期提醒");
             reminder.setContent("猫咪「" + catName(d.getCatId()) + "」驱虫到期：" + nvl(d.getDewormType()));
@@ -278,6 +282,8 @@ public class CatReminderGenerateService
             }
             CatReminder reminder = new CatReminder();
             reminder.setCatId(v.getCatId());
+            reminder.setSourceType("visit");
+            reminder.setSourceId(v.getVisitId());
             reminder.setReminderType("回访");
             reminder.setTitle("领养回访提醒");
             reminder.setContent("猫咪「" + catName(v.getCatId()) + "」领养回访计划「" + nvl(v.getPlanType()) + "」到期，请登记回访记录");

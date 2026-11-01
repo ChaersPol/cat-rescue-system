@@ -16,7 +16,9 @@
       <div v-else>
         <div v-for="item in noticeList" :key="item.reminderId" class="notice-item" :class="{ 'is-read': item.status === '1' }" @click="openReminder(item)">
           <el-tag size="small" :type="typeTag(item.reminderType)" class="notice-tag">{{ item.reminderType }}</el-tag>
-          <span class="notice-item-title" :title="item.title">{{ item.content || item.title }}</span>
+          <span class="notice-item-title" :title="item.conflictTip || item.title">{{ item.content || item.title }}</span>
+          <!-- 用药期不能接种：铃铛里也要能看出来，点进去再操作推迟 -->
+          <span v-if="item.conflictTip" class="notice-conflict" :title="item.conflictTip">用药中</span>
           <span class="notice-item-date">{{ shortDate(item.remindDate) }}</span>
         </div>
       </div>
@@ -232,6 +234,19 @@ function markAllRead() {
   flex-shrink: 0;
   font-size: 11px;
   color: var(--el-text-color-placeholder);
+}
+/* 用药冲突标记：红色小块，与提醒列表页的红色提示呼应 */
+.notice-popover .notice-conflict {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #d93026;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
 }
 .notice-popover .notice-footer {
   display: flex;

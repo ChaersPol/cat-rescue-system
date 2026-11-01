@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -21,6 +22,7 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatReminder;
+import com.ruoyi.cat.domain.CatReminderDeferResult;
 import com.ruoyi.cat.service.ICatReminderService;
 import com.ruoyi.cat.service.impl.CatReminderGenerateService;
 import com.ruoyi.cat.util.CatRefNameFiller;
@@ -106,6 +108,48 @@ public class CatReminderController extends BaseController
     {
         int count = reminderIdService.markAllRead(currentScope());
         return success("已全部标记为已读，共 " + count + " 条");
+    }
+
+    /**
+     * 推迟提醒：把提醒日期顺延 N 天后再提醒
+     *
+     * 典型场景：猫咪该打下一针疫苗，但正在用药期不能接种，只能往后推几天，
+     * 推迟后到期要再提醒一次（已读记录会一并清空）。
+     *
+     * @param reminderId 提醒 id
+     * @param days       顺延天数，默认取配置 reminder.defer.default.days
+     */
+    @PreAuthorize("@ss.hasPermi('cat:reminder:edit')")
+    @Log(title = "提醒通知", businessType = BusinessType.UPDATE)
+    @PutMapping("/defer/{reminderId}")
+    public AjaxResult defer(@PathVariable("reminderId") Long reminderId,
+                            @RequestParam(value = "days", required = false) Integer days,
+                            @RequestParam(value = "syncPlanDate", required = false, defaultValue = "true") Boolean syncPlanDate)
+    {
+        int useDays = days == null ? reminderIdService.selectDefaultDeferDays() : days;
+        if (useDays <= 0 || useDays > 365)
+        {
+            return error("推迟天数需在 1~365 天之间");
+        }
+        CatReminderDeferResult deferred = reminderIdService.defer(
+            reminderId, useDays, !Boolean.FALSE.equals(syncPlanDate));
+        if (deferred == null || deferred.getRows() <= 0)
+        {
+            return error("提醒不存在或推迟失败");
+        }
+        String dateText = deferred.getNewDate() == null ? ""
+            : com.ruoyi.common.utils.DateUtils.parseDateToStr("yyyy-MM-dd", deferred.getNewDate());
+        StringBuilder msg = new StringBuilder("已推迟 ").append(useDays).append(" 天，将于 ")
+            .append(dateText).append(" 再次提醒");
+        if (deferred.getSyncTip() != null && !deferred.getSyncTip().isEmpty())
+        {
+            msg.append("；").append(deferred.getSyncTip());
+        }
+        AjaxResult ajax = success(msg.toString());
+        ajax.put("newDate", dateText);
+        ajax.put("syncTip", deferred.getSyncTip());
+        ajax.put("synced", deferred.getSynced());
+        return ajax;
     }
 
     @PreAuthorize("@ss.hasPermi('cat:reminder:list')")

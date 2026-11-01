@@ -21,6 +21,10 @@ public class CatReminder extends BaseEntity
     private Long reminderId;
     /** 关联猫咪id */
     private Long catId;
+    /** 来源业务类型（vaccine疫苗 deworm驱虫 visit回访），推迟时用于同步台账日期 */
+    private String sourceType;
+    /** 来源业务主键 */
+    private Long sourceId;
     /** 猫咪（名称+档案号），导出展示用非表字段 */
     @Excel(name = "猫咪")
     private String catRefName;
@@ -37,6 +41,13 @@ public class CatReminder extends BaseEntity
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
     @Excel(name = "提醒日期", dateFormat = "yyyy-MM-dd")
     private Date remindDate;
+    /** 原始提醒日期（首次推迟前，空表示未推迟过） */
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    @Excel(name = "原提醒日期", dateFormat = "yyyy-MM-dd")
+    private Date originDate;
+    /** 累计推迟次数 */
+    @Excel(name = "推迟次数", cellType = ColumnType.NUMERIC)
+    private Integer deferCount;
     /** 状态（0未读 1已读） */
     @Excel(name = "状态", dictType = "cat_reminder_status")
     private String status;
@@ -46,6 +57,11 @@ public class CatReminder extends BaseEntity
     /** 已读时间 */
     @Excel(name = "已读时间", dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date readTime;
+
+    /** 用药冲突提示（非表字段，实时计算，为空表示无冲突） */
+    private String conflictTip;
+    /** 是否存在用药冲突（非表字段） */
+    private Boolean conflictFlag;
 
     /** 当前登录用户id（非表字段，用于按人取已读状态） */
     @JsonIgnore
@@ -97,6 +113,22 @@ public class CatReminder extends BaseEntity
     {
         this.catId = catId;
     }
+    public String getSourceType()
+    {
+        return sourceType;
+    }
+    public void setSourceType(String sourceType)
+    {
+        this.sourceType = sourceType;
+    }
+    public Long getSourceId()
+    {
+        return sourceId;
+    }
+    public void setSourceId(Long sourceId)
+    {
+        this.sourceId = sourceId;
+    }
     public String getCatRefName()
     {
         return catRefName;
@@ -137,6 +169,38 @@ public class CatReminder extends BaseEntity
     {
         this.remindDate = remindDate;
     }
+    public Date getOriginDate()
+    {
+        return originDate;
+    }
+    public void setOriginDate(Date originDate)
+    {
+        this.originDate = originDate;
+    }
+    public Integer getDeferCount()
+    {
+        return deferCount;
+    }
+    public void setDeferCount(Integer deferCount)
+    {
+        this.deferCount = deferCount;
+    }
+    public String getConflictTip()
+    {
+        return conflictTip;
+    }
+    public void setConflictTip(String conflictTip)
+    {
+        this.conflictTip = conflictTip;
+    }
+    public Boolean getConflictFlag()
+    {
+        return conflictFlag;
+    }
+    public void setConflictFlag(Boolean conflictFlag)
+    {
+        this.conflictFlag = conflictFlag;
+    }
     public String getStatus()
     {
         return status;
@@ -166,10 +230,14 @@ public class CatReminder extends BaseEntity
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
             .append("reminderId", getReminderId())
             .append("catId", getCatId())
+            .append("sourceType", getSourceType())
+            .append("sourceId", getSourceId())
             .append("reminderType", getReminderType())
             .append("title", getTitle())
             .append("content", getContent())
             .append("remindDate", getRemindDate())
+            .append("originDate", getOriginDate())
+            .append("deferCount", getDeferCount())
             .append("status", getStatus())
             .append("targetUser", getTargetUser())
             .append("readTime", getReadTime())
