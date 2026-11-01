@@ -3,9 +3,14 @@
 #  宠物救助系统 · 阿里云 ECS 一键部署脚本（单机全栈，用 IP 直接访问）
 # ============================================================================
 #  用法（在服务器上以 root 执行）：
-#     bash deploy.sh            # 全量安装并启动
+#     bash deploy.sh            # 全量安装并启动（首次部署；库里已有表时会拒绝导库）
 #     bash deploy.sh app        # 只更新后端 + 前端（改了代码后重发版）
+#     bash deploy.sh upgrade sql/upgrade/20261101_02_xxx.sql
+#                               # 🔴 线上改库唯一入口：先备份 → 执行增量脚本 → 清缓存 → 校验行数
 #     bash deploy.sh status     # 看各服务状态
+#
+#  🔴 线上库有客户真实数据：禁止导入 sql/cat_rescue.sql（含 DROP TABLE）。
+#     表结构/数据变更一律写 backend/sql/upgrade/ 下的增量脚本，用 upgrade 子命令执行。
 #
 #  前置条件（脚本不会自己做的部分）：
 #    1. 已把这三个东西放到 /opt/cat-rescue/ 下：
@@ -73,10 +78,43 @@ install_deps() {
 }
 
 # ---------------------------------------------------------------- 数据库
+# 🔴 线上库有客户真实数据，基线（cat_rescue.sql）含 DROP TABLE，绝不能覆盖线上库。
+#    - 首次部署（库不存在/无表）：正常导入基线
+#    - 已有表：拒绝导入，必须改用 upgrade 子命令跑增量脚本
+#    - 确需推倒重来（如新机恢复）：显式 CONFIRM_WIPE_DB=yes bash deploy.sh all
 init_db() {
   [ -f "$SQL" ] || { warn "缺少 $SQL，跳过建库"; return; }
 
-  log "初始化数据库 $DB_NAME（会 DROP 同名表，首次部署用）"
+  local existing=0 profile_rows=0
+  existing=$(mysql -uroot -p"$DB_PASS" -N -e \
+    "select count(*) from information_schema.tables where table_schema='$DB_NAME';" 2>/dev/null || true)
+  existing=${existing:-0}
+
+  if [ "$existing" -gt 0 ]; then
+    profile_rows=$(mysql -uroot -p"$DB_PASS" -N -e \
+      "select ifnull((select count(*) from cat_profile),0);" "$DB_NAME" 2>/dev/null || true)
+    profile_rows=${profile_rows:-0}
+  fi
+
+  if [ "$existing" -gt 0 ] && [ "${CONFIRM_WIPE_DB:-no}" != "yes" ]; then
+    echo
+    echo "=============================================================="
+    echo " 🛑 已拒绝导入数据库基线"
+    echo "--------------------------------------------------------------"
+    echo " 库 $DB_NAME 已存在 $existing 张表（猫咪档案 $profile_rows 条）。"
+    echo " 基线文件含 DROP TABLE，导入会清空全部客户数据，不可恢复。"
+    echo
+    echo " 要更新结构/数据，请改用增量脚本："
+    echo "   bash deploy.sh upgrade sql/upgrade/YYYYMMDD_NN_xxx.sql"
+    echo
+    echo " 确实要清空重建（仅限新机恢复，务必先备份）："
+    echo "   CONFIRM_WIPE_DB=yes bash deploy.sh all"
+    echo "=============================================================="
+    echo
+    return 1
+  fi
+
+  log "初始化数据库 $DB_NAME（会 DROP 同名表，仅限首次部署/显式确认）"
   # Ubuntu 的 mysql root 默认走 auth_socket，先确保能用口令登录
   if ! mysql -uroot -p"$DB_PASS" -e "select 1" >/dev/null 2>&1; then
     warn "root 口令不是 $DB_PASS，尝试设置为该值"
@@ -88,6 +126,57 @@ SQLSTMT
   mysql -uroot -p"$DB_PASS" < "$SQL" || { echo "导入基线失败"; exit 1; }
   mysql -uroot -p"$DB_PASS" -N -e \
     "select concat('表数：', count(*)) from information_schema.tables where table_schema='$DB_NAME';"
+}
+
+# ---------------------------------------------------------------- 增量升级（线上唯一允许的改库方式）
+# 用法： bash deploy.sh upgrade /opt/cat-rescue/sql/upgrade/20261101_02_xxx.sql
+upgrade_db() {
+  local f="${1:-}"
+  [ -n "$f" ] || { echo "用法： bash deploy.sh upgrade <增量脚本路径>"; exit 1; }
+  [ -f "$f" ] || { echo "脚本不存在： $f"; exit 1; }
+
+  # 1) 拒绝危险语句：增量脚本里不应出现 DROP/TRUNCATE（DROP COLUMN 视为不通过，需人工确认）
+  if grep -nEi '^[[:space:]]*(drop[[:space:]]+(table|database)|truncate)' "$f" >/dev/null 2>&1; then
+    echo "🛑 脚本含 DROP TABLE / DROP DATABASE / TRUNCATE，已中止："
+    grep -nEi '^[[:space:]]*(drop[[:space:]]+(table|database)|truncate)' "$f"
+    echo "如确需执行，请人工核对后手动用 mysql 命令执行。"
+    exit 1
+  fi
+
+  # 2) 强制备份（执行任何改库动作前）
+  mkdir -p "$APP_DIR/backup"
+  local bak="$APP_DIR/backup/${DB_NAME}-$(date +%Y%m%d-%H%M%S).sql"
+  log "备份数据库到 $bak"
+  mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF \
+    -uroot -p"$DB_PASS" "$DB_NAME" > "$bak" 2>/dev/null
+  if [ ! -s "$bak" ]; then
+    echo "🛑 备份失败（文件为空），已中止，未做任何改动"; exit 1
+  fi
+  echo "备份完成： $(du -h "$bak" | cut -f1)  $bak"
+
+  # 3) 记录执行前的业务表行数，用于前后对比
+  local before
+  before=$(mysql -uroot -p"$DB_PASS" -N -e \
+    "select ifnull((select count(*) from cat_profile),0);" "$DB_NAME" 2>/dev/null || true)
+
+  # 4) 执行增量脚本（指定库名，脚本里的 DATABASE() 依赖它）
+  log "执行增量脚本 $(basename "$f")"
+  mysql -uroot -p"$DB_PASS" "$DB_NAME" < "$f" || { echo "🛑 脚本执行失败，数据库保持原状（可用上面的备份回滚）"; exit 1; }
+
+  # 5) 清缓存，让新菜单/字典/配置立刻生效
+  redis-cli --scan --pattern 'sys_config:*' 2>/dev/null | xargs -r redis-cli del >/dev/null 2>&1 || true
+  redis-cli --scan --pattern 'sys_dict:*'   2>/dev/null | xargs -r redis-cli del >/dev/null 2>&1 || true
+
+  # 6) 校验：业务数据行数不应减少
+  local after
+  after=$(mysql -uroot -p"$DB_PASS" -N -e \
+    "select ifnull((select count(*) from cat_profile),0);" "$DB_NAME" 2>/dev/null || true)
+  echo "猫咪档案： 执行前 ${before:-?} 条 → 执行后 ${after:-?} 条"
+  if [ -n "${before:-}" ] && [ -n "${after:-}" ] && [ "$after" -lt "$before" ]; then
+    echo "⚠️  业务数据行数减少了！请立即检查，必要时用备份回滚： $bak"
+    exit 1
+  fi
+  echo "✅ 增量升级完成"
 }
 
 # ---------------------------------------------------------------- 后端服务
@@ -205,8 +294,9 @@ health() {
 }
 
 case "${1:-all}" in
-  all)    need_root; install_deps; init_db; install_app; install_nginx; open_fw; health ;;
-  app)    need_root; install_app; systemctl reload nginx; health ;;
-  status) systemctl --no-pager status cat-rescue nginx mysqld 2>/dev/null | head -40; health ;;
-  *)      echo "用法： bash $0 [all|app|status]" ;;
+  all)     need_root; install_deps; init_db; install_app; install_nginx; open_fw; health ;;
+  app)     need_root; install_app; systemctl reload nginx; health ;;
+  upgrade) need_root; upgrade_db "${2:-}" ;;
+  status)  systemctl --no-pager status cat-rescue nginx mysqld 2>/dev/null | head -40; health ;;
+  *)       echo "用法： bash $0 [all|app|upgrade <增量脚本>|status]" ;;
 esac

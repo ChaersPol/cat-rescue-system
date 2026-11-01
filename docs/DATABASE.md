@@ -6,10 +6,30 @@
 
 ## 一、铁律
 
+> ### 🔴 最高优先级：线上库里有客户真实数据，绝不可覆盖
+>
+> 项目**已正式上线**。线上 `cat_rescue` 里是救助站日常录入的真实业务数据（猫咪档案、病历、
+> 领养回访、财务物资、账号……），**删了就没了**。
+>
+> **对线上库禁止做的事**（没有例外，无论谁要求、无论多"顺手"）：
+>
+> - ❌ 导入基线 `backend/sql/cat_rescue.sql`（内含 `DROP TABLE`，一跑客户数据全清空）
+> - ❌ 用本地 dump 覆盖线上库、`mysqldump | mysql` 直灌线上、把本地 `.sql`/数据目录 scp 上去 import
+> - ❌ 执行任何含 `DROP DATABASE` / `DROP TABLE` / `TRUNCATE` 的语句
+> - ❌ "同步一下数据库"时顺手把本地数据推到线上
+>
+> **线上只能做的事**：执行 `backend/sql/upgrade/*.sql` 这类**差异化增量脚本**——
+> 加字段、加表、加字典、加配置项、带 `WHERE` 的数据订正。只加不改、幂等、可重复执行。
+>
+> 遇到增量表达不了的变更（重建表、改主键、大规模数据迁移）：**先停下来问用户**，
+> 给出「备份 → 迁移 → 校验行数」的书面步骤，得到确认再执行。
+
 1. **全项目只保留一份数据库文件**：`backend/sql/cat_rescue.sql`
 2. **禁止**再新增任何第二个 `.sql` 文件充当基线、补丁或升级包（`upgrade/` 目录除外，见第五节）
 3. **本地**：随时可以用这一份文件把库整个推倒重建
 4. **上线**：只做追加，**绝不**在生产库上执行基线文件
+5. **线上有客户数据**：基线文件只服务本地和全新装机，与线上运行数据无关，
+   **两者不存在"保持一致"的义务**——结构靠增量脚本追平，数据各管各的
 
 违反第 2 条最典型的错误，就是本项目以前的样子——17 个脚本按顺序 `source`，
 谁都不知道少跑一步会缺什么、重跑一次会不会翻倍。
@@ -23,7 +43,11 @@
 | 用什么 | `backend/sql/cat_rescue.sql`（全量） | `backend/sql/upgrade/*.sql`（增量） |
 | 怎么做 | 整个库删掉重建 | 按日期序号依次执行，只加不改 |
 | 会不会丢数据 | 会，这是预期行为 | 不允许丢任何业务数据 |
+| 库里是什么 | 初始数据 + 演示数据，随便清 | **客户真实业务数据，只能增补不能覆盖** |
 | 执行频率 | 想跑就跑 | 每次发版前跑一次，跑过的不再跑 |
+
+**记住：这两套动作不可互换。** 把全量基线搬到线上 = 客户数据归零；
+把增量脚本当成"太麻烦，直接导全量吧"的替代品 = 同样归零。
 
 ---
 
@@ -175,17 +199,43 @@ VALUES ('芯片状态', 'cat_chip_status', '0', 'admin', now(), '新增字典');
 
 ### 执行
 
+**本地**：按文件名顺序逐个跑，必须指定库名，脚本里的 `DATABASE()` 依赖它
+
 ```bash
-# 按文件名顺序逐个跑，必须指定库名，脚本里的 DATABASE() 依赖它
 for f in backend/sql/upgrade/*.sql; do
   echo ">> $f"
   mysql -u root -p cat_rescue < "$f" || { echo "失败，中断"; break; }
 done
-
-# 清缓存，让新菜单/新字典立刻生效
-redis-cli --scan --pattern 'sys_config:*' | xargs -r redis-cli del
-redis-cli --scan --pattern 'sys_dict:*'   | xargs -r redis-cli del
 ```
+
+**线上（`root@123.57.185.59:/opt/cat-rescue`）**：先备份，再**只跑这次发版新增的那一个脚本**，
+不要无脑循环整个目录（老脚本重复跑虽有幂等保护，但没必要冒这个险）
+
+```bash
+# 1. 备份（强制，没备份不许往下走）。文件名带时间，放到 backup/ 下
+ssh root@123.57.185.59 '
+  mkdir -p /opt/cat-rescue/backup
+  mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF \
+    -u root -p cat_rescue > /opt/cat-rescue/backup/cat_rescue-$(date +%Y%m%d-%H%M%S).sql
+  ls -lh /opt/cat-rescue/backup/ | tail -3'
+
+# 2. 上传并执行【增量脚本】，注意是 upgrade 目录里的单个文件，绝不是 cat_rescue.sql
+scp backend/sql/upgrade/20261101_02_xxx.sql root@123.57.185.59:/tmp/
+ssh root@123.57.185.59 'mysql -u root -p cat_rescue < /tmp/20261101_02_xxx.sql && rm -f /tmp/20261101_02_xxx.sql'
+
+# 3. 清缓存，让新菜单/新字典立刻生效
+ssh root@123.57.185.59 '
+  redis-cli --scan --pattern "sys_config:*" | xargs -r redis-cli del
+  redis-cli --scan --pattern "sys_dict:*"   | xargs -r redis-cli del'
+```
+
+**执行前自检（三条全过才动手）**：
+1. 要跑的文件在 `backend/sql/upgrade/` 下，文件名带日期序号
+2. 文件里 `grep -nE "DROP |TRUNCATE"` **无输出**（除非用户书面确认过）
+3. 备份文件已生成且大小正常（几百 KB 以上，不是 0 字节）
+
+**执行后核对**：关键表行数没有异常减少（`cat_profile`、`cat_medical`、`cat_adoption` 等业务表
+行数只应持平或增加），新字段/新配置已生效，再重启后端。
 
 ### 上线后
 
@@ -287,3 +337,8 @@ redis-cli --scan --pattern 'sys_dict:*'   | xargs -r redis-cli del
 
    用双引号写法 `sed -e "s/`cat_rescue`/cat_verify/g"` 会让反引号被 shell 展开成空，
    替换表达式失效，导入的还是 `cat_rescue`——**这条坑会直接清掉现库数据**
+
+7. **别把"同步数据库"理解成"把本地库同步到线上"** —— 项目已上线，线上是客户在用的真实数据。
+   这里的"同步"**只指**把本地库导出成基线文件 `cat_rescue.sql`（第四节），
+   与线上运行库无关。线上要加字段、加字典、改配置，只有一个入口：写 `upgrade/` 增量脚本（第五节）。
+   一旦用全量 dump 覆盖线上库，客户录入的档案、病历、回访、财务记录全部清零且不可逆，**不许试**。

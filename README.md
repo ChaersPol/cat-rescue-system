@@ -46,8 +46,20 @@ redis-cli --scan --pattern 'sys_dict:*'   | xargs -r redis-cli del
 导入完直接可以登录，账号见下方「账号与角色」。
 要重建就再跑一遍这条命令（会先删表再建，本地数据会丢，这是预期行为）。
 
-> ⚠️ **生产环境禁止执行这个文件**（含 `DROP TABLE`）。
-> 上线只执行 `backend/sql/upgrade/` 下的增量脚本，规则见 [docs/DATABASE.md](docs/DATABASE.md)。
+> ### 🔴 生产环境禁止执行这个文件（含 `DROP TABLE`，一跑数据全清）
+>
+> 系统**已正式上线**，线上库 `cat_rescue` 里是救助站录入的真实业务数据
+> （猫咪档案、病历、领养回访、财务物资……），**没有任何副本可恢复**。
+>
+> 线上改库**只有一个入口**：写 `backend/sql/upgrade/YYYYMMDD_NN_描述.sql` 增量脚本，
+> 用部署脚本执行（自动备份 → 执行 → 清缓存 → 校验行数）：
+>
+> ```bash
+> bash deploy/deploy.sh upgrade /opt/cat-rescue/sql/upgrade/20261101_02_xxx.sql
+> ```
+>
+> 增量脚本只加不改、幂等可重跑；禁止 `DROP TABLE` / `TRUNCATE`（脚本会拦截）。
+> 完整规则见 [docs/DATABASE.md](docs/DATABASE.md)。
 
 ### 2. 配置后端
 
