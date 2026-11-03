@@ -286,3 +286,65 @@ RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**�
 - 取消全选 → 保存：应是 `"wardIds":[]`，不是 `"[null]"`
 - 回显：再次打开弹窗，已保存项必须全部勾上（`selectWardIdsByUserId` 已加 `ward_id is not null`）
 - 接口级兜底：直接 `curl` 提交带 `null` 的数组，应返回 200 且只写入有效 id
+
+## 十二、权限标识必须与 `sys_menu.perms` 逐字符一致（2026-11-03 财务物资按钮消失事故）
+
+现象：给「管理员」角色勾选了费用分类 / 物资分类的全部按钮权限，用 manager 账号进页面，
+新增、修改、删除、导出**一个都不显示**；换成超管账号又是好的。
+
+根因：前端 `v-hasPermi` 写的是驼峰，菜单表里是全小写。
+
+| 前端（错误） | `sys_menu.perms`（正确） |
+|---|---|
+| `cat:feeCategory:add` | `cat:feecategory:add` |
+| `cat:materialCategory:remove` | `cat:materialcategory:remove` |
+
+`v-hasPermi` 的实现是 `permissionFlag.includes(permission)`，**字符串全等**，大小写不同即判定无权限，
+按钮被 `el.parentNode.removeChild(el)` 直接摘掉（不是隐藏，DOM 里根本没有）。
+
+### 为什么超管测不出来
+
+超管权限集是通配 `*:*:*`，`hasPermi` 里 `all_permission === permission` 直接放行，
+**任何写错的权限串对超管都无效**。这个 bug 因此可以藏到第一次给普通角色授权才暴露。
+
+→ **新增页面或改动按钮后，必须用一个非超管账号验证**，超管通过不代表权限串写对了。
+
+### 三条硬规则
+
+1. **权限串全部小写，模块名不转驼峰**：`cat:feecategory:*`、`cat:materialcategory:*`、
+   `cat:stockrecord:*`，一律照抄 `sys_menu.perms`，不要按 Java 类名习惯写 `feeCategory`。
+2. **以数据库为准，不以代码为准**：`sys_menu.perms` 是运行时真正比对的值。
+   前端 `v-hasPermi`、后端 `@PreAuthorize("@ss.hasPermi('...')")`、`sys_menu.perms` 三处必须完全一致。
+3. **`meta.canRemove` 是另一套推导**：后端 `SysMenuServiceImpl.resolveCanRemove()` 把菜单自身的
+   `模块:list` 末段换成 `:remove` 推导，所以菜单 perms 写成 `cat:xxx:list` 才能推对。
+   修改/删除按钮同时受 `v-hasPermi` 和 `v-if="$route.meta.canRemove"` 约束，
+   两者任一不满足都不显示——排查时先看 `v-hasPermi`，再看角色有没有勾「删除」。
+
+### 自检命令（改完权限相关代码就跑一遍）
+
+```bash
+# 1. 导出库里的 perms
+mysql -uroot -p*** -h127.0.0.1 cat_rescue -N \
+  -e "select perms from sys_menu where perms is not null and perms<>''" > /tmp/db_perms.txt
+# 2. 比对前端所有 v-hasPermi / checkPermi
+python3 - <<'PY'
+import re, glob
+db = set(x.strip() for x in open('/tmp/db_perms.txt') if x.strip())
+miss = {}
+for f in glob.glob('frontend/src/**/*.vue', recursive=True) + glob.glob('frontend/src/**/*.js', recursive=True):
+    txt = open(f, encoding='utf-8', errors='replace').read()
+    for m in re.finditer(r"v-hasPermi=\"\[([^\]]*)\]\"|checkPermi\(\[([^\]]*)\]\)", txt):
+        for s in re.findall(r"['\"]([^'\"]+)['\"]", m.group(1) or m.group(2)):
+            if s not in db:
+                miss.setdefault(s, set()).add(f)
+for k, v in sorted(miss.items()):
+    print("✗", k, "->", sorted(v))
+print("✓ 全部匹配" if not miss else f"共 {len(miss)} 处不匹配")
+PY
+```
+
+### 授权后不生效的另一个原因
+
+权限集合在**登录时**写入 Redis 的 `login_tokens:<uuid>`，之后不会自动刷新。
+改完角色权限后，受影响的用户必须**退出重新登录**（刷新页面不够，`getInfo` 读的还是旧 token 里的集合）。
+排查顺序：先查 `sys_role_menu` 有没有真勾上 → 再查权限串大小写 → 最后才怀疑缓存。
