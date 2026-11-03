@@ -66,17 +66,60 @@ public class CatWardAuthController extends BaseController
 
     /**
      * 保存某用户的病房授权（先删后增）
+     *
+     * 注意：请求体里的 wardIds 来自前端勾选框，可能夹带 null（勾选组件把未定义值写进数组，
+     * JSON 序列化后就是 null）。这里统一做宽容清洗：跳过 null 与非法值、去重，
+     * 不能因为一个脏元素就整单失败——否则用户点了保存什么都没存上。
      */
     @PreAuthorize("@ss.hasPermi('cat:wardauth:edit')")
     @Log(title = "病房授权", businessType = BusinessType.UPDATE)
     @PostMapping("/save")
     public AjaxResult save(@RequestBody Map<String, Object> body)
     {
-        Long userId = body.get("userId") == null ? null : Long.valueOf(body.get("userId").toString());
-        List<?> wardList = (List<?>) body.get("wardIds");
-        Long[] wardIds = wardList == null ? new Long[0] : wardList.stream()
-                .map(o -> Long.valueOf(o.toString())).toArray(Long[]::new);
+        Long userId = toLong(body.get("userId"));
+        if (userId == null)
+        {
+            return error("缺少用户ID，无法保存病房授权");
+        }
+        Long[] wardIds = new Long[0];
+        Object raw = body.get("wardIds");
+        if (raw instanceof List)
+        {
+            wardIds = ((List<?>) raw).stream()
+                    .map(CatWardAuthController::toLong)
+                    .filter(id -> id != null && id > 0)
+                    .distinct()
+                    .toArray(Long[]::new);
+        }
         return toAjax(catWardAuthService.saveUserWardAuth(userId, wardIds));
+    }
+
+    /**
+     * 宽容解析为 Long：null、空串、非数字一律返回 null，不抛异常
+     */
+    private static Long toLong(Object value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        if (value instanceof Number)
+        {
+            return ((Number) value).longValue();
+        }
+        String text = value.toString().trim();
+        if (text.isEmpty())
+        {
+            return null;
+        }
+        try
+        {
+            return Long.valueOf(text);
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
     }
 
     /**

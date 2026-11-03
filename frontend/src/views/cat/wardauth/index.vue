@@ -45,22 +45,32 @@
 
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getUserList" />
 
-    <el-dialog :title="'配置病房授权 - ' + currentUser.nickName" v-model="open" width="640px" append-to-body>
+    <el-dialog :title="'配置病房授权 - ' + (currentUser.nickName || currentUser.userName || '')" v-model="open" width="640px" append-to-body>
       <div v-loading="authLoading">
-        <el-checkbox-group v-model="checkedWardIds">
-          <div v-for="group in wardGroups" :key="group.baseId" class="ward-group">
-            <div class="ward-group-title">
-              <el-checkbox :model-value="isGroupAllChecked(group)" :indeterminate="isGroupIndeterminate(group)" @change="val => toggleGroup(group, val)">
-                {{ group.baseName }}
-              </el-checkbox>
-            </div>
-            <div class="ward-group-body">
-              <el-checkbox v-for="w in group.wards" :key="w.wardId" :label="w.wardId" :value="w.wardId">
-                {{ w.wardName }}
-              </el-checkbox>
-            </div>
+        <!-- 这里刻意不用 el-checkbox-group：组标题的“全选”复选框一旦落在 group 内部，
+             会被 Element Plus 当成组成员，点它时会把自己的未定义 value 写进绑定数组，
+             序列化后变成 [105,106,null,...]，后端解析即报空指针。改为逐个受控。 -->
+        <div v-for="group in wardGroups" :key="group.baseId" class="ward-group">
+          <div class="ward-group-title">
+            <el-checkbox
+              :model-value="isGroupAllChecked(group)"
+              :indeterminate="isGroupIndeterminate(group)"
+              @change="val => toggleGroup(group, val)"
+            >
+              {{ group.baseName }}
+            </el-checkbox>
           </div>
-        </el-checkbox-group>
+          <div class="ward-group-body">
+            <el-checkbox
+              v-for="w in group.wards"
+              :key="w.wardId"
+              :model-value="isWardChecked(w.wardId)"
+              @change="val => toggleWard(w.wardId, val)"
+            >
+              {{ w.wardName }}
+            </el-checkbox>
+          </div>
+        </div>
         <el-empty v-if="wardGroups.length === 0" description="暂无病房数据，请先创建基地与病房" />
       </div>
       <template #footer>
@@ -117,9 +127,18 @@ function getUserList() {
   })
 }
 
+// 只保留有效数字 id：去掉 null / undefined / 空串 / 非正数，统一转数字并去重
+// 后端虽已做宽容清洗，前端也不能把脏值送出去（历史上就是 null 混进数组导致保存失败）
+function normalizeIds(list) {
+  const ids = (Array.isArray(list) ? list : [])
+    .map(v => Number(v))
+    .filter(v => Number.isFinite(v) && v > 0)
+  return Array.from(new Set(ids))
+}
+
 function loadUserAuth(user) {
   getWardIdsByUser(user.userId).then(res => {
-    const ids = res.data || []
+    const ids = normalizeIds(res.data)
     authMap.value[user.userId] = wards.value.filter(w => ids.includes(w.wardId))
   })
 }
@@ -135,7 +154,7 @@ function buildWardGroups() {
     }
     map[key].wards.push(w)
   })
-  wardGroups.value = Object.values(map)
+  wardGroups.value = Object.values(map).filter(g => g.wards.length > 0)
 }
 
 function loadWards() {
@@ -167,24 +186,44 @@ function handleAuth(row) {
   open.value = true
   authLoading.value = true
   getWardIdsByUser(row.userId).then(res => {
-    checkedWardIds.value = res.data || []
+    checkedWardIds.value = normalizeIds(res.data)
     authLoading.value = false
   }).catch(() => {
     authLoading.value = false
   })
 }
 
+function isWardChecked(wardId) {
+  return checkedWardIds.value.includes(Number(wardId))
+}
+
+function toggleWard(wardId, checked) {
+  const id = Number(wardId)
+  if (!Number.isFinite(id) || id <= 0) {
+    return
+  }
+  if (checked) {
+    if (!checkedWardIds.value.includes(id)) {
+      checkedWardIds.value = [...checkedWardIds.value, id]
+    }
+  } else {
+    checkedWardIds.value = checkedWardIds.value.filter(v => v !== id)
+  }
+}
+
 function isGroupAllChecked(group) {
-  return group.wards.length > 0 && group.wards.every(w => checkedWardIds.value.includes(w.wardId))
+  return group.wards.length > 0 && group.wards.every(w => checkedWardIds.value.includes(Number(w.wardId)))
 }
 
 function isGroupIndeterminate(group) {
-  const checked = group.wards.filter(w => checkedWardIds.value.includes(w.wardId)).length
+  const checked = group.wards.filter(w => checkedWardIds.value.includes(Number(w.wardId))).length
   return checked > 0 && checked < group.wards.length
 }
 
 function toggleGroup(group, val) {
-  const ids = group.wards.map(w => w.wardId)
+  const ids = (group.wards || [])
+    .map(w => Number(w.wardId))
+    .filter(id => Number.isFinite(id) && id > 0)
   if (val) {
     checkedWardIds.value = Array.from(new Set([...checkedWardIds.value, ...ids]))
   } else {
@@ -193,7 +232,8 @@ function toggleGroup(group, val) {
 }
 
 function submitAuth() {
-  saveWardAuth({ userId: currentUser.value.userId, wardIds: checkedWardIds.value }).then(() => {
+  const wardIds = normalizeIds(checkedWardIds.value)
+  saveWardAuth({ userId: currentUser.value.userId, wardIds }).then(() => {
     proxy.$modal.msgSuccess('授权保存成功')
     open.value = false
     loadUserAuth(currentUser.value)

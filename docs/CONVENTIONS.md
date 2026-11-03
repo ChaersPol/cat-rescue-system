@@ -254,3 +254,35 @@ RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**�
   否则从别的页面改完切回来还是旧日期。
 - 台账编辑弹窗里「下次接种 / 下次驱虫」下方固定一行 `.form-tip`，
   只在编辑态显示（`v-if="form.vaccineId"` / `form.dewormId`）。
+
+## 十一、勾选类控件与入参宽容（2026-11-03 病房授权空指针事故）
+
+线上「病房授权」保存报 `Cannot invoke "Object.toString()" because "o" is null`，
+根因是**组标题的“全选”复选框被放进了 `el-checkbox-group`**。
+
+### 事故链条
+
+1. `<el-checkbox-group>` 内的每个 `el-checkbox` 都被视为组成员，点它会把自己的 `value` 写进绑定数组；
+   而组标题那个“全选”框只有 `:model-value` / `@change`，**没有 `value`**，于是写进去的是 `undefined`
+2. `JSON.stringify([105, 106, undefined, 103])` → `[105,106,null,103]`，`undefined` 变成 `null`
+3. 后端 `.map(o -> Long.valueOf(o.toString()))` 对 `null` 求值 → NPE，整次保存失败
+   （`sys_oper_log` 里留下 `wardIds:[105,106,null,103,...]` 与 status=1 三条失败记录）
+
+### 两条硬规则
+
+1. **“全选 / 半选”这类聚合复选框一定写在 `el-checkbox-group` 外面**。
+   本项目已改为不用 `el-checkbox-group`，每个选项用受控写法：
+   `:model-value="ids.includes(id)"` + `@change="val => toggle(id, val)"`，
+   由 `toggle()` 自己做增删、去重、非法值过滤。
+2. **后端解析前端传来的 id 数组必须宽容**，不允许直接 `o.toString()`：
+   `toLong()` 对 `null / 空串 / 非数字` 返回 null，
+   再 `filter(id -> id != null && id > 0).distinct()`。
+   `0` 和负数也是非法 id（自增主键），测试时必须覆盖 `[null,"",0,-1,"abc"]` 这种组合。
+   缺 `userId` 时直接返回 `error("缺少用户ID，无法保存病房授权")`，不要带着 null 往下走。
+
+### 自检清单（新增勾选类功能时）
+
+- 打开弹窗 → 点组标题全选 → 保存：`sys_oper_log.oper_param` 里**不能出现 null**
+- 取消全选 → 保存：应是 `"wardIds":[]`，不是 `"[null]"`
+- 回显：再次打开弹窗，已保存项必须全部勾上（`selectWardIdsByUserId` 已加 `ward_id is not null`）
+- 接口级兜底：直接 `curl` 提交带 `null` 的数组，应返回 200 且只写入有效 id

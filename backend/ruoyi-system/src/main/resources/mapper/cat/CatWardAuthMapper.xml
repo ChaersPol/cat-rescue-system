@@ -25,11 +25,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectWardIdsByUserId" parameterType="Long" resultType="Long">
-        select ward_id from cat_ward_auth where user_id = #{userId}
+        <!-- 过滤 ward_id 为空的脏数据，避免前端拿到 [null] 后原样回传 -->
+        select ward_id from cat_ward_auth where user_id = #{userId} and ward_id is not null
     </select>
 
     <select id="selectUserIdsByWardId" parameterType="Long" resultType="Long">
-        select user_id from cat_ward_auth where ward_id = #{wardId}
+        select user_id from cat_ward_auth where ward_id = #{wardId} and user_id is not null
     </select>
 
     <insert id="insertCatWardAuth" parameterType="CatWardAuth">
