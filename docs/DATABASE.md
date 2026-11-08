@@ -54,7 +54,7 @@
 ## 三、本地：一条命令重建
 
 ```bash
-# 会先 DROP 同名表再重建，47 张表 + 初始数据 + 演示数据，导入完直接能登录
+# 会先 DROP 同名表再重建，53 张表 + 初始数据 + 演示数据，导入完直接能登录
 mysql -u root -p < backend/sql/cat_rescue.sql
 ```
 
@@ -137,7 +137,7 @@ grep -n "CREATE DATABASE\|^USE " backend/sql/cat_rescue.sql
 ```bash
 mysql -u root -p -e "drop database if exists cat_verify; create database cat_verify default character set utf8mb4"
 sed -e 's/`cat_rescue`/`cat_verify`/g' backend/sql/cat_rescue.sql | mysql -u root -p
-mysql -u root -p -e "select count(*) from information_schema.tables where table_schema='cat_verify'"   # 应为 47
+mysql -u root -p -e "select count(*) from information_schema.tables where table_schema='cat_verify'"   # 应为 53
 mysql -u root -p -e "drop database cat_verify"
 ```
 
@@ -247,16 +247,16 @@ ssh root@123.57.185.59 '
 
 ## 六、基线里有什么
 
-47 张表，InnoDB / `utf8mb4` / `utf8mb4_general_ci`，无视图、无触发器、无存储过程。
+53 张表，InnoDB / `utf8mb4` / `utf8mb4_general_ci`，无视图、无触发器、无存储过程。
 
 | 分类 | 数量 | 表 |
 |---|---|---|
 | 系统框架 | 18 | `sys_user` `sys_user_role` `sys_user_post` `sys_role` `sys_role_menu` `sys_role_dept` `sys_menu` `sys_dept` `sys_post` `sys_dict_type` `sys_dict_data` `sys_config` `sys_notice` `sys_notice_read` `sys_job` `sys_job_log` `sys_oper_log` `sys_logininfor` |
 | 猫咪主档 | 9 | `cat_profile` `cat_profile_tag` `cat_photo` `cat_base` `cat_ward` `cat_ward_type` `cat_ward_auth` `cat_flow` `cat_tag` |
-| 医疗 | 6 | `cat_diagnosis` `cat_medication` `cat_deworm` `cat_vaccine` `cat_referral` `cat_death` |
+| 医疗 | 11 | `cat_diagnosis` `cat_diagnosis_item` `cat_medication` `cat_medication_exec` `cat_prescription` `cat_prescription_item` `cat_prescription_log` `cat_deworm` `cat_vaccine` `cat_referral` `cat_death` |
 | 领养 / TNR | 4 | `cat_adoption` `cat_visit` `cat_tnr` `cat_release` |
 | 物资 / 财务 | 5 | `cat_material` `cat_material_category` `cat_stock_record` `cat_expense` `cat_fee_category` |
-| 提醒 / 配置 | 3 | `cat_reminder` `cat_reminder_read` `cat_config` |
+| 提醒 / 配置 | 4 | `cat_reminder` `cat_reminder_read` `cat_config` `cat_check_item` |
 | 代码生成 | 2 | `gen_table` `gen_table_column` |
 
 内置账号（9 个，密码以 BCrypt 哈希存在 `sys_user.password`，基线里已写好，导入即可登录）：

@@ -15,7 +15,7 @@
 ```
 ├── backend/          # 后端（RuoYi-Vue springboot3）
 │   ├── sql/
-│   │   ├── cat_rescue.sql               # 全项目唯一一份数据库文件（47 张表 + 初始/演示数据）
+│   │   ├── cat_rescue.sql               # 全项目唯一一份数据库文件（53 张表 + 初始/演示数据）
 │   │   └── upgrade/                     # 生产环境增量脚本（只追加，永不改动历史）
 │   └── ruoyi-system/src/main/java/com/ruoyi/cat/   # 业务代码（domain/mapper/service）
 │   └── ruoyi-admin/src/main/java/com/ruoyi/web/controller/cat/  # 控制器
@@ -35,7 +35,7 @@
 > `cat_menu_xxx.sql` 之类的分步脚本，那些已经全部合并进这一份了。
 
 ```bash
-# 一条命令搞定：建库 + 47 张表 + 菜单/字典/角色/账号 + 演示数据
+# 一条命令搞定：建库 + 53 张表 + 菜单/字典/角色/账号 + 演示数据
 mysql -u root -p < backend/sql/cat_rescue.sql
 
 # 导入后清一下缓存，否则菜单/字典/参数还是旧值
@@ -339,8 +339,12 @@ backend/ruoyi-admin/uploadPath/upload/demo/cat/
 修改 `scan.base.url` 后，可在「猫咪档案」页面点击「批量补二维码」为全部猫咪重新生成。
 
 > 二维码内容 = `scan.base.url` + `/m/cat/{档案编号}`。若该配置为空、或填的是 `localhost` / `127.0.0.1`
-> 这类手机访问不到的地址，后端会自动改用**当前请求的访问地址**（`X-Forwarded-Proto` / `Host` 头，兼容 nginx 反代），
-> 因此用 IP 直连部署时即使忘了改配置，扫出来的也是真实地址。配置里填了有效地址时仍以配置为准。
+> 这类手机访问不到的地址，后端会依次改用**浏览器地址栏的地址**（`Origin` / `Referer` 头，带用户实际在用的端口）、
+> **当前请求的访问地址**（`X-Forwarded-Proto` / `Host` 头，兼容 nginx 反代），
+> 因此本地换了端口（如 80 → 81）、或用 IP 直连部署时即使忘了改配置，二维码也会跟着变。配置里填了有效地址时仍以配置为准。
+>
+> 详情页、卡片打印页的二维码图片是**按当前访问地址实时生成**的，不读库里存的那张老图，
+> 所以不会出现「文字显示 81、扫出来却是 80」。已经打印出去的贴纸固定为打印那一刻的地址，换网址后需要重新打印。
 
 ## 测试数据说明
 

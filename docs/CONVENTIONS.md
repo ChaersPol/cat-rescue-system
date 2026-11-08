@@ -161,6 +161,23 @@ RuoYi 生成器给所有字段套的都是 `xxx != null and xxx != ''`。对**�
 删除是「点删除即删盘」，所以**删了附件却没点保存就关掉弹窗**，数据库会留下一个指向已删文件的地址。
 出现这种情况时，重新打开该记录再删一次并保存即可清空；`sweep` 也能回收反向情况（磁盘有、库里没有）的孤儿文件。
 
+### 图片/附件地址在页面上必须走 `resolveFileUrl`（踩过：用药照片「加载失败」）
+
+库里存的是相对路径（`/profile/upload/demo/cat/用药照片_20261020081530A001.jpg`），**只有后端认这个路径**。
+页面若直接 `:src="row.photos"`，浏览器会到**前端端口**要图（开发 81 / 生产 80），
+被 SPA fallback 返回 `index.html`（HTTP 200 但 `Content-Type: text/html`），`<img>` 解码失败 →
+一律显示「加载失败」。用 curl 看到 200 别急着以为没问题，必须看 `Content-Type`。
+
+统一写法：`import { resolveFileUrl } from '@/utils/fileUrl'` → `:src="resolveFileUrl(url)"`。
+它负责三件事：拼 `VITE_APP_BASE_API`（开发 `/dev-api`、生产 `/prod-api`）、中文文件名 `encodeURI`、
+已带前缀 / `http` / `data:` / `blob:` 原样返回（幂等，可重复调用）。
+
+- 逗号分隔的多图字段（`photos`、`checkPhotos`）先 `split(',')` + `trim` + `filter(Boolean)`，**逐个** map，
+  别把整串丢给 `:src`；`preview-src-list` 用同一个数组，`initial-index` 才不会错位。
+- 文件名里的上传时间戳（`uploadTimeLabel`）解析的是结尾 ASCII 段，URL 编码过也不影响，可放心先 resolve 再取时间。
+- 2026-11-08 用药记录页（展开行 + 手机卡片）就是 `photoList()` 只 split 没拼前缀，弹窗里 ImageUpload 自己拼了前缀，
+  所以「弹窗能看、列表加载失败」。新增列表/详情页展示照片、附件、协议、回执时照此办理。
+
 ---
 
 ## 九、提示文字的通用写法（`.form-tip`）
