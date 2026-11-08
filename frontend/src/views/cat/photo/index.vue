@@ -2,15 +2,35 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
       <el-form-item label="猫咪" prop="catId">
-        <cat-select v-model="queryParams.catId" placeholder="全部猫咪" style="width: 220px" />
+        <cat-select v-model="queryParams.catId" placeholder="全部猫咪" style="width: 200px" />
+      </el-form-item>
+      <el-form-item label="品种" prop="breed">
+        <el-select v-model="queryParams.breed" placeholder="全部品种" clearable filterable style="width: 140px">
+          <el-option v-for="b in breedOptions" :key="b" :label="b" :value="b" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="来源基地" prop="baseId">
+        <el-select v-model="queryParams.baseId" placeholder="全部基地" clearable style="width: 170px" @change="onFilterBaseChange">
+          <el-option v-for="b in baseOptions" :key="b.baseId" :label="b.baseName" :value="b.baseId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="所属房间" prop="wardId">
+        <el-select v-model="queryParams.wardId" placeholder="全部房间" clearable style="width: 160px">
+          <el-option v-for="w in wardFilterOptions" :key="w.wardId" :label="w.wardName" :value="w.wardId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="性别" prop="sex">
+        <el-select v-model="queryParams.sex" placeholder="全部" clearable style="width: 110px">
+          <el-option v-for="d in cat_sex" :key="d.value" :label="d.label" :value="d.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="相册" prop="folder">
-        <el-select v-model="queryParams.folder" placeholder="全部相册" clearable style="width: 160px">
+        <el-select v-model="queryParams.folder" placeholder="全部相册" clearable style="width: 140px" :disabled="viewMode === 'cats'">
           <el-option v-for="d in cat_photo_folder" :key="d.value" :label="d.label" :value="d.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="类型" prop="fileType">
-        <el-select v-model="queryParams.fileType" placeholder="全部" clearable style="width: 120px">
+        <el-select v-model="queryParams.fileType" placeholder="全部" clearable style="width: 110px">
           <el-option label="图片" value="1" />
           <el-option label="视频" value="2" />
         </el-select>
@@ -20,6 +40,14 @@
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
       </el-form-item>
     </el-form>
+
+    <!-- 从某只猫的档案点「管理相册」跳进来时，明确告诉用户当前只看这一只，别以为照片丢了 -->
+    <div class="cat-scope" v-if="queryParams.catId">
+      <span class="cat-scope-label">当前只看</span>
+      <el-tag type="primary" effect="plain" closable @close="clearCatScope">{{ catLabel(queryParams.catId) }}</el-tag>
+      <span class="cat-scope-label">的相册，共 {{ total }} 条</span>
+      <el-button link type="primary" @click="clearCatScope">看全部猫咪</el-button>
+    </div>
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
@@ -33,7 +61,8 @@
       </el-col>
       <el-col :span="1.5">
         <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button label="grid">相册视图</el-radio-button>
+          <el-radio-button label="grid">照片相册</el-radio-button>
+          <el-radio-button label="cats">信息卡</el-radio-button>
           <el-radio-button label="table">列表视图</el-radio-button>
         </el-radio-group>
       </el-col>
@@ -49,8 +78,8 @@
       title="未检测到 ffmpeg，视频封面将由内置解码器生成；若解码失败会自动用视频首帧展示。"
     />
 
-    <!-- 相册视图 -->
-    <div v-if="viewMode === 'grid'" v-loading="loading" class="photo-grid">
+    <!-- 相册视图 / 信息卡视图（信息卡视图 = 只看相册分类为「信息卡」的照片） -->
+    <div v-if="viewMode !== 'table'" v-loading="loading" class="photo-grid">
       <el-empty v-if="list.length === 0" description="暂无照片" />
       <div class="photo-item" v-for="item in list" :key="item.photoId">
         <!-- 视频：显示封面 + 播放按钮 -->
@@ -83,7 +112,18 @@
           <el-tag size="small" type="info">{{ item.folder || '未分类' }}</el-tag>
           <span class="photo-cat" :title="catLabel(item.catId)">{{ catLabel(item.catId) }}</span>
         </div>
+        <!-- 卡片下方直接带出档案属性：品种 / 性别 / 来源基地 / 所属房间 -->
+        <div class="photo-attrs">
+          <span>{{ item.breed || '品种未知' }}</span>
+          <span class="dot">·</span>
+          <span>{{ sexText(item.sex) }}</span>
+          <span class="dot">·</span>
+          <span>{{ item.baseName || '未分配基地' }}</span>
+          <span class="dot">·</span>
+          <span>{{ item.wardName || '未分房间' }}</span>
+        </div>
         <div class="photo-ops">
+          <el-button link type="primary" icon="Document" @click="goDetail(item.catId)">档案</el-button>
           <el-button link type="primary" @click="handleUpdate(item)" v-hasPermi="['cat:photo:edit']">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(item)" v-hasPermi="['cat:photo:remove']">删除</el-button>
         </div>
@@ -116,8 +156,19 @@
           </el-image>
         </template>
       </el-table-column>
-      <el-table-column label="猫咪" align="center" prop="catId" width="220" :show-overflow-tooltip="true">
+      <el-table-column label="猫咪" align="center" prop="catId" width="200" :show-overflow-tooltip="true">
         <template #default="scope">{{ catLabel(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="品种" align="center" prop="breed" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ scope.row.breed || '—' }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="性别" align="center" prop="sex" width="80">
+        <template #default="scope">{{ sexText(scope.row.sex) }}</template>
+      </el-table-column>
+      <el-table-column label="来源基地 / 房间" align="center" min-width="180" :show-overflow-tooltip="true">
+        <template #default="scope">
+          {{ [scope.row.baseName, scope.row.wardName].filter(Boolean).join(' / ') || '—' }}
+        </template>
       </el-table-column>
       <el-table-column label="相册分类" align="center" prop="folder" width="110" />
       <el-table-column label="类型" align="center" prop="fileType" width="90">
@@ -127,15 +178,15 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="缩略图" align="center" min-width="180" :show-overflow-tooltip="true">
+      <el-table-column v-if="!isNarrow" label="缩略图" align="center" min-width="180" :show-overflow-tooltip="true">
         <template #default="scope">
           <span v-if="scope.row.thumbUrl && !scope.row.thumbFailed" class="text-success">已生成</span>
           <span v-else-if="scope.row.thumbUrl" class="text-muted">缩略图缺失，已回退原图</span>
           <span v-else class="text-muted">{{ isVideo(scope.row) ? '前端首帧兜底' : '无需生成/使用原图' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="文件地址" align="center" prop="fileUrl" :show-overflow-tooltip="true" />
-      <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:photo:edit', 'cat:photo:remove'])">
+      <el-table-column v-if="!isNarrow" label="文件地址" align="center" prop="fileUrl" :show-overflow-tooltip="true" />
+      <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:photo:edit', 'cat:photo:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:photo:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:photo:remove']">删除</el-button>
@@ -200,15 +251,24 @@
 </template>
 
 <script setup name="CatPhoto">
-import { listCatPhoto, getCatPhoto, delCatPhoto, addCatPhoto, updateCatPhoto, rebuildCatPhotoThumb, getCatPhotoThumbStatus } from '@/api/cat/photo'
+import { listCatPhoto, getCatPhoto, delCatPhoto, addCatPhoto, updateCatPhoto, rebuildCatPhotoThumb, getCatPhotoThumbStatus, listCatPhotoBreeds } from '@/api/cat/photo'
+import { listCatBase } from '@/api/cat/base'
+import { listCatWard } from '@/api/cat/ward'
 import { deleteUploadFile } from '@/api/common'
 import { useCatCache } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
-const { cat_photo_folder } = proxy.useDict('cat_photo_folder')
+const { isNarrow } = useNarrow()
+const { cat_photo_folder, cat_sex } = proxy.useDict('cat_photo_folder', 'cat_sex')
 const { catLabel } = useCatCache()
+const router = useRouter()
+const route = useRoute()
 
 const list = ref([])
+const breedOptions = ref([])
+const baseOptions = ref([])
+const wards = ref([])
 const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
@@ -265,7 +325,12 @@ const data = reactive({
     pageSize: 24,
     catId: undefined,
     folder: undefined,
-    fileType: undefined
+    fileType: undefined,
+    // 相册筛选：品种 / 来源基地 / 所属房间 / 性别
+    breed: undefined,
+    sex: undefined,
+    baseId: undefined,
+    wardId: undefined
   },
   rules: {
     catId: [{ required: true, message: '猫咪ID不能为空', trigger: 'blur' }],
@@ -274,6 +339,33 @@ const data = reactive({
 })
 
 const { queryParams, form, rules } = toRefs(data)
+
+// 所属房间下拉：选了基地就只列该基地的房间
+const wardFilterOptions = computed(() => {
+  const baseId = queryParams.value.baseId
+  if (!baseId) return wards.value
+  return wards.value.filter(w => w.baseId === baseId)
+})
+
+function onFilterBaseChange() {
+  const baseId = queryParams.value.baseId
+  if (baseId && queryParams.value.wardId) {
+    const ward = wards.value.find(w => w.wardId === queryParams.value.wardId)
+    if (ward && ward.baseId !== baseId) {
+      queryParams.value.wardId = undefined
+    }
+  }
+}
+
+function sexText(sex) {
+  const hit = (cat_sex.value || []).find(d => String(d.value) === String(sex))
+  return hit ? hit.label : '未知'
+}
+
+function goDetail(catId) {
+  if (!catId) return
+  router.push('/profile/detail/' + catId)
+}
 
 function isVideo(item) {
   return item && item.fileType === '2'
@@ -289,6 +381,24 @@ function getList() {
     loading.value = false
   })
 }
+
+// 相册筛选下拉的数据源：品种取档案里真实存在的值，基地/房间取主数据
+function loadFilterOptions() {
+  listCatPhotoBreeds().then(res => { breedOptions.value = res.data || [] }).catch(() => {})
+  listCatBase({ pageNum: 1, pageSize: 500 }).then(res => { baseOptions.value = res.rows || [] }).catch(() => {})
+  listCatWard({ pageNum: 1, pageSize: 500 }).then(res => { wards.value = res.rows || [] }).catch(() => {})
+}
+
+// 切换视图重新拉数据；信息卡视图 = 只看相册分类为「信息卡」的照片，其余筛选照常叠加
+watch(viewMode, (mode, oldMode) => {
+  queryParams.value.pageNum = 1
+  if (mode === 'cats') {
+    queryParams.value.folder = '信息卡'
+  } else if (oldMode === 'cats' && queryParams.value.folder === '信息卡') {
+    queryParams.value.folder = undefined
+  }
+  getList()
+})
 
 function cancel() {
   open.value = false
@@ -317,7 +427,52 @@ function handleQuery() {
 
 function resetQuery() {
   proxy.resetForm('queryRef')
+  // 信息卡视图的「相册 = 信息卡」是视图自带的，重置后要补回来
+  if (viewMode.value === 'cats') {
+    queryParams.value.folder = '信息卡'
+  }
   handleQuery()
+}
+
+/**
+ * 档案页「管理相册」跳过来会带 ?catId=100 → 只显示这只猫的相册。
+ * 路由里的值转成数字（下拉 option 的 value 是数字，字符串会导致选中项显示空白）
+ */
+function toCatId(raw) {
+  if (raw === undefined || raw === null || raw === '') return undefined
+  const id = Number(raw)
+  return Number.isNaN(id) ? undefined : id
+}
+
+/** 应用路由上的 catId 筛选；其余筛选清空，避免叠加上一份条件后出现空列表 */
+function applyRouteCat(raw) {
+  const catId = toCatId(raw)
+  queryParams.value.catId = catId
+  if (catId !== undefined) {
+    queryParams.value.breed = undefined
+    queryParams.value.sex = undefined
+    queryParams.value.baseId = undefined
+    queryParams.value.wardId = undefined
+    queryParams.value.folder = undefined
+    queryParams.value.fileType = undefined
+  }
+  // 信息卡视图只看「信息卡」分类，清空别的条件时别把它一起清掉
+  if (viewMode.value === 'cats') {
+    queryParams.value.folder = '信息卡'
+  }
+  queryParams.value.pageNum = 1
+}
+
+/** 取消「只看某只猫」：把 catId 从地址栏抹掉，刷新后也不再被套住 */
+function clearCatScope() {
+  queryParams.value.catId = undefined
+  queryParams.value.pageNum = 1
+  if (route.query.catId !== undefined) {
+    const query = { ...route.query }
+    delete query.catId
+    router.replace({ path: route.path, query })
+  }
+  getList()
 }
 
 function handleAdd() {
@@ -428,11 +583,39 @@ function loadThumbStatus() {
   })
 }
 
+// 首屏：地址栏带 ?catId=xx（档案页「管理相册」入口）就只看这只猫
+applyRouteCat(route.query.catId)
 getList()
 loadThumbStatus()
+loadFilterOptions()
+
+// 页面被 keep-alive 缓存，从另一只猫的档案再点「管理相册」组件不会重建，只能监听路由
+watch(() => route.query.catId, raw => {
+  const next = toCatId(raw)
+  // 值没变（比如 clearCatScope 自己改了地址栏）就不用重复请求
+  if (next === queryParams.value.catId) return
+  applyRouteCat(raw)
+  getList()
+})
 </script>
 
 <style scoped>
+/* 单只猫的筛选提示条 */
+.cat-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: 6px;
+  background: var(--el-color-primary-light-9);
+  font-size: 13px;
+}
+.cat-scope-label {
+  color: var(--el-text-color-secondary);
+}
 /* 自适应网格：卡片按容器宽度均分，避免 flex 固定 200px 导致右侧留空列 */
 .photo-grid {
   display: grid;
@@ -549,6 +732,19 @@ loadThumbStatus()
   justify-content: flex-end;
   gap: 10px;
   padding: 4px 10px 8px;
+}
+/* 卡片下方的档案属性：品种 · 性别 · 来源基地 · 所属房间 */
+.photo-attrs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px 0;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+.photo-attrs .dot {
+  color: var(--el-text-color-placeholder);
 }
 .photo-ops .el-button + .el-button {
   margin-left: 0;

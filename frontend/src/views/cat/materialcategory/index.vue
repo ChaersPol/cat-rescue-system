@@ -33,13 +33,13 @@
          <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="分类名称" align="center" prop="categoryName" :show-overflow-tooltip="true" />
-         <el-table-column label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
          <el-table-column label="状态" align="center" prop="status">
             <template #default="scope">
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:materialcategory:edit', 'cat:materialcategory:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:materialcategory:edit', 'cat:materialcategory:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:materialcategory:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:materialcategory:remove']">删除</el-button>
@@ -75,8 +75,10 @@
 
 <script setup name="CatMaterialCategory">
 import { listCatMaterialCategory, getCatMaterialCategory, delCatMaterialCategory, addCatMaterialCategory, updateCatMaterialCategory } from "@/api/cat/materialcategory"
+import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
 
 const list = ref([])

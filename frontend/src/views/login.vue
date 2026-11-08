@@ -185,6 +185,11 @@ getCookie()
   background: #ffffff;
   width: 400px;
   padding: 25px 25px 5px 25px;
+  /* 手机端：表单铺满可用宽度，避免 400px 固定宽度撑出屏幕 */
+  @media screen and (max-width: 768px) {
+    width: calc(100vw - 32px);
+    padding: 20px 18px 8px;
+  }
   z-index: 1;
   .el-input {
     height: 40px;

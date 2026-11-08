@@ -45,15 +45,15 @@
           <dict-tag :options="cat_base_type" :value="scope.row.baseType" />
         </template>
       </el-table-column>
-      <el-table-column label="负责人" align="center" prop="leader" width="110" />
-      <el-table-column label="联系电话" align="center" prop="phone" width="140" />
-      <el-table-column label="地址" align="center" prop="address" min-width="200" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="负责人" align="center" prop="leader" width="110" />
+      <el-table-column v-if="!isNarrow" label="联系电话" align="center" prop="phone" width="140" />
+      <el-table-column v-if="!isNarrow" label="地址" align="center" prop="address" min-width="200" :show-overflow-tooltip="true" />
       <el-table-column label="状态" align="center" prop="status" width="100">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:base:edit', 'cat:base:remove'])">
+      <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:base:edit', 'cat:base:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:base:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:base:remove']">删除</el-button>
@@ -74,7 +74,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="负责人" prop="leader">
-          <el-input v-model="form.leader" placeholder="请输入负责人" />
+          <staff-select v-model="form.leader" scope="all" :lock-self="false" placeholder="请选择负责人" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
           <el-input v-model="form.phone" placeholder="请输入联系电话" maxlength="20" />
@@ -104,8 +104,10 @@
 <script setup name="CatBase">
 import { listCatBase, getCatBase, delCatBase, addCatBase, updateCatBase } from '@/api/cat/base'
 import { invalidateMasterData, MASTER_KIND } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { cat_base_type, sys_normal_disable } = proxy.useDict('cat_base_type', 'sys_normal_disable')
 
 const list = ref([])

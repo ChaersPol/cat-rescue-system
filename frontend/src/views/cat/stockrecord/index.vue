@@ -1,6 +1,9 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
+      <el-form-item label="关联猫咪" prop="catId">
+        <cat-select v-model="queryParams.catId" placeholder="全部猫咪" style="width: 200px" />
+      </el-form-item>
       <el-form-item label="物资" prop="materialId">
         <el-select v-model="queryParams.materialId" placeholder="全部物资" clearable filterable style="width: 200px">
           <el-option v-for="m in materialOptions" :key="m.materialId" :label="m.materialName" :value="m.materialId" />
@@ -12,6 +15,17 @@
           <el-option label="出库" value="2" />
         </el-select>
       </el-form-item>
+      <el-form-item label="来源" prop="sourceType">
+        <el-select v-model="queryParams.sourceType" placeholder="全部来源" clearable style="width: 130px">
+          <el-option label="手动录入" value="1" />
+          <el-option label="站内诊断" value="2" />
+        </el-select>
+      </el-form-item>
+      <!-- 出库记录会关联猫咪（站内诊断开单），按猫现在所在的基地/房间筛 -->
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -43,6 +57,25 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="来源" align="center" prop="sourceType" width="100">
+        <template #default="scope">
+          <el-tag :type="scope.row.sourceType === '2' ? 'primary' : 'info'" size="small" effect="plain">
+            {{ scope.row.sourceType === '2' ? '站内诊断' : '手动录入' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="关联猫咪" align="center" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">
+          <span v-if="scope.row.catId">{{ catLabel(scope.row.catId) }}</span>
+          <span v-else class="muted">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="数量" align="center" prop="quantity" width="100">
         <template #default="scope">
           <span :class="scope.row.recordType === '1' ? 'in' : 'out'">
@@ -51,14 +84,14 @@
         </template>
       </el-table-column>
       <el-table-column label="日期" align="center" prop="recordDate" width="160" />
-      <el-table-column label="供应商/领用基地" align="center" min-width="180" :show-overflow-tooltip="true">
+      <el-table-column v-if="!isNarrow" label="供应商/领用基地" align="center" min-width="180" :show-overflow-tooltip="true">
         <template #default="scope">{{ scope.row.supplier || scope.row.receiverBase || '-' }}</template>
       </el-table-column>
-      <el-table-column label="领用人" align="center" prop="receiver" width="110" />
-      <el-table-column label="用途" align="center" prop="purpose" min-width="160" :show-overflow-tooltip="true" />
-      <el-table-column label="备注" align="center" prop="remark" min-width="140" :show-overflow-tooltip="true" />
-      <el-table-column label="操作人" align="center" prop="operator" width="100" />
-      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width" v-if="checkPermi(['cat:stockrecord:edit'])">
+      <el-table-column v-if="!isNarrow" label="领用人" align="center" prop="receiver" width="110" />
+      <el-table-column v-if="!isNarrow" label="用途" align="center" prop="purpose" min-width="160" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="备注" align="center" prop="remark" min-width="140" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="操作人" align="center" prop="operator" width="100" />
+      <el-table-column label="操作" align="center" width="110" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:stockrecord:edit'])">
         <template #default="scope">
           <el-button link type="danger" icon="RefreshLeft" @click="handleReverse(scope.row)" v-hasPermi="['cat:stockrecord:edit']">冲销</el-button>
         </template>
@@ -101,13 +134,13 @@
           <div class="form-tip">只能选择<b>基地管理</b>中已登记的基地，需新增请先到基地管理维护。</div>
         </el-form-item>
         <el-form-item label="领用人" prop="receiver" v-if="form.recordType === '2'">
-          <el-input v-model="form.receiver" placeholder="领用人" />
+          <staff-select v-model="form.receiver" scope="assistant" placeholder="请选择领用人" />
         </el-form-item>
         <el-form-item label="用途" prop="purpose">
           <el-input v-model="form.purpose" placeholder="用途" />
         </el-form-item>
         <el-form-item label="操作人" prop="operator">
-          <el-input v-model="form.operator" placeholder="操作人" />
+          <staff-select v-model="form.operator" scope="all" placeholder="请选择操作人" />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注" />
@@ -127,8 +160,12 @@
 import { listCatStockRecord, addCatStockRecord, reverseCatStockRecord } from '@/api/cat/stockrecord'
 import { listCatMaterial } from '@/api/cat/material'
 import { listCatBase } from '@/api/cat/base'
+import { useCatCache } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { catLabel, catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -143,13 +180,19 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catId: undefined,
+    catBaseId: undefined,
+    catWardId: undefined,
     materialId: undefined,
-    recordType: undefined
+    recordType: undefined,
+    sourceType: undefined
   },
   rules: {
     materialId: [{ required: true, message: '请选择物资', trigger: 'change' }],
     recordType: [{ required: true, message: '请选择类型', trigger: 'change' }],
-    quantity: [{ required: true, message: '请输入数量', trigger: 'blur' }]
+    quantity: [{ required: true, message: '请输入数量', trigger: 'blur' }],
+    receiver: [{ required: true, message: '请选择领用人', trigger: 'change' }],
+    operator: [{ required: true, message: '请选择操作人', trigger: 'change' }]
   }
 })
 
@@ -245,6 +288,9 @@ getList()
 </script>
 
 <style scoped>
+.muted {
+  color: var(--el-text-color-placeholder);
+}
 .in {
   color: #67c23a;
   font-weight: 600;

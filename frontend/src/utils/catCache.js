@@ -174,10 +174,47 @@ const wardCache = createCache(
   [MASTER_KIND.WARD]
 )
 
-/** 猫咪：catLabel(catId) 得到「名字（档案编号）」 */
+/**
+ * 猫咪：catLabel(catId) 得到「名字（档案编号）」
+ *
+ * 同时提供「这只猫现在在哪个基地 / 哪个房间」的翻译：
+ *   catBaseName(catId) / catWardName(catId)
+ * 业务表（用药、疫苗、流转…）只存 cat_id，位置是随档案实时变的，
+ * 所以列表里统一从猫咪缓存里取，不再往每张业务表冗余基地房间字段。
+ */
 export function useCatCache() {
   catCache.load()
-  return { catMap: catCache.map, catLabel: catCache.label, reloadCatCache: () => catCache.load(true) }
+  // 基地/房间字典也在这一层预热，列表里翻译位置时不用等第二次请求
+  baseCache.load()
+  wardCache.load()
+
+  function catProp(catId, key) {
+    if (catId === undefined || catId === null || catId === '') {
+      return undefined
+    }
+    const item = catCache.map.value[catId]
+    return item ? item[key] : undefined
+  }
+
+  /** 猫咪当前所属基地名称，没档案/未分配返回「—」 */
+  function catBaseName(catId) {
+    const id = catProp(catId, 'baseId')
+    return id === undefined || id === null || id === '' ? '—' : (baseCache.label(id) || '—')
+  }
+
+  /** 猫咪当前所属房间名称，未分配返回「未分配」 */
+  function catWardName(catId) {
+    const id = catProp(catId, 'wardId')
+    return id === undefined || id === null || id === '' ? '未分配' : (wardCache.label(id) || '未分配')
+  }
+
+  return {
+    catMap: catCache.map,
+    catLabel: catCache.label,
+    catBaseName,
+    catWardName,
+    reloadCatCache: () => catCache.load(true)
+  }
 }
 
 /** 基地：baseLabel(baseId) 得到基地名称 */

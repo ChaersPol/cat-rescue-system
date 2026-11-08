@@ -52,3 +52,41 @@ export function addCatMedicationBatch(data, days) {
     data: data
   })
 }
+
+// ============ 合并视图（同一只猫 + 同一天 + 同一时间段 一行） ============
+
+// 合并列表
+export function listCatMedicationGroup(query) {
+  return request({
+    url: '/cat/medication/group/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 某一组的药品明细（展开行时才查）
+export function getCatMedicationGroupDetails(params) {
+  return request({
+    url: '/cat/medication/group/details',
+    method: 'get',
+    params
+  })
+}
+
+// 医生改这一组的用药方案（可增删药品，已完成打卡的组不能改）
+export function saveCatMedicationGroup(data) {
+  return request({
+    url: '/cat/medication/group',
+    method: 'put',
+    data: data
+  })
+}
+
+// 执行打卡（整组）：完成 / 撤回 / 补照片
+export function saveCatMedicationExec(data) {
+  return request({
+    url: '/cat/medication/exec',
+    method: 'put',
+    data: data
+  })
+}

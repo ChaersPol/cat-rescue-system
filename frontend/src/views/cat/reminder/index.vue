@@ -15,6 +15,10 @@
       <el-form-item label="关联猫咪" prop="catId">
         <cat-select v-model="queryParams.catId" placeholder="全部猫咪" style="width: 220px" />
       </el-form-item>
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -45,7 +49,7 @@
           <el-tag :type="typeTag(scope.row.reminderType)" size="small">{{ scope.row.reminderType }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="标题" align="center" prop="title" width="150" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="标题" align="center" prop="title" width="150" :show-overflow-tooltip="true" />
       <!-- 内容列不放 show-overflow-tooltip：用药冲突提示需要完整换行显示，不能被省略号截掉 -->
       <el-table-column label="内容" align="left" prop="content" min-width="300">
         <template #default="scope">
@@ -63,6 +67,12 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="提醒日期" align="center" prop="remindDate" width="110">
         <template #default="scope">
           <span :class="{ 'overdue': isOverdue(scope.row) }">{{ parseTime(scope.row.remindDate, '{y}-{m}-{d}') }}</span>
@@ -78,13 +88,13 @@
           <el-tag v-else type="success" size="small">已读</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="目标用户" align="center" prop="targetUser" width="130" :show-overflow-tooltip="true">
+      <el-table-column v-if="!isNarrow" label="目标用户" align="center" prop="targetUser" width="130" :show-overflow-tooltip="true">
         <template #default="scope">
           <span v-if="scope.row.targetUser">{{ scope.row.targetUser }}</span>
           <el-tag v-else size="small" type="info" effect="plain">全员</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="270" class-name="small-padding fixed-width" v-if="checkPermi(['cat:reminder:edit', 'cat:reminder:remove'])">
+      <el-table-column label="操作" align="center" :width="isNarrow ? 200 : 270" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:reminder:edit', 'cat:reminder:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Check" @click="handleMarkRead(scope.row)" v-hasPermi="['cat:reminder:edit']">已读</el-button>
           <el-button link type="warning" icon="Clock" @click="handleDefer(scope.row)" v-hasPermi="['cat:reminder:edit']">推迟</el-button>
@@ -191,9 +201,12 @@ import {
   deferCatReminder
 } from '@/api/cat/reminder'
 import { listCatProfile } from '@/api/cat/profile'
-import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -213,13 +226,15 @@ const deferRow = ref({})
 // 推迟时是否同步顺延疫苗/驱虫台账的计划日期，默认同步，避免两边日期对不上
 const deferSyncPlan = ref(true)
 
-const typeOptions = ['疫苗', '驱虫', '回访', '库存', '转诊', '其他']
+const typeOptions = ['疫苗', '驱虫', '回访', '库存', '转诊', '老龄', '其他']
 
 const data = reactive({
   form: {},
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     reminderType: undefined,
     status: undefined,
     catId: undefined
@@ -245,7 +260,7 @@ function rowClassName({ row }) {
 }
 
 function typeTag(type) {
-  const map = { 疫苗: 'success', 驱虫: 'warning', 回访: 'primary', 库存: 'danger', 转诊: 'info' }
+  const map = { 疫苗: 'success', 驱虫: 'warning', 回访: 'primary', 库存: 'danger', 转诊: 'info', 老龄: 'warning' }
   return map[type] || 'info'
 }
 

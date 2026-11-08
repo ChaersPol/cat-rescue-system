@@ -30,7 +30,7 @@
       <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
       <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
       <el-table-column label="配置键" align="center" prop="configKey" width="240" />
-      <el-table-column label="配置名称" align="center" prop="configName" width="220" />
+      <el-table-column v-if="!isNarrow" label="配置名称" align="center" prop="configName" width="220" />
       <el-table-column label="配置值" align="center" min-width="240">
         <template #default="scope">
           <el-tag v-if="scope.row.configKey === 'scan.permission.mode'" :type="scope.row.configValue === 'B' ? 'success' : 'warning'">
@@ -42,9 +42,9 @@
           <span v-else>{{ scope.row.configValue || '（未配置）' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="备注" align="center" prop="remark" :show-overflow-tooltip="true" />
-      <el-table-column label="更新时间" align="center" prop="updateTime" width="170" />
-      <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:config:edit', 'cat:config:remove'])">
+      <el-table-column v-if="!isNarrow" label="备注" align="center" prop="remark" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="更新时间" align="center" prop="updateTime" width="170" />
+      <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:config:edit', 'cat:config:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:config:edit']">修改</el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:config:remove']">删除</el-button>
@@ -97,8 +97,10 @@
 
 <script setup name="CatConfig">
 import { listCatConfig, getCatConfig, delCatConfig, addCatConfig, updateCatConfig } from '@/api/cat/config'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)

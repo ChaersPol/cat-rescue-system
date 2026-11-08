@@ -40,13 +40,13 @@
                <dict-tag :options="cat_expense_type" :value="scope.row.categoryType" />
             </template>
          </el-table-column>
-         <el-table-column label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
          <el-table-column label="状态" align="center" prop="status">
             <template #default="scope">
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:feecategory:edit', 'cat:feecategory:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:feecategory:edit', 'cat:feecategory:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:feecategory:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:feecategory:remove']">删除</el-button>
@@ -87,8 +87,10 @@
 
 <script setup name="CatFeeCategory">
 import { listCatFeeCategory, getCatFeeCategory, delCatFeeCategory, addCatFeeCategory, updateCatFeeCategory } from "@/api/cat/feecategory"
+import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { cat_expense_type, sys_normal_disable } = proxy.useDict('cat_expense_type', 'sys_normal_disable')
 
 const list = ref([])

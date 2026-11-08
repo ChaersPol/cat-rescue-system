@@ -6,6 +6,10 @@
           <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item label="流转类型" prop="flowType">
         <el-select v-model="queryParams.flowType" placeholder="全部类型" clearable style="width: 160px">
           <el-option v-for="t in flowTypes" :key="t" :label="t" :value="t" />
@@ -37,6 +41,12 @@
           <span>{{ catName(scope.row.catId) }}</span>
         </template>
       </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="流转类型" align="center" prop="flowType" width="130">
         <template #default="scope">
           <el-tag :type="typeTag(scope.row.flowType)" size="small">{{ scope.row.flowType }}</el-tag>
@@ -60,17 +70,17 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="流转原因" align="center" prop="flowReason" min-width="200" :show-overflow-tooltip="true" />
-      <el-table-column label="医院/结论" align="center" width="180" :show-overflow-tooltip="true">
+      <el-table-column v-if="!isNarrow" label="流转原因" align="center" prop="flowReason" min-width="200" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="医院/结论" align="center" width="180" :show-overflow-tooltip="true">
         <template #default="scope">
           <span v-if="scope.row.hospitalName">{{ scope.row.hospitalName }}</span>
           <span v-if="scope.row.hospitalResult"> / {{ scope.row.hospitalResult }}</span>
           <span v-if="!scope.row.hospitalName && !scope.row.hospitalResult">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作人" align="center" prop="operateBy" width="110" />
+      <el-table-column v-if="!isNarrow" label="操作人" align="center" prop="operateBy" width="110" />
       <el-table-column label="操作时间" align="center" prop="operateTime" width="160" />
-      <el-table-column label="操作" align="center" width="110" class-name="small-padding fixed-width" v-if="checkPermi(['cat:flow:edit'])">
+      <el-table-column label="操作" align="center" width="110" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:flow:edit'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:flow:edit']">补充备注</el-button>
         </template>
@@ -136,12 +146,16 @@
 
 <script setup name="CatFlow">
 import { listCatFlow, getCatFlow, addCatFlow, updateCatFlow } from '@/api/cat/flow'
+import { useNarrow } from '@/utils/useNarrow'
 import { listCatProfile } from '@/api/cat/profile'
-import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
 import { listCatWard } from '@/api/cat/ward'
 
 const { proxy } = getCurrentInstance()
+const router = useRouter()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -162,6 +176,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     flowType: undefined
   },
@@ -291,8 +307,14 @@ function submitForm() {
       const action = isEdit ? updateCatFlow(form.value) : addCatFlow(form.value)
       action.then(() => {
         proxy.$modal.msgSuccess(isEdit ? '修改成功' : '流转成功，猫咪状态已同步更新')
+        const type = form.value.flowType || ''
+        const movedCat = form.value.catId
         open.value = false
         getList()
+        // 入院 / 发病转入治疗：下一步就是把信息卡挂到笼子上，这里顺手问一句
+        if (!isEdit && (type.includes('入站') || type.includes('发病'))) {
+          askPrintCard(movedCat)
+        }
       }).finally(() => {
         submitting.value = false
       })
@@ -302,6 +324,21 @@ function submitForm() {
 
 function handleExport() {
   proxy.download('cat/flow/export', { ...queryParams.value }, `flow_${new Date().getTime()}.xlsx`)
+}
+
+/** 打开这只猫的笼位信息卡：只跳转定位，打印由用户自己点 */
+function printCard(catId) {
+  if (!catId) return
+  router.push({ path: '/profile/qrcard', query: { catIds: catId } })
+}
+
+function askPrintCard(catId) {
+  if (!catId) return
+  proxy.$modal.confirm(
+    '流转已完成。是否现在打开这只猫的笼位信息卡页面？（进去后自己点打印）',
+    '信息卡',
+    { confirmButtonText: '打开信息卡', cancelButtonText: '暂不打开', type: 'success' }
+  ).then(() => printCard(catId)).catch(() => {})
 }
 
 watch(() => form.value.toBaseId, (val) => {

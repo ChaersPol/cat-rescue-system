@@ -42,3 +42,20 @@ export function delCatAdoption(ids) {
     method: 'delete'
   })
 }
+
+// 回访结束开关（true 结束回访 / false 重新开启）
+export function setAdoptionVisitClosed(adoptionId, closed) {
+  return request({
+    url: '/cat/adoption/visitClosed/' + adoptionId + '/' + (closed ? 'true' : 'false'),
+    method: 'put'
+  })
+}
+
+// 查某只猫的领养记录（回访页选猫后取领养日期，用来算计划日期）
+export function listAdoptionByCat(catId) {
+  return request({
+    url: '/cat/adoption/list',
+    method: 'get',
+    params: { catId: catId, pageNum: 1, pageSize: 1 }
+  })
+}

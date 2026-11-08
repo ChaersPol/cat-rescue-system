@@ -59,3 +59,20 @@ export function getCatPhotoThumbStatus() {
     method: 'get'
   })
 }
+
+// 相册筛选用的品种清单（取档案里真实存在的品种）
+export function listCatPhotoBreeds() {
+  return request({
+    url: '/cat/photo/breeds',
+    method: 'get'
+  })
+}
+
+// 信息卡视图：一只猫一张卡，封面取最新照片
+export function listCatPhotoCards(query) {
+  return request({
+    url: '/cat/photo/catCards',
+    method: 'get',
+    params: query
+  })
+}

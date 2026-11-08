@@ -42,3 +42,11 @@ export function delCatDeworm(ids) {
     method: 'delete'
   })
 }
+
+// 该猫上一次体内 / 体外驱虫记录（弹窗下方展示）
+export function getDewormHistory(catId) {
+  return request({
+    url: '/cat/deworm/history/' + catId,
+    method: 'get'
+  })
+}

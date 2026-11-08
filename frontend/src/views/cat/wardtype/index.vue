@@ -39,10 +39,10 @@
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="类型名称" align="center" prop="typeName" :show-overflow-tooltip="true" min-width="120">
             <template #default="scope">
-               <el-tag :type="scope.row.tagType || 'primary'" effect="light">{{ scope.row.typeName }}</el-tag>
+               <el-tag :type="tagTypeOf(scope.row.tagType)" :style="tagStyleOf(scope.row.tagType)" effect="light">{{ scope.row.typeName }}</el-tag>
             </template>
          </el-table-column>
-         <el-table-column label="显示顺序" align="center" prop="orderNum" width="100" />
+         <el-table-column v-if="!isNarrow" label="显示顺序" align="center" prop="orderNum" width="100" />
          <el-table-column label="病房数量" align="center" prop="wardCount" width="100">
             <template #default="scope">
                <span :class="{ 'zero-count': !scope.row.wardCount }">{{ scope.row.wardCount || 0 }}</span>
@@ -53,8 +53,8 @@
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="备注" align="center" prop="remark" :show-overflow-tooltip="true" min-width="160" />
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:wardtype:edit', 'cat:wardtype:remove'])">
+         <el-table-column v-if="!isNarrow" label="备注" align="center" prop="remark" :show-overflow-tooltip="true" min-width="160" />
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:wardtype:edit', 'cat:wardtype:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:wardtype:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:wardtype:remove']">删除</el-button>
@@ -71,12 +71,12 @@
             </el-form-item>
             <el-form-item label="标签颜色" prop="tagType">
                <el-select v-model="form.tagType" placeholder="请选择标签颜色" style="width: 100%">
-                  <el-option v-for="c in colorOptions" :key="c.value" :label="c.label" :value="c.value">
-                     <el-tag :type="c.value" effect="light" size="small">{{ c.label }}</el-tag>
+                  <el-option v-for="c in CAT_TAG_COLORS" :key="c.value" :label="c.label" :value="c.value">
+                     <el-tag :type="tagTypeOf(c.value)" :style="tagStyleOf(c.value)" effect="light" size="small">{{ c.label }}</el-tag>
                   </el-option>
                </el-select>
                <div class="color-preview">
-                  预览：<el-tag :type="form.tagType || 'primary'" effect="light">{{ form.typeName || '类型名称' }}</el-tag>
+                  预览：<el-tag :type="tagTypeOf(form.tagType)" :style="tagStyleOf(form.tagType)" effect="light">{{ form.typeName || '类型名称' }}</el-tag>
                </div>
             </el-form-item>
             <el-form-item label="显示顺序" prop="orderNum">
@@ -104,18 +104,13 @@
 <script setup name="CatWardType">
 import { listCatWardType, getCatWardType, delCatWardType, addCatWardType, updateCatWardType } from "@/api/cat/wardtype"
 import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
+import { CAT_TAG_COLORS, tagTypeOf, tagStyleOf } from "@/utils/catTag"
+import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
 // 增删改后广播，让病房页/其它页的类型下拉缓存失效（catCache 已订阅并自动重拉）
-
-const colorOptions = [
-  { value: 'primary', label: '蓝色（默认）' },
-  { value: 'success', label: '绿色' },
-  { value: 'warning', label: '橙色' },
-  { value: 'danger', label: '红色（隔离/危险）' },
-  { value: 'info', label: '灰色' }
-]
 
 const list = ref([])
 const open = ref(false)

@@ -4,6 +4,10 @@
          <el-form-item label="猫咪" prop="catId">
             <cat-select v-model="queryParams.catId" placeholder="全部猫咪" />
          </el-form-item>
+         <cat-location-filter
+           v-model:base-id="queryParams.catBaseId"
+           v-model:ward-id="queryParams.catWardId"
+           @change="handleQuery" />
          <el-form-item label="标记状态" prop="marked">
             <el-select v-model="queryParams.marked" placeholder="全部" clearable style="width: 120px">
                <el-option label="已放归" value="1" />
@@ -43,6 +47,12 @@
                {{ catLabel(scope.row.catId) }}
             </template>
          </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+         </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+         </el-table-column>
          <el-table-column label="放归日期" align="center" prop="releaseDate" :show-overflow-tooltip="true" />
          <el-table-column label="放归点位" align="center" prop="releasePoint" :show-overflow-tooltip="true" />
          <el-table-column label="标记状态" align="center" prop="marked" width="100">
@@ -51,7 +61,7 @@
                <span v-else class="text-muted">未标记</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:release:edit', 'cat:release:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:release:edit', 'cat:release:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:release:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:release:remove']">删除</el-button>
@@ -97,11 +107,13 @@
 
 <script setup name="CatRelease">
 import { useCatCache } from "@/utils/catCache"
+import { useNarrow } from "@/utils/useNarrow"
 import { listCatRelease, getCatRelease, delCatRelease, addCatRelease, updateCatRelease } from "@/api/cat/release"
 import { useFormDraft } from "@/utils/formDraft"
 
 const { proxy } = getCurrentInstance()
-const { catLabel } = useCatCache()
+const { catLabel, catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -119,6 +131,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     marked: undefined,
     releaseDate: undefined,

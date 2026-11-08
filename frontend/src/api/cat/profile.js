@@ -108,3 +108,19 @@ export function listHospitalOptions() {
     method: 'get'
   })
 }
+
+// 品种候选（档案里用过的品种去重，列表筛选用）
+export function listBreedOptions() {
+  return request({
+    url: '/cat/profile/breedOptions',
+    method: 'get'
+  })
+}
+
+// 按病房统计在册猫咪数（列表筛选下拉显示「病房名（N）」）
+export function listWardStats() {
+  return request({
+    url: '/cat/profile/wardStats',
+    method: 'get'
+  })
+}

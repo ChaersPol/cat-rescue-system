@@ -6,6 +6,10 @@
           <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item label="死亡类型" prop="deathType">
         <el-select v-model="queryParams.deathType" placeholder="全部类型" clearable style="width: 150px">
           <el-option v-for="d in cat_death_type" :key="d.value" :label="d.label" :value="d.value" />
@@ -44,8 +48,14 @@
       <el-table-column label="猫咪" align="center" width="220">
         <template #default="scope">{{ catName(scope.row.catId) }}</template>
       </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="死亡时间" align="center" prop="deathDate" width="160" />
-      <el-table-column label="死亡地点" align="center" prop="deathPlace" width="180" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="死亡地点" align="center" prop="deathPlace" width="180" :show-overflow-tooltip="true" />
       <el-table-column label="死亡类型" align="center" prop="deathType" width="110">
         <template #default="scope">
           <el-tag size="small" type="info">{{ deathTypeLabel(scope.row.deathType) }}</el-tag>
@@ -53,8 +63,8 @@
       </el-table-column>
       <el-table-column label="死因描述" align="center" prop="deathReason" min-width="220" :show-overflow-tooltip="true" />
       <el-table-column label="医生" align="center" prop="doctor" width="100" />
-      <el-table-column label="登记人" align="center" prop="registrar" width="100" />
-      <el-table-column label="操作" align="center" width="140" class-name="small-padding fixed-width" v-if="checkPermi(['cat:death:edit', 'cat:death:remove'])">
+      <el-table-column v-if="!isNarrow" label="登记人" align="center" prop="registrar" width="100" />
+      <el-table-column label="操作" align="center" width="140" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:death:edit', 'cat:death:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:death:edit']">修改</el-button>
           <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:death:remove']">删除</el-button>
@@ -92,10 +102,10 @@
           <el-input v-model="form.bodyDisposal" type="textarea" :rows="2" placeholder="遗体处理方式备注" />
         </el-form-item>
         <el-form-item label="操作医生" prop="doctor">
-          <el-input v-model="form.doctor" placeholder="操作医生" />
+          <staff-select v-model="form.doctor" scope="doctor" placeholder="请选择操作医生" />
         </el-form-item>
         <el-form-item label="登记人" prop="registrar">
-          <el-input v-model="form.registrar" placeholder="登记人" />
+          <staff-select v-model="form.registrar" scope="all" placeholder="请选择登记人" />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注" />
@@ -115,9 +125,12 @@
 import { listCatDeath, getCatDeath, delCatDeath, addCatDeath, updateCatDeath } from '@/api/cat/death'
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from '@/api/cat/profile'
-import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 const { cat_death_type } = proxy.useDict('cat_death_type')
 
 const list = ref([])
@@ -135,6 +148,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     deathType: undefined
   },
@@ -142,7 +157,9 @@ const data = reactive({
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
     deathDate: [{ required: true, message: '请选择死亡时间', trigger: 'change' }],
     deathType: [{ required: true, message: '请选择死亡类型', trigger: 'change' }],
-    deathReason: [{ required: true, message: '请填写死因描述', trigger: 'blur' }]
+    deathReason: [{ required: true, message: '请填写死因描述', trigger: 'blur' }],
+    doctor: [{ required: true, message: '请选择操作医生', trigger: 'change' }],
+    registrar: [{ required: true, message: '请选择登记人', trigger: 'change' }]
   }
 })
 

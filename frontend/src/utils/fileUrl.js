@@ -20,6 +20,8 @@ export function resolveFileUrl(url) {
   if (!url) return ''
   if (isAbsolute(url)) return url
   const base = import.meta.env.VITE_APP_BASE_API || ''
+  // 已经带接口前缀的不再重复拼（历史上的数据和手工录入的地址可能已是 /dev-api/...）
+  if (base && url.startsWith(base + '/')) return url
   const path = url.startsWith('/') ? url : '/' + url
   const encoded = /%[0-9A-Fa-f]{2}/.test(path) ? path : encodeURI(path)
   return base + encoded

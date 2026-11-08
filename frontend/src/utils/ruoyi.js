@@ -203,7 +203,12 @@ export function handleTree(data, id, parentId, children) {
     if (!parentObj) {
       tree.push(d)
     } else {
-      parentObj[config.childrenList].push(d)
+      const list = parentObj[config.childrenList]
+      // 幂等：本方法会就地改写数据的 children，对同一份数据调用第二次时必须按 id 去重，
+      // 否则已有下级会被再 push 一遍，表现为「点新增下级，还没保存，列表里的下级就翻倍了」
+      if (!list.some(c => c[config.id] === d[config.id])) {
+        list.push(d)
+      }
     }
   }
   return tree

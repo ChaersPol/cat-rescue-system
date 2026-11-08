@@ -39,7 +39,7 @@
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
          <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
-         <el-table-column label="所属基地" align="center" prop="baseId" width="160" :show-overflow-tooltip="true">
+         <el-table-column v-if="!isNarrow" label="所属基地" align="center" prop="baseId" width="160" :show-overflow-tooltip="true">
             <template #default="scope">
                {{ baseLabel(scope.row.baseId) }}
             </template>
@@ -48,19 +48,20 @@
          <el-table-column label="病房类型" align="center" prop="wardType" :show-overflow-tooltip="true">
             <template #default="scope">
                <el-tag v-if="wardTypeLabel(scope.row.wardTypeId, scope.row.wardType)"
-                       :type="wardTypeTag(scope.row.wardTypeId)" effect="light">
+                       :type="tagTypeOf(wardTypeTag(scope.row.wardTypeId))"
+                       :style="tagStyleOf(wardTypeTag(scope.row.wardTypeId))" effect="light">
                   {{ wardTypeLabel(scope.row.wardTypeId, scope.row.wardType) }}
                </el-tag>
                <span v-else>-</span>
             </template>
          </el-table-column>
-         <el-table-column label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="显示顺序" align="center" prop="orderNum" :show-overflow-tooltip="true" />
          <el-table-column label="状态" align="center" prop="status">
             <template #default="scope">
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:ward:edit', 'cat:ward:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:ward:edit', 'cat:ward:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:ward:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:ward:remove']">删除</el-button>
@@ -113,9 +114,12 @@
 
 <script setup name="CatWard">
 import { useBaseCache, useWardTypeCache, invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
+import { tagTypeOf, tagStyleOf } from "@/utils/catTag"
+import { useNarrow } from "@/utils/useNarrow"
 import { listCatWard, getCatWard, delCatWard, addCatWard, updateCatWard } from "@/api/cat/ward"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
 const { baseMap, baseLabel, reloadBaseCache } = useBaseCache()
 const baseOptions = computed(() => Object.values(baseMap.value))

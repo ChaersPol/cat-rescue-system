@@ -4,6 +4,10 @@
          <el-form-item label="猫咪" prop="catId">
             <cat-select v-model="queryParams.catId" placeholder="全部猫咪" />
          </el-form-item>
+         <cat-location-filter
+           v-model:base-id="queryParams.catBaseId"
+           v-model:ward-id="queryParams.catWardId"
+           @change="handleQuery" />
          <el-form-item label="抓捕时间">
             <el-date-picker v-model="dateRange" value-format="YYYY-MM-DD" type="daterange" range-separator="-"
                start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px" />
@@ -44,8 +48,14 @@
                {{ catLabel(scope.row.catId) }}
             </template>
          </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+         </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+         </el-table-column>
          <el-table-column label="抓捕时间" align="center" prop="captureTime" width="140" :show-overflow-tooltip="true" />
-         <el-table-column label="抓捕点位" align="center" prop="capturePoint" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="抓捕点位" align="center" prop="capturePoint" :show-overflow-tooltip="true" />
          <el-table-column label="手术日期" align="center" prop="surgeryDate" width="132">
             <template #default="scope">
                <div>{{ scope.row.surgeryDate || '—' }}</div>
@@ -59,7 +69,7 @@
                <dict-tag :options="cat_tnr_result" :value="scope.row.result" />
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:tnr:edit', 'cat:tnr:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:tnr:edit', 'cat:tnr:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:tnr:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:tnr:remove']">删除</el-button>
@@ -94,7 +104,7 @@
                </el-select>
             </el-form-item>
             <el-form-item label="手术医生" prop="surgeon">
-               <el-input v-model="form.surgeon" placeholder="请输入手术医生" />
+               <staff-select v-model="form.surgeon" scope="doctor" placeholder="请选择手术医生" />
             </el-form-item>
             <el-form-item label="手术记录" prop="surgeryRecord">
                <el-input v-model="form.surgeryRecord" type="textarea" :rows="2" placeholder="请输入手术记录" />
@@ -115,12 +125,14 @@
 
 <script setup name="CatTnr">
 import { useCatCache } from "@/utils/catCache"
+import { useNarrow } from "@/utils/useNarrow"
 import { listCatTnr, getCatTnr, delCatTnr, addCatTnr, updateCatTnr } from "@/api/cat/tnr"
 import { useFormDraft } from "@/utils/formDraft"
 
 const { proxy } = getCurrentInstance()
 const { cat_tnr_result, cat_yes_no } = proxy.useDict('cat_tnr_result', 'cat_yes_no')
-const { catLabel } = useCatCache()
+const { catLabel, catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -138,6 +150,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     captureTime: undefined,
     capturePoint: undefined,
@@ -147,7 +161,8 @@ const data = reactive({
   },
   rules: {
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
-    captureTime: [{ required: true, message: '请选择抓捕时间', trigger: 'change' }]
+    captureTime: [{ required: true, message: '请选择抓捕时间', trigger: 'change' }],
+    surgeon: [{ required: true, message: '请选择手术医生', trigger: 'change' }]
   }
 })
 

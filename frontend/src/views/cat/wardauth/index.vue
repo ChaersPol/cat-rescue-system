@@ -23,10 +23,10 @@
 
     <el-table v-loading="loading" :data="userList">
       <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
-      <el-table-column label="用户ID" align="center" prop="userId" width="90" />
+      <el-table-column v-if="!isNarrow" label="用户ID" align="center" prop="userId" width="90" />
       <el-table-column label="登录账号" align="center" prop="userName" width="140" />
       <el-table-column label="用户昵称" align="center" prop="nickName" width="140" />
-      <el-table-column label="手机号" align="center" prop="phonenumber" width="130" />
+      <el-table-column v-if="!isNarrow" label="手机号" align="center" prop="phonenumber" width="130" />
       <el-table-column label="已授权病房" align="center" min-width="260">
         <template #default="scope">
           <el-tag v-for="w in (authMap[scope.row.userId] || [])" :key="w.wardId" size="small" style="margin: 2px 4px 2px 0">
@@ -35,7 +35,7 @@
           <span v-if="!(authMap[scope.row.userId] || []).length" class="text-muted">未授权</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width" v-if="checkPermi(['cat:wardauth:edit', 'cat:wardauth:remove'])">
+      <el-table-column label="操作" align="center" :width="isNarrow ? 170 : 180" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:wardauth:edit', 'cat:wardauth:remove'])">
         <template #default="scope">
           <el-button link type="primary" icon="Setting" @click="handleAuth(scope.row)" v-hasPermi="['cat:wardauth:edit']">配置授权</el-button>
           <el-button link type="danger" icon="Delete" @click="handleClear(scope.row)" v-hasPermi="['cat:wardauth:remove']">清空</el-button>
@@ -88,8 +88,10 @@ import { listUser } from '@/api/system/user'
 import { listCatWard } from '@/api/cat/ward'
 import { listCatBase } from '@/api/cat/base'
 import { getWardIdsByUser, saveWardAuth, delWardAuthByUser } from '@/api/cat/wardauth'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 
 const loading = ref(true)
 const authLoading = ref(false)

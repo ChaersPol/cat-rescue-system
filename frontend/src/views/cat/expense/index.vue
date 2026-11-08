@@ -6,6 +6,13 @@
                <el-option v-for="d in cat_expense_type" :key="d.value" :label="d.label" :value="d.value" />
             </el-select>
          </el-form-item>
+         <el-form-item label="关联猫咪" prop="catId">
+            <cat-select v-model="queryParams.catId" placeholder="全部猫咪" style="width: 200px" />
+         </el-form-item>
+         <cat-location-filter
+           v-model:base-id="queryParams.catBaseId"
+           v-model:ward-id="queryParams.catWardId"
+           @change="handleQuery" />
          <el-form-item label="支出日期">
             <el-date-picker v-model="dateRange" value-format="YYYY-MM-DD" type="daterange" range-separator="-"
                start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px" />
@@ -35,16 +42,28 @@
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
          <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
+      <el-table-column label="关联猫咪" align="center" width="200" :show-overflow-tooltip="true">
+         <template #default="scope">
+            <span v-if="scope.row.catId">{{ catLabel(scope.row.catId) }}</span>
+            <span v-else>-</span>
+         </template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
          <el-table-column label="费用类型" align="center" prop="expenseType">
             <template #default="scope">
                <dict-tag :options="cat_expense_type" :value="scope.row.expenseType" />
             </template>
          </el-table-column>
          <el-table-column label="支出日期" align="center" prop="expenseDate" :show-overflow-tooltip="true" />
-         <el-table-column label="供应商" align="center" prop="supplier" :show-overflow-tooltip="true" />
-         <el-table-column label="清单/说明" align="center" prop="items" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="供应商" align="center" prop="supplier" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="清单/说明" align="center" prop="items" :show-overflow-tooltip="true" />
          <el-table-column label="金额" align="center" prop="amount" :show-overflow-tooltip="true" />
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:expense:edit', 'cat:expense:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:expense:edit', 'cat:expense:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:expense:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:expense:remove']">删除</el-button>
@@ -109,7 +128,8 @@
 </template>
 
 <script setup name="CatExpense">
-import { useBaseCache } from "@/utils/catCache"
+import { useBaseCache, useCatCache } from "@/utils/catCache"
+import { useNarrow } from "@/utils/useNarrow"
 import { listCatExpense, getCatExpense, delCatExpense, addCatExpense, updateCatExpense } from "@/api/cat/expense"
 import { listCatStockRecord } from "@/api/cat/stockrecord"
 import { listCatMaterial } from "@/api/cat/material"
@@ -117,6 +137,8 @@ import { listCatMaterial } from "@/api/cat/material"
 const { proxy } = getCurrentInstance()
 const { cat_expense_type } = proxy.useDict('cat_expense_type')
 const { baseMap, reloadBaseCache } = useBaseCache()
+const { catLabel, catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 const baseOptions = computed(() => Object.values(baseMap.value))
 // 入库单下拉（物资采购与入库单一一对应）
 const stockOptions = ref([])
@@ -144,6 +166,9 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catId: undefined,
+    catBaseId: undefined,
+    catWardId: undefined,
     expenseType: undefined,
     expenseDate: undefined,
     supplier: undefined,

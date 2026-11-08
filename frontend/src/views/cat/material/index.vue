@@ -41,26 +41,26 @@
          <el-table-column type="selection" width="55" align="center" v-if="$route.meta.canRemove" />
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="56" align="center" />
          <el-table-column label="物资名称" align="center" prop="materialName" :show-overflow-tooltip="true" />
-         <el-table-column label="分类" align="center" prop="categoryId" width="120">
+         <el-table-column v-if="!isNarrow" label="分类" align="center" prop="categoryId" width="120">
             <template #default="scope">
                <span>{{ categoryName(scope.row.categoryId) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="规格" align="center" prop="spec" :show-overflow-tooltip="true" />
-         <el-table-column label="单位" align="center" prop="unit" width="80" />
+         <el-table-column v-if="!isNarrow" label="规格" align="center" prop="spec" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="单位" align="center" prop="unit" width="80" />
          <el-table-column label="库存" align="center" prop="stock" width="100">
             <template #default="scope">
                <span :class="{ 'stock-low': isLow(scope.row) }">{{ scope.row.stock }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="预警阈值" align="center" prop="minStock" width="100" />
+         <el-table-column v-if="!isNarrow" label="预警阈值" align="center" prop="minStock" width="100" />
          <el-table-column label="库存状态" align="center" width="110">
             <template #default="scope">
                <el-tag v-if="isLow(scope.row)" type="danger" size="small" effect="dark">库存不足</el-tag>
                <el-tag v-else type="success" size="small">正常</el-tag>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:material:edit', 'cat:material:remove'])">
+         <el-table-column label="操作" align="center" width="150" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:material:edit', 'cat:material:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:material:edit']">修改</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:material:remove']">删除</el-button>
@@ -106,8 +106,10 @@
 <script setup name="CatMaterial">
 import { listCatMaterial, getCatMaterial, delCatMaterial, addCatMaterial, updateCatMaterial } from "@/api/cat/material"
 import { listCatMaterialCategory } from "@/api/cat/materialcategory"
+import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const categoryOptions = ref([])

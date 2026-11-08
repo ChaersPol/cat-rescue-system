@@ -483,6 +483,15 @@
 }
 
 /**
+ * 表单里的「库存不足」红字（用药/疫苗/驱虫挂物资时用）
+ * 只提示不阻断：库存允许为负，现场急救不能被卡住
+ */
+.stock-warn {
+  color: var(--el-color-danger);
+  font-weight: 600;
+}
+
+/**
  * 表格单元格里的第二行状态小字（与档案页 .status-detail 同一思路）：
  *   <div class="due-tip is-danger">已过期 21 天</div>
  * - 用途：日期类字段下方补充"还剩几天 / 过期多久"，比单开一列省宽度，也不挤其他列
@@ -556,6 +565,134 @@
     flex: none;
     margin-top: 3px;
     color: #f56c6c;
+  }
+}
+
+/**
+ * 弹窗里的「该猫历史记录」区块（疫苗接种史、驱虫上次记录）：
+ *   <div class="hist-panel"><div class="hist-head"><span class="hist-title">…</span></div>…</div>
+ * 用一条虚线与上方表单分开，表达「下面是这只猫的历史，不是这次要填的」
+ */
+.hist-panel {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--el-border-color);
+}
+
+.hist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.hist-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+/* 概览小标签：基础免疫进度、狂犬 / 加强针到期 */
+.hist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.imm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: 11px;
+  background: var(--el-fill-color-light);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--el-text-color-regular);
+
+  b {
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .sub {
+    color: var(--el-text-color-secondary);
+  }
+
+  &.is-danger {
+    background: var(--el-color-danger-light-9);
+    color: var(--el-color-danger);
+
+    b,
+    .sub {
+      color: var(--el-color-danger);
+    }
+  }
+
+  &.is-warning {
+    background: var(--el-color-warning-light-9);
+    color: var(--el-color-warning);
+
+    b,
+    .sub {
+      color: var(--el-color-warning);
+    }
+  }
+
+  &.is-muted {
+    color: var(--el-text-color-placeholder);
+  }
+}
+
+/* 历史表里已过期的行：淡红底，翻记录时一眼看到该补哪几针 */
+.hist-panel .el-table .row-due td {
+  background: var(--el-color-danger-light-9);
+}
+
+.hist-note {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+/* 驱虫弹窗的「上次体内 / 上次体外」两行 */
+.last-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.last-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--el-fill-color-lighter);
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+
+  .last-date {
+    font-variant-numeric: tabular-nums;
+    color: var(--el-text-color-primary);
+  }
+
+  .last-drug {
+    color: var(--el-text-color-secondary);
+  }
+
+  .last-next {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .due-tip {
+    margin-top: 0;
+  }
+
+  .last-none {
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
   }
 }
 

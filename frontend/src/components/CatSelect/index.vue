@@ -47,7 +47,7 @@ const props = defineProps({
     default: false
   }
 })
-const emit = defineEmits(["update:modelValue"])
+const emit = defineEmits(["update:modelValue", "change"])
 
 const options = ref([])
 const loading = ref(false)
@@ -63,7 +63,11 @@ function isStale() {
 
 const innerValue = computed({
   get: () => (props.modelValue === undefined || props.modelValue === null ? undefined : props.modelValue),
-  set: (val) => emit("update:modelValue", val)
+  set: (val) => {
+    emit("update:modelValue", val)
+    // 需要「选完猫再做点别的」的页面（如站内诊断要带出来源基地/默认初诊复诊）监听它
+    emit("change", val)
+  }
 })
 
 // 全站统一写法：名字（档案编号）

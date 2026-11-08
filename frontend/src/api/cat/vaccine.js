@@ -50,3 +50,12 @@ export function getVaccineMedicationTip(catId) {
     method: 'get'
   })
 }
+
+// 该猫接种记录（弹窗下方展示历史针次 + 免疫进度）
+export function getVaccineHistory(catId, excludeId) {
+  return request({
+    url: '/cat/vaccine/history/' + catId,
+    method: 'get',
+    params: { excludeId }
+  })
+}

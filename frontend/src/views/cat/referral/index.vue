@@ -6,6 +6,10 @@
           <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="全部状态" clearable style="width: 140px">
           <el-option label="治疗中" value="0" />
@@ -41,6 +45,12 @@
       <el-table-column label="猫咪" align="center" width="220">
         <template #default="scope">{{ catName(scope.row.catId) }}</template>
       </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="送医时间" align="center" prop="sendDate" width="160" />
       <el-table-column label="医院" align="center" prop="hospitalName" width="180" :show-overflow-tooltip="true" />
       <el-table-column label="回传资料" align="center" width="96">
@@ -51,8 +61,8 @@
           <span v-else class="text-muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="送医原因" align="center" prop="sendReason" min-width="180" :show-overflow-tooltip="true" />
-      <el-table-column label="医院诊断" align="center" prop="hospitalDiagnosis" min-width="180" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="送医原因" align="center" prop="sendReason" min-width="180" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="医院诊断" align="center" prop="hospitalDiagnosis" min-width="180" :show-overflow-tooltip="true" />
       <el-table-column label="状态" align="center" prop="status" width="100">
         <template #default="scope">
           <el-tag :type="statusTag(scope.row.status)" size="small">{{ statusLabel(scope.row.status) }}</el-tag>
@@ -65,7 +75,7 @@
           <span v-if="!scope.row.result && !scope.row.dischargeTo">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="230" class-name="small-padding fixed-width" v-if="checkPermi(['cat:referral:edit', 'cat:referral:remove'])">
+      <el-table-column label="操作" align="center" :width="isNarrow ? 190 : 230" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:referral:edit', 'cat:referral:remove'])">
         <template #default="scope">
           <el-button v-if="scope.row.status === '0'" link type="success" icon="Finished" @click="handleDischarge(scope.row)" v-hasPermi="['cat:referral:edit']">出院登记</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:referral:edit']">修改</el-button>
@@ -173,11 +183,14 @@
 import { listCatReferral, getCatReferral, delCatReferral, addCatReferral, updateCatReferral } from '@/api/cat/referral'
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from '@/api/cat/profile'
-import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
 import { resolveFileUrl, previewKind } from '@/utils/fileUrl'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 const { cat_discharge_to, cat_hospital_result } = proxy.useDict('cat_discharge_to', 'cat_hospital_result')
 
 const list = ref([])
@@ -202,6 +215,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     status: undefined,
     hospitalName: undefined

@@ -1,26 +1,46 @@
 <template>
    <div class="app-container">
-      <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="68px">
-         <el-form-item label="关键词" prop="catName">
-            <el-input v-model="queryParams.catName" placeholder="名字/编号/特征" clearable style="width: 200px" @keyup.enter="handleQuery" />
+      <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="80px">
+         <el-form-item label="关键词" prop="keyword">
+            <el-input v-model="queryParams.keyword" placeholder="名字/编号/特征/品种/性别/年龄，空格分隔" clearable style="width: 260px" @keyup.enter="handleQuery">
+               <template #suffix>
+                  <el-tooltip placement="top">
+                     <template #content>
+                        名字、编号、特征、品种、性别、年龄都能搜。<br />
+                        多段用空格分开表示「同时满足」，如「橘猫 母 2岁」。<br />
+                        年龄可写：2岁 / 3个月 / 1岁2个月 / 未知
+                     </template>
+                     <el-icon class="keyword-hint"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+               </template>
+            </el-input>
+         </el-form-item>
+         <el-form-item label="所在病房" prop="wardId">
+            <el-select v-model="queryParams.wardId" placeholder="全部病房" clearable filterable style="width: 190px" @change="handleQuery">
+               <el-option-group v-for="group in wardGroups" :key="group.baseName" :label="group.baseName">
+                  <el-option v-for="w in group.wards" :key="w.wardId" :label="wardOptionLabel(w)" :value="w.wardId" />
+               </el-option-group>
+               <!-- 还没分配病房的猫，单独一项（value 用 0，后端转成 ward_id is null） -->
+               <el-option v-if="unassignedWard" :label="unassignedWard.label" :value="unassignedWard.value" />
+            </el-select>
          </el-form-item>
          <el-form-item label="状态" prop="status">
-            <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 200px">
+            <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 150px" @change="handleQuery">
                <el-option v-for="dict in cat_status" :key="dict.value" :label="dict.label" :value="dict.value" />
             </el-select>
          </el-form-item>
          <el-form-item label="基地" prop="baseId">
-            <el-select v-model="queryParams.baseId" placeholder="请选择基地" clearable style="width: 160px">
+            <el-select v-model="queryParams.baseId" placeholder="请选择基地" clearable style="width: 150px" @change="handleQuery">
                <el-option v-for="base in baseList" :key="base.baseId" :label="base.baseName" :value="base.baseId" />
             </el-select>
          </el-form-item>
          <el-form-item label="标签" prop="tagIds">
-            <el-select v-model="queryParams.tagIds" multiple collapse-tags collapse-tags-tooltip placeholder="按标签筛选" clearable style="width: 200px">
+            <el-select v-model="queryParams.tagIds" multiple collapse-tags collapse-tags-tooltip placeholder="按标签筛选" clearable style="width: 180px" @change="handleQuery">
                <el-option v-for="tag in tagList" :key="tag.tagId" :label="tag.tagName" :value="tag.tagId" />
             </el-select>
          </el-form-item>
          <el-form-item label="归档" prop="archived">
-            <el-select v-model="queryParams.archived" placeholder="全部" clearable style="width: 130px">
+            <el-select v-model="queryParams.archived" placeholder="全部" clearable style="width: 110px" @change="handleQuery">
                <el-option label="未归档" value="0" />
                <el-option label="已归档" value="1" />
             </el-select>
@@ -30,6 +50,9 @@
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
          </el-form-item>
       </el-form>
+
+      <!-- 当前病房筛选结果的条数提示，避免下拉数字和列表条数被误读 -->
+      <el-alert v-if="wardFilterTip" type="info" :closable="false" show-icon class="mb8" :title="wardFilterTip" />
 
       <el-row :gutter="10" class="mb8">
          <el-col :span="1.5">
@@ -57,7 +80,7 @@
       <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
          <el-table-column type="selection" width="45" align="center" v-if="$route.meta.canRemove" />
          <el-table-column label="序号" type="index" :index="i => $seqIndex(i, queryParams)" width="50" align="center" />
-         <el-table-column label="档案编号" align="center" prop="archiveNo" min-width="152" :show-overflow-tooltip="true" />
+         <el-table-column v-if="!isNarrow" label="档案编号" align="center" prop="archiveNo" min-width="152" :show-overflow-tooltip="true" />
          <el-table-column label="猫咪名字" align="center" prop="catName" min-width="82" :show-overflow-tooltip="true">
             <template #default="scope">
                {{ scope.row.catName }}
@@ -70,18 +93,24 @@
                <dict-tag :options="cat_sex" :value="scope.row.sex" />
             </template>
          </el-table-column>
-         <el-table-column label="年龄" align="center" prop="ageEstimate" min-width="70" :show-overflow-tooltip="true" />
+         <!-- 年龄按出生日期实时算，随年月自动增长，不用人工改 -->
+         <el-table-column v-if="!isNarrow" label="年龄" align="center" prop="ageText" min-width="96" :show-overflow-tooltip="true">
+            <template #default="scope">{{ scope.row.ageText || '未知' }}</template>
+         </el-table-column>
          <el-table-column label="状态" align="center" prop="status" min-width="150" :show-overflow-tooltip="true">
             <template #default="scope">
                <dict-tag :options="cat_status" :value="scope.row.status" />
                <span v-if="statusDetail(scope.row)" class="status-detail">{{ statusDetail(scope.row) }}</span>
             </template>
          </el-table-column>
-         <!-- 基地名已在状态里体现，这里只留病房，避免重复占宽 -->
-         <el-table-column label="所在病房" align="center" prop="wardId" :min-width="wideTable ? 118 : 98" :show-overflow-tooltip="true">
+         <!-- 基地单列展示：状态列只在「站内」时带基地名，外送/其他状态看不到位置 -->
+         <el-table-column v-if="!isNarrow" label="所属基地" align="center" prop="baseId" :min-width="wideTable ? 132 : 108" :show-overflow-tooltip="true">
+            <template #default="scope">{{ baseName(scope.row.baseId) || '—' }}</template>
+         </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所在病房" align="center" prop="wardId" :min-width="wideTable ? 118 : 98" :show-overflow-tooltip="true">
             <template #default="scope">{{ wardName(scope.row.wardId) || '—' }}</template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="300" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" :width="isNarrow ? 190 : 300" fixed="right" class-name="small-padding fixed-width">
             <template #default="scope">
                <el-button link type="primary" @click="handleView(scope.row)">档案</el-button>
                <el-button link type="success" @click="handleExportPdf(scope.row)" v-hasPermi="['cat:profile:query']">PDF</el-button>
@@ -97,7 +126,7 @@
       <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
       <!-- 新增/修改对话框 -->
-      <el-dialog :title="title" v-model="open" width="700px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="760px" append-to-body>
          <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
             <el-row>
                <el-col :span="12">
@@ -126,12 +155,26 @@
                </el-col>
             </el-row>
             <el-row>
-               <el-col :span="12">
+               <el-col :span="8">
                   <el-form-item label="年龄" prop="ageEstimate">
-                     <el-input v-model="form.ageEstimate" placeholder="如：2岁" />
+                     <div class="age-input">
+                        <el-input v-model="ageValue" placeholder="约" style="width: 62px" @input="onAgeInput" />
+                        <el-select v-model="ageUnit" style="width: 76px" @change="onAgeInput">
+                           <el-option label="岁" value="Y" />
+                           <el-option label="个月" value="M" />
+                           <el-option label="天" value="D" />
+                        </el-select>
+                     </div>
+                     <div class="age-hint">{{ ageHint }}</div>
                   </el-form-item>
                </el-col>
-               <el-col :span="12">
+               <el-col :span="8">
+                  <el-form-item label="出生日期" prop="birthDate">
+                     <el-date-picker v-model="form.birthDate" type="date" value-format="YYYY-MM-DD" placeholder="选填，知道就填" clearable :disabled-date="isFutureDate" style="width: 100%" @change="onBirthDateChange" />
+                     <div class="age-hint">{{ birthHint }}</div>
+                  </el-form-item>
+               </el-col>
+               <el-col :span="8">
                   <el-form-item label="体重" prop="weight">
                      <el-input v-model="form.weight" placeholder="如：3.5kg" />
                   </el-form-item>
@@ -182,6 +225,21 @@
                   </el-form-item>
                </el-col>
             </el-row>
+            <!-- 补录病房：人已经把猫放进屋、当时没在电脑上录，这里填当时的实际转移时间 -->
+            <el-row v-if="wardChanged">
+               <el-col :span="8">
+                  <el-form-item label="实际转移时间">
+                     <el-date-picker v-model="form.moveTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss"
+                        placeholder="不填就按现在记" style="width: 100%" />
+                  </el-form-item>
+               </el-col>
+               <el-col :span="16" class="loc-tip-col">
+                  <div class="form-tip">
+                     改了病房会自动补一条「基地内安置」流转记录。如果是补录（猫早就在屋里了），把上面填成当时放进去的时间——
+                     系统会同时记下实际转移时间和此刻的录入时间，事后能分清哪天放的、哪天补的。
+                  </div>
+               </el-col>
+            </el-row>
             <el-row>
                <el-col :span="8">
                   <el-form-item label="是否绝育" prop="neutered">
@@ -226,7 +284,7 @@
                   <div v-else class="qr-empty">尚未生成二维码</div>
                   <div class="qr-meta">
                      <div v-if="form.scanUrl" class="qr-url">手机扫这个码，打开这只猫的档案：{{ form.scanUrl }}</div>
-                     <div class="qr-help">换了系统访问网址才需要点「更新二维码」，平时不用点</div>
+                     <div class="qr-help">码按当前访问地址自动生成，换端口/网址后刷新就跟着变</div>
                      <el-button size="small" type="primary" plain icon="Refresh" @click="handleGenQr(form.catId)" v-hasPermi="['cat:profile:edit']">更新二维码</el-button>
                   </div>
                </div>
@@ -250,7 +308,7 @@
             <el-descriptions-item label="性别">
                <dict-tag :options="cat_sex" :value="viewForm.sex" />
             </el-descriptions-item>
-            <el-descriptions-item label="年龄">{{ viewForm.ageEstimate }}</el-descriptions-item>
+            <el-descriptions-item label="年龄">{{ viewForm.ageText || '未知' }}</el-descriptions-item>
             <el-descriptions-item label="体重">{{ viewForm.weight }}</el-descriptions-item>
             <el-descriptions-item label="来源">
                <dict-tag :options="cat_source" :value="viewForm.source" />
@@ -287,14 +345,16 @@
 </template>
 
 <script setup name="CatProfile">
-import { listCatProfile, getCatProfile, delCatProfile, addCatProfile, updateCatProfile, regenerateCatQrCode, regenerateAllCatQrCode, archiveCatProfile, unarchiveCatProfile, listHospitalOptions } from "@/api/cat/profile"
+import { listCatProfile, getCatProfile, delCatProfile, addCatProfile, updateCatProfile, regenerateCatQrCode, regenerateAllCatQrCode, archiveCatProfile, unarchiveCatProfile, listHospitalOptions, listWardStats } from "@/api/cat/profile"
 import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
 import { useFormDraft } from "@/utils/formDraft"
 import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
+import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
+const { isNarrow } = useNarrow()
 const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no } = useDict("cat_status", "cat_sex", "cat_source", "cat_neutered", "cat_yes_no")
 
 const list = ref([])
@@ -302,6 +362,8 @@ const baseList = ref([])
 const wardList = ref([])
 const tagList = ref([])
 const hospitalOptions = ref([])
+// 病房在册数（筛选下拉显示「病房名（N）」）
+const wardStats = ref([])
 const open = ref(false)
 const viewOpen = ref(false)
 const loading = ref(true)
@@ -346,7 +408,9 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
-    catName: undefined,
+    // 关键词：名字/编号/特征/品种/性别/年龄都走这一个框，空格分隔表示同时满足
+    keyword: undefined,
+    wardId: undefined,
     status: undefined,
     baseId: undefined,
     tagIds: undefined,
@@ -359,15 +423,160 @@ const router = useRouter()
 // 表单草稿：新增档案填到一半误关也不丢
 const draft = useFormDraft('cat-profile-form', form)
 
+// ---------------------------------------------------------------
+// 年龄：档案里只存出生日期，年龄每次按当前日期实时算（不用定时任务）
+// 录入还是填「约 2 岁」，系统按救助日期反推出生日期；知道确切生日可直接填日期
+// ---------------------------------------------------------------
+const ageValue = ref(undefined)
+const ageUnit = ref('Y')
+// 出生日期是不是用户手填的（手填的以它为准，改年龄不再覆盖）
+const birthManual = ref(false)
+
+function onAgeInput() {
+  // 改年龄时把「按年龄反推出来的」出生日期清掉，交给后端重算；手填的准确生日保留
+  if (!birthManual.value) {
+    form.value.birthDate = undefined
+  }
+}
+
+function onBirthDateChange(val) {
+  birthManual.value = !!val
+}
+
+function isFutureDate(date) {
+  return date && date.getTime() > Date.now()
+}
+
+function toDate(value) {
+  if (!value) return null
+  const d = new Date(String(value).substring(0, 10).replace(/-/g, '/'))
+  return isNaN(d.getTime()) ? null : d
+}
+
+function fmtDate(d) {
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// 反推基准日：有救助日期按救助日期，没有就按今天
+function ageBaseDate() {
+  return toDate(form.value.captureDate) || new Date()
+}
+
+/** 按「年龄 + 单位」估算出生日期（仅用于表单提示，真正入库由后端算） */
+const estimatedBirth = computed(() => {
+  const num = Number(ageValue.value)
+  if (!ageValue.value || isNaN(num) || num <= 0) return ''
+  const base = ageBaseDate()
+  const originalDay = base.getDate()
+  const d = new Date(base.getTime())
+  if (ageUnit.value === 'Y') {
+    d.setFullYear(d.getFullYear() - num)
+  } else if (ageUnit.value === 'M') {
+    d.setMonth(d.getMonth() - num)
+  } else {
+    d.setDate(d.getDate() - num)
+  }
+  // 1月31日减一个月会被 JS 顺延到 3月3日，这里回退到上月最后一天
+  if (d.getDate() !== originalDay) {
+    d.setDate(0)
+  }
+  return fmtDate(d)
+})
+
+const ageHint = computed(() => {
+  if (!ageValue.value) {
+    return form.value.birthDate ? '按出生日期自动算年龄' : '留空则显示「未知」'
+  }
+  if (form.value.birthDate) {
+    return '已填出生日期，以出生日期为准'
+  }
+  const baseText = form.value.captureDate ? '救助日期' : '今天'
+  return estimatedBirth.value ? `按${baseText}推算出生：${estimatedBirth.value}` : ''
+})
+
+const birthHint = computed(() =>
+  form.value.birthDate ? '按真实生日计算，不显示「约」' : '知道确切生日才填，年龄会随时间自动增长'
+)
+
+/** 由「数值 + 单位」生成年龄描述，如 2 岁 → 「2岁」、3 个月 → 「3个月」 */
+function buildAgeText() {
+  const raw = ageValue.value == null ? '' : String(ageValue.value).trim()
+  if (!raw) return ''
+  const num = Number(raw)
+  if (isNaN(num) || num < 0) return ''
+  const unitText = ageUnit.value === 'Y' ? '岁' : ageUnit.value === 'M' ? '个月' : '天'
+  return `${num}${unitText}`
+}
+
+/** 把库里存的「1岁2个月」「3个月」拆成数值 + 单位，用于表单回显 */
+function parseAgeText(text) {
+  const s = String(text || '')
+  let m = s.match(/(\d+(?:\.\d+)?)\s*(?:周岁|岁)/)
+  if (m) return { value: m[1], unit: 'Y' }
+  m = s.match(/(\d+(?:\.\d+)?)\s*(?:个月|月龄|月)/)
+  if (m) return { value: m[1], unit: 'M' }
+  m = s.match(/(\d+(?:\.\d+)?)\s*(?:天|日)/)
+  if (m) return { value: m[1], unit: 'D' }
+  return { value: undefined, unit: 'Y' }
+}
+
+// ---------------------------------------------------------------
+// 所在病房筛选：下拉里带每个病房的在册数量，按基地分组
+// ---------------------------------------------------------------
+const wardGroups = computed(() => {
+  const baseFilter = queryParams.value.baseId
+  const groups = []
+  const groupMap = new Map()
+  wardStats.value.forEach(w => {
+    // wardId 为空的是后端补的「未分配病房」汇总行，单独渲染，不参与分组
+    if (!w.wardId) return
+    if (baseFilter && w.baseId !== baseFilter) return
+    const key = w.baseName || '未归属基地'
+    if (!groupMap.has(key)) {
+      const group = { baseName: key, wards: [] }
+      groupMap.set(key, group)
+      groups.push(group)
+    }
+    groupMap.get(key).wards.push(w)
+  })
+  return groups
+})
+
+/** 「未分配病房」汇总行：数量为 0 时不显示，避免下拉里多一个常年 0 的选项 */
+const unassignedWard = computed(() => {
+  const row = wardStats.value.find(w => !w.wardId && w.wardName === '未分配病房')
+  if (!row || !row.catCount) return null
+  return { value: 0, label: `未分配病房（${row.catCount}）` }
+})
+
+function wardOptionLabel(ward) {
+  return `${ward.wardName}（${ward.catCount}）`
+}
+
+const wardFilterTip = computed(() => {
+  const wardId = queryParams.value.wardId
+  if (!wardId) return ''
+  if (wardId === 0) {
+    const row = wardStats.value.find(w => !w.wardId && w.wardName === '未分配病房')
+    return row ? `当前筛选「未分配病房」：共 ${row.catCount} 只还没安排病房，建议尽快分房` : ''
+  }
+  const ward = wardStats.value.find(w => w.wardId === wardId)
+  if (!ward) return ''
+  return `当前筛选病房「${ward.wardName}」：在册 ${ward.catCount} 只，本页列表 ${total.value} 条（还会受其它筛选条件影响）`
+})
+
 // 状态与所在位置的对应关系：
-// 1在养、2基地内治疗中 → 必须选所在基地；3外送医院治疗中 → 必须填医院
-const needBase = computed(() => ["1", "2"].includes(String(form.value.status || "")))
+// 1在养、2基地内治疗中、9待安置 → 必须选所在基地；3外送医院治疗中 → 必须填医院
+// 待安置是"已经在基地、但还没分到具体房间"，所以只要求基地，病房留空是对的
+const needBase = computed(() => ["1", "2", "9"].includes(String(form.value.status || "")))
 const needHospital = computed(() => String(form.value.status || "") === "3")
 const statusHint = computed(() => {
   const s = String(form.value.status || "")
   if (s === "1") return "在养需要指定猫咪当前所在的基地"
   if (s === "2") return "基地内治疗中需要指定治疗所在的基地"
   if (s === "3") return "外送医院治疗中需要指定外送的医院"
+  if (s === "9") return "待安置：猫已回到基地、还没分房。先存基地，分好房后再回来把「所在病房」补上"
   return ""
 })
 
@@ -456,6 +665,13 @@ function getHospitalOptions() {
   })
 }
 
+// 每个病房的在册猫咪数，筛选下拉里显示成「治疗病房1号（3）」
+function getWardStats() {
+  listWardStats().then(response => {
+    wardStats.value = response.data || []
+  }).catch(() => {})
+}
+
 function getList() {
   loading.value = true
   // 标签是多选，接口按逗号分隔的 tagIds 传，Spring 才能绑定到 Long[]
@@ -478,7 +694,17 @@ function cancel() {
   reset()
 }
 
+// 编辑前的原始位置：用来判断这次是不是换了病房/刚分配病房（决定要不要补录流转时间）
+const originPlace = ref({ baseId: undefined, wardId: undefined })
+const wardChanged = computed(() => {
+  if (!form.value.catId || !form.value.wardId) return false
+  const o = originPlace.value
+  return (form.value.wardId || null) !== (o.wardId || null)
+      || (form.value.baseId || null) !== (o.baseId || null)
+})
+
 function reset() {
+  originPlace.value = { baseId: undefined, wardId: undefined }
   form.value = {
     catId: undefined,
     archiveNo: undefined,
@@ -487,6 +713,8 @@ function reset() {
     breed: undefined,
     sex: undefined,
     ageEstimate: undefined,
+    birthDate: undefined,
+    birthEstimated: '1',
     weight: undefined,
     personality: undefined,
     source: undefined,
@@ -503,6 +731,10 @@ function reset() {
     tagIds: [],
     remark: undefined
   }
+  // 年龄输入框是独立状态，跟 form 一起复位
+  ageValue.value = undefined
+  ageUnit.value = 'Y'
+  birthManual.value = false
   proxy.clearFormValidate("formRef")
 }
 
@@ -518,6 +750,8 @@ function resetQuery() {
   queryParams.value.baseId = undefined
   queryParams.value.tagIds = undefined
   queryParams.value.archived = undefined
+  queryParams.value.wardId = undefined
+  queryParams.value.keyword = undefined
   queryParams.value.pageNum = 1
   if (Object.keys(route.query || {}).length) {
     router.replace({ path: route.path, query: {} }) // 交给 watch 重新应用并查询
@@ -542,6 +776,11 @@ function handleAdd() {
   const saved = draft.restore()
   if (saved) {
     form.value = { ...saved }
+    // 草稿里的年龄描述要回填到「数值 + 单位」输入框，否则界面上年龄是空的
+    const parsed = parseAgeText(form.value.ageEstimate)
+    ageValue.value = parsed.value
+    ageUnit.value = parsed.unit
+    birthManual.value = form.value.birthEstimated === '0' && !!form.value.birthDate
     proxy.$modal.msgSuccess("已恢复上次未保存的档案内容")
   }
   draft.begin()
@@ -556,7 +795,20 @@ function handleUpdate(row) {
   reset()
   const id = row.catId || ids.value
   getCatProfile(id).then(response => {
-    form.value = response.data
+    const data = response.data || {}
+    form.value = data
+    originPlace.value = { baseId: data.baseId || null, wardId: data.wardId || null }
+    // 年龄描述拆回「数值 + 单位」；出生日期是估算值时不再回填，交给后端按年龄重算
+    const parsed = parseAgeText(data.ageEstimate)
+    ageValue.value = parsed.value
+    ageUnit.value = parsed.unit
+    if (data.birthEstimated === '0' && data.birthDate) {
+      form.value.birthDate = data.birthDate
+      birthManual.value = true
+    } else {
+      form.value.birthDate = undefined
+      birthManual.value = false
+    }
     draft.begin('edit')
     open.value = true
     title.value = "修改猫咪档案"
@@ -597,7 +849,19 @@ function handlePrintCards() {
 function submitForm() {
   proxy.$refs["formRef"].validate(valid => {
     if (valid) {
+      // 年龄输入框同步成 ageEstimate；填了出生日期就以生日为准，年龄只作录入记录
+      form.value.ageEstimate = buildAgeText()
+      form.value.birthEstimated = form.value.birthDate ? '0' : '1'
+      // 实时算出来的只读字段不带回后端
+      delete form.value.ageText
+      delete form.value.ageMonths
+      if (!form.value.birthDate) {
+        // 没填生日就不传该字段，后端按救助日期从年龄反推
+        delete form.value.birthDate
+      }
       if (form.value.catId != undefined) {
+        // 换过病房：笼子上的旧卡位置就不对了，保存后提醒重打
+        const movedWard = wardChanged.value
         updateCatProfile(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           draft.pause()
@@ -605,6 +869,11 @@ function submitForm() {
           // 猫咪名称/编号变了，其它页面的 <cat-select> 与列表翻译立即刷新
           invalidateMasterData(MASTER_KIND.CAT)
           getList()
+          // 病房数量可能因为这次改动变化
+          getWardStats()
+          if (movedWard) {
+            askPrintCard(form.value.catId, '病房已更新。笼子上的旧卡位置不对了，是否现在重打一张？')
+          }
         })
       } else {
         addCatProfile(form.value).then(response => {
@@ -614,10 +883,31 @@ function submitForm() {
           open.value = false
           invalidateMasterData(MASTER_KIND.CAT)
           getList()
+          getWardStats()
+          // 建档后下一步就是把卡挂到笼子上，这里直接问要不要打
+          askPrintCard(response.data)
         })
       }
     }
   })
+}
+
+/**
+ * 打开这只猫的笼位信息卡：只跳转定位，打印由用户自己点。
+ * 卡片是实物、挂在笼子上，建档和换病房之后最需要重打一张。
+ */
+function printCard(catId) {
+  if (!catId) return
+  router.push({ path: '/profile/qrcard', query: { catIds: catId } })
+}
+
+function askPrintCard(catId, tip) {
+  if (!catId) return
+  proxy.$modal.confirm(
+    tip || '保存成功。是否现在打开这只猫的笼位信息卡页面？（进去后自己点打印）',
+    '信息卡',
+    { confirmButtonText: '打开信息卡', cancelButtonText: '暂不打开', type: 'success' }
+  ).then(() => printCard(catId)).catch(() => {})
 }
 
 function handleDelete(row) {
@@ -627,6 +917,7 @@ function handleDelete(row) {
   }).then(() => {
     invalidateMasterData(MASTER_KIND.CAT)
     getList()
+    getWardStats()
     proxy.$modal.msgSuccess("删除成功")
   }).catch(() => {})
 }
@@ -705,9 +996,15 @@ getBaseList()
 getTagList()
 getWardList()
 getHospitalOptions()
+getWardStats()
 </script>
 
 <style scoped>
+/* 关键词输入框后的用法提示图标 */
+.keyword-hint {
+  cursor: help;
+  color: var(--el-text-color-placeholder);
+}
 /* 状态下面的具体位置（基地名 / 医院名），独立一行小字 */
 .status-detail {
   display: block;
@@ -723,6 +1020,20 @@ getHospitalOptions()
   font-size: 12px;
   line-height: 1.4;
   color: var(--el-color-warning);
+}
+/* 年龄输入：数值 + 单位，两者同一行 */
+.age-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+/* 年龄相关的小提示，占满整行，跟在控件下面 */
+.age-hint {
+  width: 100%;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-secondary);
 }
 .qr-box {
   display: flex;
@@ -762,5 +1073,13 @@ getHospitalOptions()
   font-size: 12px;
   color: #b1b3b8;
   line-height: 1.5;
+}
+/* 补录病房提示：与左侧时间选择器同高，读起来不别扭 */
+.loc-tip-col {
+  display: flex;
+  align-items: center;
+}
+.loc-tip-col .form-tip {
+  line-height: 1.6;
 }
 </style>

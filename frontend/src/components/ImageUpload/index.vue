@@ -17,7 +17,7 @@
       :headers="headers"
       :file-list="fileList"
       :on-preview="handlePictureCardPreview"
-      :class="{ hide: fileList.length >= limit }"
+      :class="{ hide: fileList.length >= limit, 'show-upload-time': showUploadTime }"
     >
       <el-icon class="avatar-uploader-icon"><plus /></el-icon>
     </el-upload>
@@ -51,6 +51,7 @@
 import { getToken } from "@/utils/auth"
 import { isExternal } from "@/utils/validate"
 import { deleteUploadFile } from "@/api/common"
+import { uploadTimeLabel } from "@/utils/photoTime"
 import Sortable from 'sortablejs'
 
 const props = defineProps({
@@ -93,6 +94,16 @@ const props = defineProps({
   drag: {
     type: Boolean,
     default: true
+  },
+  // 在每张图片底部标出上传时间（用药照片这类要区分是哪一次上传的场景才开）
+  showUploadTime: {
+    type: Boolean,
+    default: false
+  },
+  // 文件名里解析不到上传时间时的兜底，一般传后端记录的组级上传时间
+  fallbackUploadTime: {
+    type: String,
+    default: ""
   }
 })
 
@@ -239,8 +250,33 @@ function listToString(list, separator) {
   return strs != "" ? strs.substr(0, strs.length - 1) : ""
 }
 
+/**
+ * 把上传时间打到每张图片底部
+ * el-upload 的卡片列表内容由组件内部渲染、没法塞自定义节点，
+ * 所以给对应 li 打一个 data-upload-time 标记，再用 CSS ::after 显示出来
+ */
+function paintUploadTimes() {
+  if (!props.showUploadTime) return
+  const root = proxy.$refs.imageUpload && proxy.$refs.imageUpload.$el
+  if (!root) return
+  const items = root.querySelectorAll(".el-upload-list__item")
+  items.forEach((li, i) => {
+    const file = fileList.value[i]
+    const label = file ? uploadTimeLabel(file.url, props.fallbackUploadTime) : ""
+    if (label) {
+      li.setAttribute("data-upload-time", label)
+    } else {
+      li.removeAttribute("data-upload-time")
+    }
+  })
+}
+
+watch(fileList, () => nextTick(paintUploadTimes), { deep: true })
+watch(() => props.fallbackUploadTime, () => nextTick(paintUploadTimes))
+
 // 初始化拖拽排序
 onMounted(() => {
+  nextTick(paintUploadTimes)
   if (props.drag && !props.disabled) {
     nextTick(() => {
       const element = proxy.$refs.imageUpload?.$el?.querySelector('.el-upload-list')
@@ -264,5 +300,21 @@ onMounted(() => {
 
 :deep(.el-upload.el-upload--picture-card.is-disabled) {
   display: none !important;
+}
+
+/* 图片底部的时间条：只有显式开启 showUploadTime 的调用方才出现 */
+:deep(.show-upload-time .el-upload-list__item[data-upload-time])::after {
+  content: attr(data-upload-time);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
 } 
 </style>

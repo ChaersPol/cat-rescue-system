@@ -47,6 +47,12 @@ import ImagePreview from "@/components/ImagePreview"
 // 字典标签组件
 import DictTag from '@/components/DictTag'
 import CatSelect from '@/components/CatSelect'
+// 所属基地 + 所属房间筛选（所有按猫筛选的列表通用）
+import CatLocationFilter from '@/components/CatLocationFilter'
+// 人员选择器（医生/助理等账号选择，替代手填姓名）
+import StaffSelect from '@/components/StaffSelect'
+// 物资选择器（用药/疫苗/驱虫台账挂物资，选中即出库扣库存）
+import MaterialSelect from '@/components/MaterialSelect'
 
 const app = createApp(App)
 
@@ -79,6 +85,9 @@ app.config.globalProperties.$seqIndex = (index, params) => {
 // 全局组件挂载
 app.component('DictTag', DictTag)
 app.component('CatSelect', CatSelect)
+app.component('CatLocationFilter', CatLocationFilter)
+app.component('StaffSelect', StaffSelect)
+app.component('MaterialSelect', MaterialSelect)
 app.component('Pagination', Pagination)
 app.component('FileUpload', FileUpload)
 app.component('ImageUpload', ImageUpload)

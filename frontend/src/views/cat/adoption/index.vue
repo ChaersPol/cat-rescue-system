@@ -12,6 +12,16 @@
                <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
             </el-select>
          </el-form-item>
+         <cat-location-filter
+           v-model:base-id="queryParams.catBaseId"
+           v-model:ward-id="queryParams.catWardId"
+           @change="handleQuery" />
+         <el-form-item label="回访" prop="visitClosed">
+            <el-select v-model="queryParams.visitClosed" placeholder="全部" clearable style="width: 120px">
+               <el-option label="回访进行中" value="0" />
+               <el-option label="回访已结束" value="1" />
+            </el-select>
+         </el-form-item>
          <el-form-item>
             <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
             <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -43,12 +53,31 @@
                <span v-else>-</span>
             </template>
          </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+         </el-table-column>
+         <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+           <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+         </el-table-column>
          <el-table-column label="领养人" align="center" prop="adopterName" width="110" />
-         <el-table-column label="联系电话" align="center" prop="adopterPhone" width="130" />
+         <el-table-column v-if="!isNarrow" label="联系电话" align="center" prop="adopterPhone" width="130" />
          <el-table-column label="领养日期" align="center" prop="adoptionDate" width="120">
             <template #default="scope">{{ parseTime(scope.row.adoptionDate, '{y}-{m}-{d}') }}</template>
          </el-table-column>
-         <el-table-column label="住址" align="center" prop="adopterAddress" :show-overflow-tooltip="true" min-width="180" />
+         <el-table-column label="回访" align="center" width="170">
+            <template #default="scope">
+               <span v-if="isVisitClosed(scope.row)" class="visit-closed">已结束</span>
+               <template v-else>
+                  <span class="visit-progress">
+                     已回访 {{ scope.row.visitDone || 0 }}/{{ scope.row.visitTotal || 0 }}
+                  </span>
+                  <el-tag v-if="scope.row.visitPending" size="small" type="warning" effect="plain">
+                     待 {{ scope.row.visitPending }}
+                  </el-tag>
+               </template>
+            </template>
+         </el-table-column>
+         <el-table-column v-if="!isNarrow" label="住址" align="center" prop="adopterAddress" :show-overflow-tooltip="true" min-width="180" />
          <el-table-column label="领养协议" align="center" width="150">
             <template #default="scope">
                <template v-if="scope.row.agreementUrl">
@@ -58,9 +87,13 @@
                <el-tag v-else type="info" size="small">未上传</el-tag>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width" v-if="checkPermi(['cat:adoption:edit', 'cat:adoption:remove'])">
+         <el-table-column label="操作" align="center" :width="isNarrow ? 200 : 250" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:adoption:edit', 'cat:adoption:remove'])">
             <template #default="scope">
                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['cat:adoption:edit']">修改</el-button>
+               <el-button v-if="!isVisitClosed(scope.row)" link type="warning" icon="CircleClose"
+                          @click="handleCloseVisit(scope.row)" v-hasPermi="['cat:adoption:edit']">结束回访</el-button>
+               <el-button v-else link type="success" icon="RefreshLeft"
+                          @click="handleReopenVisit(scope.row)" v-hasPermi="['cat:adoption:edit']">重新开启</el-button>
                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:adoption:remove']">删除</el-button>
             </template>
          </el-table-column>
@@ -150,13 +183,16 @@
 </template>
 
 <script setup name="CatAdoption">
-import { listCatAdoption, getCatAdoption, delCatAdoption, addCatAdoption, updateCatAdoption } from "@/api/cat/adoption"
+import { listCatAdoption, getCatAdoption, delCatAdoption, addCatAdoption, updateCatAdoption, setAdoptionVisitClosed } from "@/api/cat/adoption"
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from "@/api/cat/profile"
-import { catLabelOf, formatCatLabel } from "@/utils/catCache"
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
+import { useNarrow } from '@/utils/useNarrow'
 import { resolveFileUrl, previewKind, fileName as pickFileName, fileExtLabel } from "@/utils/fileUrl"
 
 const { proxy } = getCurrentInstance()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const catOptions = ref([])
@@ -174,9 +210,12 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     adopterName: undefined,
-    adopterPhone: undefined
+    adopterPhone: undefined,
+    visitClosed: undefined
   },
   rules: {
     catId: [{ required: true, message: '请选择领养猫咪', trigger: 'change' }],
@@ -191,6 +230,11 @@ const draft = useFormDraft('cat-adoption-form', form)
 
 // 猫咪展示统一为「名字（档案编号）」，格式只在 utils/catCache.js 里定义
 const catLabel = catId => catLabelOf(catOptions, catId)
+
+/** 回访是否已结束：后端返的是字符串 '0'/'1'，这里统一转字符串比较，避免类型差异 */
+function isVisitClosed(row) {
+  return String(row && row.visitClosed) === '1'
+}
 
 function loadCats() {
   listCatProfile({ pageNum: 1, pageSize: 999 }).then(res => {
@@ -300,6 +344,32 @@ function handleDelete(row) {
   }).catch(() => {})
 }
 
+// 结束回访：该领养下待回访计划一起收掉，提醒同时清空，之后还能重新开启
+function handleCloseVisit(row) {
+  const pending = row.visitPending || 0
+  const tip = pending > 0
+    ? `确定结束「${catLabel(row.catId)}」的回访吗？该领养下 ${pending} 条待回访计划会一并标记为「已结束」，对应提醒同时清除。之后可以重新开启。`
+    : `确定结束「${catLabel(row.catId)}」的回访吗？结束后不再产生回访提醒，之后可以重新开启。`
+  proxy.$modal.confirm(tip).then(() => {
+    return setAdoptionVisitClosed(row.adoptionId, true)
+  }).then(res => {
+    proxy.$modal.msgSuccess(res.msg || '回访已结束')
+    getList()
+  }).catch(() => {})
+}
+
+// 重新开启：已结束的计划恢复为待回访，计划日期超期的自动转作废
+function handleReopenVisit(row) {
+  proxy.$modal.confirm(
+    `确定重新开启「${catLabel(row.catId)}」的回访吗？已结束的计划会恢复为待回访，计划日期已超过 3 个月的将自动作废、不再提醒。`
+  ).then(() => {
+    return setAdoptionVisitClosed(row.adoptionId, false)
+  }).then(res => {
+    proxy.$modal.msgSuccess(res.msg || '回访已重新开启')
+    getList()
+  }).catch(() => {})
+}
+
 function handleExport() {
   proxy.download("cat/adoption/export", { ...queryParams.value }, `领养台账_${new Date().getTime()}.xlsx`)
 }
@@ -362,6 +432,17 @@ getList()
   font-size: 12px;
   line-height: 1.5;
   color: #909399;
+}
+/* 回访进度：已回访 x/y，旁边挂待回访条数 */
+.visit-progress {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  margin-right: 4px;
+}
+/* 回访已结束：灰字，和「进行中」一眼区分 */
+.visit-closed {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 /* 协议预览弹窗：内容区留出足够高度，避免图片被压成一条线 */
 .agreement-preview .preview-body {

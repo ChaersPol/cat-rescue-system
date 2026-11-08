@@ -6,11 +6,17 @@
           <el-option v-for="c in catOptions" :key="c.catId" :label="formatCatLabel(c.catName, c.archiveNo)" :value="c.catId" />
         </el-select>
       </el-form-item>
+      <cat-location-filter
+        v-model:base-id="queryParams.catBaseId"
+        v-model:ward-id="queryParams.catWardId"
+        @change="handleQuery" />
       <el-form-item label="回访状态" prop="visitStatus">
         <el-select v-model="queryParams.visitStatus" placeholder="全部状态" clearable style="width: 140px">
           <el-option label="待回访" value="0" />
           <el-option label="已回访" value="1" />
           <el-option label="回访异常" value="2" />
+          <el-option label="已作废" value="3" />
+          <el-option label="已结束" value="4" />
         </el-select>
       </el-form-item>
       <el-form-item label="计划类型" prop="planType">
@@ -45,6 +51,12 @@
       <el-table-column label="猫咪" align="center" width="220">
         <template #default="scope">{{ catName(scope.row.catId) }}</template>
       </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属基地" width="150" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catBaseName(scope.row.catId) }}</template>
+      </el-table-column>
+      <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
+        <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
+      </el-table-column>
       <el-table-column label="回访计划" align="center" prop="planType" width="110">
         <template #default="scope">
           <el-tag size="small" type="info">{{ scope.row.planType }}</el-tag>
@@ -60,7 +72,7 @@
           <el-tag :type="statusTag(scope.row.visitStatus)" size="small">{{ statusLabel(scope.row.visitStatus) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="回访内容" align="center" prop="visitContent" min-width="220" :show-overflow-tooltip="true" />
+      <el-table-column v-if="!isNarrow" label="回访内容" align="center" prop="visitContent" min-width="220" :show-overflow-tooltip="true" />
       <el-table-column label="回访照片" align="center" width="100">
         <template #default="scope">
           <el-button v-if="fileItems(scope.row.photos).length" link type="primary" @click="openPhotos(scope.row)">
@@ -69,9 +81,9 @@
           <span v-else class="text-muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="回访人" align="center" prop="visitBy" width="110" />
-      <el-table-column label="实际回访时间" align="center" prop="visitTime" width="160" />
-      <el-table-column label="操作" align="center" width="180" class-name="small-padding fixed-width" v-if="checkPermi(['cat:visit:edit', 'cat:visit:remove'])">
+      <el-table-column v-if="!isNarrow" label="回访人" align="center" prop="visitBy" width="110" />
+      <el-table-column v-if="!isNarrow" label="实际回访时间" align="center" prop="visitTime" width="160" />
+      <el-table-column label="操作" align="center" width="180" fixed="right" class-name="small-padding fixed-width" v-if="checkPermi(['cat:visit:edit', 'cat:visit:remove'])">
         <template #default="scope">
           <el-button link type="success" icon="Edit" @click="handleVisit(scope.row)" v-hasPermi="['cat:visit:edit']">登记回访</el-button>
           <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['cat:visit:remove']">删除</el-button>
@@ -83,6 +95,14 @@
 
     <!-- 登记 / 修改回访 -->
     <el-dialog :title="title" v-model="open" width="680px" append-to-body>
+      <el-alert
+        v-if="adoptionClosed"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="该领养的「回访已结束」已打开，保存会被拒绝；要继续回访请先到领养台账点「重新开启」"
+        style="margin-bottom: 12px"
+      />
       <el-form ref="visitRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="猫咪" prop="catId">
           <el-select v-model="form.catId" placeholder="请选择猫咪" filterable style="width: 100%">
@@ -90,7 +110,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="回访计划" prop="planType">
-          <el-radio-group v-model="form.planType">
+          <el-radio-group v-model="form.planType" @change="onPlanTypeChange">
             <el-radio label="3天">3天</el-radio>
             <el-radio label="1个月">1个月</el-radio>
             <el-radio label="3个月">3个月</el-radio>
@@ -98,12 +118,15 @@
         </el-form-item>
         <el-form-item label="计划日期" prop="planDate">
           <el-date-picker v-model="form.planDate" type="date" value-format="YYYY-MM-DD" placeholder="选择计划日期" style="width: 100%" />
+          <div class="plan-tip" v-if="planHint">{{ planHint }}</div>
         </el-form-item>
         <el-form-item label="回访状态" prop="visitStatus">
           <el-select v-model="form.visitStatus" style="width: 100%">
             <el-option label="待回访" value="0" />
             <el-option label="已回访" value="1" />
             <el-option label="回访异常" value="2" />
+            <el-option label="已作废" value="3" />
+            <el-option label="已结束" value="4" />
           </el-select>
         </el-form-item>
         <el-form-item label="回访内容" prop="visitContent">
@@ -113,7 +136,7 @@
           <media-upload v-model="form.photos" :limit="9" :image-size="10" image-only />
         </el-form-item>
         <el-form-item label="回访人" prop="visitBy">
-          <el-input v-model="form.visitBy" placeholder="请输入回访人" />
+          <staff-select v-model="form.visitBy" scope="assistant" placeholder="请选择回访人" />
         </el-form-item>
         <el-form-item label="实际回访时间" prop="visitTime">
           <el-date-picker v-model="form.visitTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="选择回访时间" style="width: 100%" />
@@ -148,11 +171,15 @@
 
 <script setup name="CatVisit">
 import { listCatVisit, getCatVisit, delCatVisit, addCatVisit, updateCatVisit } from '@/api/cat/visit'
+import { listAdoptionByCat } from '@/api/cat/adoption'
 import { listCatProfile } from '@/api/cat/profile'
-import { catLabelOf, formatCatLabel } from '@/utils/catCache'
+import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
 import { resolveFileUrl } from '@/utils/fileUrl'
+import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
+const { catBaseName, catWardName } = useCatCache()
+const { isNarrow } = useNarrow()
 
 const list = ref([])
 const open = ref(false)
@@ -172,13 +199,16 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+    catBaseId: undefined,
+    catWardId: undefined,
     catId: undefined,
     visitStatus: undefined,
     planType: undefined
   },
   rules: {
     catId: [{ required: true, message: '请选择猫咪', trigger: 'change' }],
-    planType: [{ required: true, message: '请选择回访计划', trigger: 'change' }]
+    planType: [{ required: true, message: '请选择回访计划', trigger: 'change' }],
+    planDate: [{ required: true, message: '请选择计划日期', trigger: 'change' }]
   }
 })
 
@@ -188,11 +218,11 @@ const { queryParams, form, rules } = toRefs(data)
 const catName = catId => catLabelOf(catOptions, catId)
 
 function statusLabel(s) {
-  return { '0': '待回访', '1': '已回访', '2': '回访异常' }[s] || '未知'
+  return { '0': '待回访', '1': '已回访', '2': '回访异常', '3': '已作废', '4': '已结束' }[s] || '未知'
 }
 
 function statusTag(s) {
-  return { '0': 'warning', '1': 'success', '2': 'danger' }[s] || 'info'
+  return { '0': 'warning', '1': 'success', '2': 'danger', '3': 'info', '4': 'info' }[s] || 'info'
 }
 
 function isOverdue(row) {
@@ -250,8 +280,90 @@ function reset() {
     visitBy: undefined,
     visitTime: undefined
   }
+  adoptionCtx.value = { adoptionId: undefined, adoptionDate: undefined }
+  adoptionClosed.value = false
+  planHint.value = ''
   proxy.clearFormValidate('visitRef')
 }
+
+// ---------------- 计划日期自动算 ----------------
+// 口径：选「3天 / 1个月 / 3个月」= 领养日往后推；该猫没有领养登记时才按今天算。
+// 自动填好之后仍然可以手改（有些领养人出差，实际回访日会前后挪几天）。
+const adoptionCtx = ref({ adoptionId: undefined, adoptionDate: undefined })
+const adoptionClosed = ref(false)
+const planHint = ref('')
+
+function pad2(n) {
+  return n < 10 ? '0' + n : '' + n
+}
+
+function todayStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+/** 按档位往后推日期：月份按月末对齐，1-31 加 1 个月得到 2-28/29 而不是溢出到 3 月 */
+function shiftDate(baseStr, type) {
+  const parts = String(baseStr || '').slice(0, 10).split('-').map(Number)
+  if (parts.length !== 3 || parts.some(n => isNaN(n))) return baseStr
+  const dt = new Date(parts[0], parts[1] - 1, parts[2])
+  if (type === '3天') {
+    dt.setDate(dt.getDate() + 3)
+  } else if (type === '1个月' || type === '3个月') {
+    const months = type === '1个月' ? 1 : 3
+    const day = dt.getDate()
+    dt.setDate(1)
+    dt.setMonth(dt.getMonth() + months)
+    const lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+    dt.setDate(Math.min(day, lastDay))
+  }
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`
+}
+
+function applyPlanDate() {
+  const type = form.value.planType
+  if (!type) return
+  const base = adoptionCtx.value.adoptionDate || todayStr()
+  const next = shiftDate(base, type)
+  form.value.planDate = next
+  const baseLabel = adoptionCtx.value.adoptionDate
+    ? `领养日 ${String(adoptionCtx.value.adoptionDate).slice(0, 10)}`
+    : '今天（该猫还没有领养登记）'
+  planHint.value = `按${baseLabel}自动算：「${type}」→ ${next}，可手动改`
+}
+
+function onPlanTypeChange() {
+  applyPlanDate()
+}
+
+/** 选猫后取该猫的领养记录：拿领养日算计划日期，顺便看回访是否已结束 */
+function loadAdoptionContext(catId, autoFill) {
+  adoptionCtx.value = { adoptionId: undefined, adoptionDate: undefined }
+  adoptionClosed.value = false
+  planHint.value = ''
+  if (!catId) return
+  listAdoptionByCat(catId).then(res => {
+    const row = (res.rows || [])[0]
+    if (!row) {
+      if (autoFill) applyPlanDate()
+      return
+    }
+    adoptionCtx.value = { adoptionId: row.adoptionId, adoptionDate: row.adoptionDate }
+    adoptionClosed.value = row.visitClosed === '1'
+    if (!form.value.adoptionId) form.value.adoptionId = row.adoptionId
+    if (autoFill) {
+      applyPlanDate()
+    } else if (form.value.planDate) {
+      planHint.value = `领养日 ${String(row.adoptionDate).slice(0, 10)}，改了档位会按它重算`
+    }
+  }).catch(() => {})
+}
+
+watch(() => form.value.catId, catId => {
+  if (!open.value) return
+  // 新增：选完猫直接把计划日期算好；修改：只带出提示，不覆盖已存的日期
+  loadAdoptionContext(catId, !form.value.visitId)
+})
 
 function handleQuery() {
   queryParams.value.pageNum = 1
@@ -293,6 +405,10 @@ function handleVisit(row) {
 }
 
 function submitForm() {
+  if (adoptionClosed.value) {
+    proxy.$modal.msgWarning('该领养回访已结束，请先到领养台账点「重新开启」')
+    return
+  }
   proxy.$refs['visitRef'].validate(valid => {
     if (valid) {
       if (form.value.visitId != undefined) {
@@ -353,6 +469,14 @@ getList()
 .overdue {
   color: #f56c6c;
   font-weight: 600;
+}
+
+/* 计划日期下方的算日期口径提示 */
+.plan-tip {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-secondary);
 }
 
 .photo-grid {
