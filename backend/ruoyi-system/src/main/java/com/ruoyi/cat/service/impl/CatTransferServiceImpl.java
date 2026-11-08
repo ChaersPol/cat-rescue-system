@@ -8,6 +8,7 @@ import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.domain.CatProfile;
 import com.ruoyi.cat.mapper.CatFlowMapper;
 import com.ruoyi.cat.mapper.CatProfileMapper;
+import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.cat.service.ICatTransferService;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
@@ -25,6 +26,9 @@ public class CatTransferServiceImpl implements ICatTransferService
 
     @Autowired
     private CatFlowMapper catFlowMapper;
+
+    @Autowired
+    private ICatStaffService staffService;
 
     @Override
     @Transactional
@@ -61,7 +65,10 @@ public class CatTransferServiceImpl implements ICatTransferService
         flow.setCatId(profile.getCatId());
         if (flow.getOperateBy() == null || flow.getOperateBy().isEmpty())
         {
-            flow.setOperateBy(SecurityUtils.getUsername());
+            // 原来写的是登录账号（admin / assist01），跟其它页面的「姓名」对不上；
+            // 统一记昵称，没有昵称才退回登录名
+            String staffName = staffService.currentStaffName();
+            flow.setOperateBy(staffName != null ? staffName : SecurityUtils.getUsername());
         }
         if (flow.getOperateTime() == null)
         {
@@ -116,9 +123,19 @@ public class CatTransferServiceImpl implements ICatTransferService
         }
         else if (type.contains("医院返回"))
         {
-            // 医院返回：状态回到在养，回到指定基地/病房
-            update.setStatus("1");
+            // 出院分两步（2026-11-07 定）：
+            //   第一步只定"回哪个基地"，病房允许空 —— 这种状态单独标成「待安置」，
+            //   否则状态显示「在养」却查不到房间，实际会出现"数据正常、找不到猫"。
+            //   第二步再用「基地内安置」补录具体病房。
             update.setBaseId(flow.getToBaseId() != null ? flow.getToBaseId() : profile.getOwnerBaseId());
+            update.setWardId(flow.getToWardId());
+            update.setStatus(flow.getToWardId() != null ? "1" : "9");
+        }
+        else if (type.contains("安置"))
+        {
+            // 基地内安置：把待安置的猫放进具体房间，状态回到在养
+            update.setStatus("1");
+            update.setBaseId(flow.getToBaseId() != null ? flow.getToBaseId() : profile.getBaseId());
             update.setWardId(flow.getToWardId());
         }
         else if (type.contains("死亡"))

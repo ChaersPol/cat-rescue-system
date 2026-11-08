@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatCheckItemMapper">
+
+    <resultMap type="CatCheckItem" id="CatCheckItemResult">
+        <result property="itemId" column="item_id" />
+        <result property="parentId" column="parent_id" />
+        <result property="ancestors" column="ancestors" />
+        <result property="itemName" column="item_name" />
+        <result property="itemType" column="item_type" />
+        <result property="materialId" column="material_id" />
+        <result property="unit" column="unit" />
+        <result property="price" column="price" />
+        <result property="orderNum" column="order_num" />
+        <result property="status" column="status" />
+        <result property="delFlag" column="del_flag" />
+        <result property="materialName" column="material_name" />
+        <result property="stock" column="stock" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectCatCheckItemVo">
+        select i.item_id, i.parent_id, i.ancestors, i.item_name, i.item_type, i.material_id,
+               i.unit, i.price, i.order_num, i.status, i.del_flag,
+               m.material_name, m.stock,
+               i.create_by, i.create_time, i.update_by, i.update_time, i.remark
+        from cat_check_item i
+        left join cat_material m on m.material_id = i.material_id and m.del_flag = '0'
+    </sql>
+
+    <select id="selectCatCheckItemById" parameterType="Long" resultMap="CatCheckItemResult">
+        <include refid="selectCatCheckItemVo"/>
+        where i.item_id = #{itemId}
+    </select>
+
+    <select id="selectCatCheckItemList" parameterType="CatCheckItem" resultMap="CatCheckItemResult">
+        <include refid="selectCatCheckItemVo"/>
+        <where>
+            <if test="itemName != null and itemName != ''">AND i.item_name like concat('%', #{itemName}, '%')</if>
+            <if test="itemType != null and itemType != ''">AND i.item_type = #{itemType}</if>
+            <if test="status != null and status != ''">AND i.status = #{status}</if>
+            <if test="parentId != null">AND i.parent_id = #{parentId}</if>
+            AND i.del_flag = '0'
+        </where>
+        order by i.ancestors asc, i.order_num asc, i.item_id asc
+    </select>
+
+    <!-- 开单可选：只取启用且没有子节点的项，带出关联物资的当前库存 -->
+    <select id="selectSelectableItems" resultMap="CatCheckItemResult">
+        <include refid="selectCatCheckItemVo"/>
+        where i.del_flag = '0'
+          and i.status = '0'
+          and not exists (
+              select 1 from cat_check_item c
+              where c.parent_id = i.item_id and c.del_flag = '0' and c.status = '0'
+          )
+        <if test="itemType != null and itemType != ''">and i.item_type = #{itemType}</if>
+        <if test="keyword != null and keyword != ''">and i.item_name like concat('%', #{keyword}, '%')</if>
+        order by i.ancestors asc, i.order_num asc, i.item_id asc
+    </select>
+
+    <insert id="insertCatCheckItem" parameterType="CatCheckItem" useGeneratedKeys="true" keyProperty="itemId">
+        insert into cat_check_item (
+            <if test="parentId != null">parent_id,</if>
+            <if test="ancestors != null">ancestors,</if>
+            <if test="itemName != null and itemName != ''">item_name,</if>
+            <if test="itemType != null and itemType != ''">item_type,</if>
+            <if test="materialId != null">material_id,</if>
+            <if test="unit != null">unit,</if>
+            <if test="price != null">price,</if>
+            <if test="orderNum != null">order_num,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+        )values(
+            <if test="parentId != null">#{parentId},</if>
+            <if test="ancestors != null">#{ancestors},</if>
+            <if test="itemName != null and itemName != ''">#{itemName},</if>
+            <if test="itemType != null and itemType != ''">#{itemType},</if>
+            <if test="materialId != null">#{materialId},</if>
+            <if test="unit != null">#{unit},</if>
+            <if test="price != null">#{price},</if>
+            <if test="orderNum != null">#{orderNum},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updateCatCheckItem" parameterType="CatCheckItem">
+        update cat_check_item
+        <set>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="ancestors != null">ancestors = #{ancestors},</if>
+            <if test="itemName != null and itemName != ''">item_name = #{itemName},</if>
+            <if test="itemType != null and itemType != ''">item_type = #{itemType},</if>
+            <!-- 关联物资允许清空，所以这里不加非空判断 -->
+            material_id = #{materialId},
+            <if test="unit != null">unit = #{unit},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="orderNum != null">order_num = #{orderNum},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </set>
+        where item_id = #{itemId}
+    </update>
+
+    <delete id="deleteCatCheckItemById" parameterType="Long">
+        update cat_check_item set del_flag = '2' where item_id = #{itemId}
+    </delete>
+
+    <delete id="deleteCatCheckItemByIds" parameterType="Long">
+        update cat_check_item set del_flag = '2' where item_id in
+        <foreach collection="array" item="itemId" open="(" separator="," close=")">
+            #{itemId}
+        </foreach>
+    </delete>
+
+    <select id="countChildren" parameterType="Long" resultType="int">
+        select count(*) from cat_check_item where parent_id = #{itemId} and del_flag = '0'
+    </select>
+
+    <select id="countSameName" resultType="int">
+        select count(*) from cat_check_item
+        where parent_id = #{parentId} and item_name = #{itemName} and del_flag = '0'
+        <if test="itemId != null">and item_id != #{itemId}</if>
+    </select>
+
+</mapper>

@@ -36,6 +36,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatDeathVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="deathDate != null">AND death_date = #{deathDate}</if>
             <if test="deathPlace != null and deathPlace != ''">AND death_place = #{deathPlace}</if>
             <if test="deathType != null and deathType != ''">AND death_type = #{deathType}</if>

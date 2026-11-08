@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatStaffMapper">
+
+    <!--
+       员工候选：只列状态正常的在职账号。
+       roleKeys 为空时返回全部在职账号（操作人、登记人这类谁都能做的字段）；
+       传 doctor / assistant 时只返回对应角色，避免把非医生账号选成手术医生。
+    -->
+    <select id="selectStaffOptions" resultType="java.util.Map">
+        select u.user_id as userId, u.user_name as userName, u.nick_name as nickName
+          from sys_user u
+         where u.del_flag = '0' and u.status = '0'
+        <if test="roleKeys != null and roleKeys.size() > 0">
+           and exists (
+               select 1 from sys_user_role ur
+                 join sys_role r on r.role_id = ur.role_id
+                where ur.user_id = u.user_id
+                  and r.del_flag = '0' and r.status = '0'
+                  and r.role_key in
+                  <foreach item="roleKey" collection="roleKeys" open="(" separator="," close=")">#{roleKey}</foreach>
+           )
+        </if>
+         order by u.user_id
+    </select>
+
+    <!-- 按昵称反查账号：校验前端传来的姓名确实对应一个真实在职账号 -->
+    <select id="selectStaffByNickName" resultType="java.util.Map">
+        select u.user_id as userId, u.user_name as userName, u.nick_name as nickName
+          from sys_user u
+         where u.nick_name = #{nickName}
+           and u.del_flag = '0' and u.status = '0'
+        <if test="roleKeys != null and roleKeys.size() > 0">
+           and exists (
+               select 1 from sys_user_role ur
+                 join sys_role r on r.role_id = ur.role_id
+                where ur.user_id = u.user_id
+                  and r.del_flag = '0' and r.status = '0'
+                  and r.role_key in
+                  <foreach item="roleKey" collection="roleKeys" open="(" separator="," close=")">#{roleKey}</foreach>
+           )
+        </if>
+         order by u.user_id
+         limit 1
+    </select>
+
+</mapper>

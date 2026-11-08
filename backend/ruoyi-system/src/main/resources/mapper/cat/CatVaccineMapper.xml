@@ -11,6 +11,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="vaccineDate" column="vaccine_date" />
         <result property="nextDate" column="next_date" />
         <result property="responsible" column="responsible" />
+        <result property="sourceType" column="source_type" />
+        <result property="diagnosisId" column="diagnosis_id" />
+        <result property="materialId" column="material_id" />
+        <result property="materialName" column="material_name" />
+        <result property="stockQty" column="stock_qty" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -19,7 +24,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatVaccineVo">
-        select vaccine_id, cat_id, vaccine_type, vaccine_date, next_date, responsible, create_by, create_time, update_by, update_time, remark from cat_vaccine
+        select vaccine_id, cat_id, vaccine_type, vaccine_date, next_date, responsible, source_type, diagnosis_id, material_id, material_name, stock_qty, create_by, create_time, update_by, update_time, remark from cat_vaccine
     </sql>
 
     <select id="selectCatVaccineById" parameterType="Long" resultMap="CatVaccineResult">
@@ -31,10 +36,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatVaccineVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="vaccineType != null and vaccineType != ''">AND vaccine_type = #{vaccineType}</if>
             <if test="vaccineDate != null">AND vaccine_date = #{vaccineDate}</if>
             <if test="nextDate != null">AND next_date = #{nextDate}</if>
             <if test="responsible != null and responsible != ''">AND responsible = #{responsible}</if>
+            <if test="sourceType != null and sourceType != ''">AND source_type = #{sourceType}</if>
+            <if test="diagnosisId != null">AND diagnosis_id = #{diagnosisId}</if>
             <if test="dueDays != null">AND next_date is not null AND next_date &lt;= date_add(curdate(), interval #{dueDays} day)</if>
             AND del_flag = '0'
         </where>
@@ -52,6 +62,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="vaccineDate != null">vaccine_date,</if>
             <if test="nextDate != null">next_date,</if>
             <if test="responsible != null">responsible,</if>
+            <if test="sourceType != null">source_type,</if>
+            <if test="diagnosisId != null">diagnosis_id,</if>
+            <if test="materialId != null">material_id,</if>
+            <if test="materialName != null">material_name,</if>
+            <if test="stockQty != null">stock_qty,</if>
+            <if test="remark != null">remark,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time
         )values(
@@ -60,6 +76,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="vaccineDate != null">#{vaccineDate},</if>
             <if test="nextDate != null">#{nextDate},</if>
             <if test="responsible != null">#{responsible},</if>
+            <if test="sourceType != null">#{sourceType},</if>
+            <if test="diagnosisId != null">#{diagnosisId},</if>
+            <if test="materialId != null">#{materialId},</if>
+            <if test="materialName != null">#{materialName},</if>
+            <if test="stockQty != null">#{stockQty},</if>
+            <if test="remark != null">#{remark},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate()
         )
@@ -73,6 +95,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="vaccineDate != null">vaccine_date = #{vaccineDate},</if>
             <if test="nextDate != null">next_date = #{nextDate},</if>
             <if test="responsible != null and responsible != ''">responsible = #{responsible},</if>
+            <if test="materialId != null">material_id = #{materialId}, material_name = #{materialName}, stock_qty = #{stockQty},</if>
+            <if test="materialId == null and clearMaterial != null and clearMaterial">
+                material_id = null, material_name = null, stock_qty = null,
+            </if>
+            <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
         </set>
@@ -82,6 +109,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <delete id="deleteCatVaccineById" parameterType="Long">
         update cat_vaccine set del_flag = '2' where vaccine_id = #{vaccineId}
     </delete>
+
+    <!-- 修改/删除诊断时，把之前由它自动生成的疫苗记录软删 -->
+    <update id="deleteAutoByDiagnosisId" parameterType="Long">
+        update cat_vaccine set del_flag = '2' where diagnosis_id = #{diagnosisId} and source_type = '2'
+    </update>
 
     <delete id="deleteCatVaccineByIds" parameterType="Long">
         update cat_vaccine set del_flag = '2' where vaccine_id in

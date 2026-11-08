@@ -14,7 +14,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="administration" column="administration" />
         <result property="executor" column="executor" />
         <result property="adverseReaction" column="adverse_reaction" />
+        <result property="sourceType" column="source_type" />
+        <result property="diagnosisId" column="diagnosis_id" />
+        <result property="prescriptionId" column="prescription_id" />
         <result property="photos" column="photos" />
+        <result property="materialId" column="material_id" />
+        <result property="materialName" column="material_name" />
+        <result property="stockQty" column="stock_qty" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -22,8 +28,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="remark" column="remark" />
     </resultMap>
 
+    <!-- 合并视图一行：猫 + 日期 + 时间段 -->
+    <resultMap type="CatMedicationGroup" id="CatMedicationGroupResult">
+        <result property="catId" column="cat_id" />
+        <result property="useDate" column="use_date" />
+        <result property="timePeriod" column="time_period" />
+        <result property="drugCount" column="drug_count" />
+        <result property="drugNames" column="drug_names" />
+        <result property="prescriptionId" column="prescription_id" />
+        <result property="execStatus" column="exec_status" />
+        <result property="executor" column="executor" />
+        <result property="execTime" column="exec_time" />
+        <result property="photos" column="photos" />
+        <result property="photoTime" column="photo_time" />
+        <result property="adverseReaction" column="adverse_reaction" />
+        <result property="execRemark" column="exec_remark" />
+        <result property="execUpdateTime" column="exec_update_time" />
+    </resultMap>
+
     <sql id="selectCatMedicationVo">
-        select medication_id, cat_id, use_date, time_period, drug_name, dosage, administration, executor, adverse_reaction, photos, create_by, create_time, update_by, update_time, remark from cat_medication
+        select medication_id, cat_id, use_date, time_period, drug_name, dosage, administration, executor, adverse_reaction, source_type, diagnosis_id, prescription_id, photos, material_id, material_name, stock_qty, create_by, create_time, update_by, update_time, remark from cat_medication
     </sql>
 
     <select id="selectCatMedicationById" parameterType="Long" resultMap="CatMedicationResult">
@@ -35,6 +59,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatMedicationVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
+            <!-- 助理负责人：按病房授权取猫，跟「执行人」不是一回事（执行人不一定是负责人）。
+                 明细视图以前漏了这段，前端选完助理列表纹丝不动 -->
+            <if test="assistantUserId != null">
+                AND cat_id IN (
+                    SELECT p.cat_id FROM cat_profile p
+                     WHERE p.del_flag = '0'
+                       AND p.ward_id IN (SELECT a.ward_id FROM cat_ward_auth a WHERE a.user_id = #{assistantUserId})
+                )
+            </if>
             <if test="useDate != null">AND use_date = #{useDate}</if>
             <if test="params.beginTime != null and params.beginTime != ''">AND date_format(use_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
             <if test="params.endTime != null and params.endTime != ''">AND date_format(use_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
@@ -45,6 +81,29 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="executor != null and executor != ''">AND executor = #{executor}</if>
             <if test="adverseReaction != null and adverseReaction != ''">AND adverse_reaction = #{adverseReaction}</if>
             <if test="photos != null and photos != ''">AND photos = #{photos}</if>
+            <if test="sourceType != null and sourceType != ''">AND source_type = #{sourceType}</if>
+            <!-- 完成状态是「组级」的（存 cat_medication_exec），明细行按它所属那一组的打卡结果筛。
+                 「未完成」= 这一组没有任何一条已完成打卡（含根本没打卡记录的情况） -->
+            <if test='execStatus != null and "1".equals(execStatus)'>
+                AND EXISTS (
+                    SELECT 1 FROM cat_medication_exec e
+                     WHERE e.cat_id = cat_medication.cat_id
+                       AND e.use_date = cat_medication.use_date
+                       AND ifnull(e.time_period, '') = ifnull(cat_medication.time_period, '')
+                       AND e.status = '1'
+                )
+            </if>
+            <if test='execStatus != null and "0".equals(execStatus)'>
+                AND NOT EXISTS (
+                    SELECT 1 FROM cat_medication_exec e
+                     WHERE e.cat_id = cat_medication.cat_id
+                       AND e.use_date = cat_medication.use_date
+                       AND ifnull(e.time_period, '') = ifnull(cat_medication.time_period, '')
+                       AND e.status = '1'
+                )
+            </if>
+            <if test="diagnosisId != null">AND diagnosis_id = #{diagnosisId}</if>
+            <if test="prescriptionId != null">AND prescription_id = #{prescriptionId}</if>
             AND del_flag = '0'
         </where>
         order by medication_id desc
@@ -60,7 +119,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="administration != null">administration,</if>
             <if test="executor != null">executor,</if>
             <if test="adverseReaction != null">adverse_reaction,</if>
+            <if test="sourceType != null">source_type,</if>
+            <if test="diagnosisId != null">diagnosis_id,</if>
+            <if test="prescriptionId != null">prescription_id,</if>
             <if test="photos != null">photos,</if>
+            <if test="materialId != null">material_id,</if>
+            <if test="materialName != null">material_name,</if>
+            <if test="stockQty != null">stock_qty,</if>
+            <if test="remark != null">remark,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time
         )values(
@@ -72,7 +138,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="administration != null">#{administration},</if>
             <if test="executor != null">#{executor},</if>
             <if test="adverseReaction != null">#{adverseReaction},</if>
+            <if test="sourceType != null">#{sourceType},</if>
+            <if test="diagnosisId != null">#{diagnosisId},</if>
+            <if test="prescriptionId != null">#{prescriptionId},</if>
             <if test="photos != null">#{photos},</if>
+            <if test="materialId != null">#{materialId},</if>
+            <if test="materialName != null">#{materialName},</if>
+            <if test="stockQty != null">#{stockQty},</if>
+            <if test="remark != null">#{remark},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate()
         )
@@ -91,6 +164,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="adverseReaction != null and adverseReaction != ''">adverse_reaction = #{adverseReaction},</if>
             <!-- 允许写入空串，删掉照片后能把 photos 清空 -->
             <if test="photos != null">photos = #{photos},</if>
+            <!-- 关联物资：有值就挂上，clearMaterial=true 时三项一起清掉（前端点「不关联」就是这个场景） -->
+            <if test="materialId != null">material_id = #{materialId}, material_name = #{materialName}, stock_qty = #{stockQty},</if>
+            <if test="materialId == null and clearMaterial != null and clearMaterial">
+                material_id = null, material_name = null, stock_qty = null,
+            </if>
+            <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
         </set>
@@ -112,6 +191,128 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <delete id="deleteCatMedicationById" parameterType="Long">
         update cat_medication set del_flag = '2' where medication_id = #{medicationId}
     </delete>
+
+    <!-- 修改/删除诊断时，把之前由它自动生成的用药记录软删，再按新明细重建。
+         已经打卡完成的组不能删：医生改了方案也不能把发生过的历史抹掉 -->
+    <update id="deleteAutoByDiagnosisId" parameterType="Long">
+        update cat_medication m set m.del_flag = '2'
+         where m.diagnosis_id = #{diagnosisId}
+           and m.source_type = '2'
+           and not exists (
+               select 1 from cat_medication_exec e
+                where e.cat_id = m.cat_id
+                  and e.use_date = m.use_date
+                  and e.time_period = m.time_period
+                  and e.status = '1'
+           )
+    </update>
+
+    <!-- ================= 合并视图（猫 + 日期 + 时间段 一行） ================= -->
+    <select id="selectCatMedicationGroupList" parameterType="CatMedicationGroup" resultMap="CatMedicationGroupResult">
+        select m.cat_id,
+               m.use_date,
+               m.time_period,
+               count(*) as drug_count,
+               group_concat(m.drug_name order by m.medication_id separator '、') as drug_names,
+               max(m.prescription_id) as prescription_id,
+               max(e.status) as exec_status,
+               max(e.executor) as executor,
+               max(e.exec_time) as exec_time,
+               max(e.photos) as photos,
+               max(e.photo_time) as photo_time,
+               max(e.adverse_reaction) as adverse_reaction,
+               max(e.remark) as exec_remark,
+               max(e.update_time) as exec_update_time
+          from cat_medication m
+          left join cat_medication_exec e
+                 on e.cat_id = m.cat_id
+                and e.use_date = m.use_date
+                and e.time_period = m.time_period
+        <where>
+            m.del_flag = '0'
+            <if test="catId != null">AND m.cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND m.cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND m.cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
+            <!-- 助理负责人：按病房授权取猫，跟「执行人」不是一回事（执行人不一定是负责人） -->
+            <if test="assistantUserId != null">
+                AND m.cat_id IN (
+                    SELECT p.cat_id FROM cat_profile p
+                     WHERE p.del_flag = '0'
+                       AND p.ward_id IN (SELECT a.ward_id FROM cat_ward_auth a WHERE a.user_id = #{assistantUserId})
+                )
+            </if>
+            <if test="timePeriod != null and timePeriod != ''">AND m.time_period = #{timePeriod}</if>
+            <if test="useDate != null">AND m.use_date = #{useDate}</if>
+            <if test="useDateStr != null and useDateStr != ''">AND m.use_date = #{useDateStr}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(m.use_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(m.use_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
+            <if test="sourceType != null and sourceType != ''">AND m.source_type = #{sourceType}</if>
+            <if test="executor != null and executor != ''">AND e.executor = #{executor}</if>
+            <!-- 完成状态是组级的：没打卡记录也算未完成 -->
+            <if test='execStatus != null and "1".equals(execStatus)'>AND e.status = '1'</if>
+            <if test='execStatus != null and "0".equals(execStatus)'>AND (e.status IS NULL OR e.status = '0')</if>
+        </where>
+        group by m.cat_id, m.use_date, m.time_period
+        order by m.use_date desc, m.cat_id desc,
+                 case m.time_period when '早' then 1 when '中' then 2 when '晚' then 3 else 9 end
+    </select>
+
+    <select id="selectGroupDetails" resultMap="CatMedicationResult">
+        <include refid="selectCatMedicationVo"/>
+         where del_flag = '0'
+           and cat_id = #{catId}
+           and use_date = #{useDate}
+           and ifnull(time_period, '') = ifnull(#{timePeriod}, '')
+         order by medication_id asc
+    </select>
+
+    <!-- 同一天同一时段同一种药是否已存在。处方展开前会先删掉「未完成」的本处方明细，
+         所以这里如果还能查到，说明那是已完成打卡的历史记录，必须跳过不能重复插 -->
+    <select id="countSameDrug" resultType="int">
+        select count(*) from cat_medication
+         where del_flag = '0'
+           and cat_id = #{catId}
+           and use_date = #{useDate}
+           and ifnull(time_period, '') = ifnull(#{timePeriod}, '')
+           and drug_name = #{drugName}
+    </select>
+
+    <!-- 医生改处方：只清掉「fromDate 起、还没完成打卡」的明细，已完成的原样保留 -->
+    <update id="deleteUnfinishedByPrescription">
+        update cat_medication m set m.del_flag = '2'
+         where m.prescription_id = #{prescriptionId}
+           and m.del_flag = '0'
+           and m.use_date &gt;= #{fromDate}
+           and not exists (
+               select 1 from cat_medication_exec e
+                where e.cat_id = m.cat_id
+                  and e.use_date = m.use_date
+                  and e.time_period = m.time_period
+                  and e.status = '1'
+           )
+    </update>
+
+    <update id="deleteUnfinishedByPrescriptionAll">
+        update cat_medication m set m.del_flag = '2'
+         where m.prescription_id = #{prescriptionId}
+           and m.del_flag = '0'
+           and not exists (
+               select 1 from cat_medication_exec e
+                where e.cat_id = m.cat_id
+                  and e.use_date = m.use_date
+                  and e.time_period = m.time_period
+                  and e.status = '1'
+           )
+    </update>
+
+    <select id="selectExecStatus" resultType="String">
+        select status from cat_medication_exec
+         where cat_id = #{catId}
+           and use_date = #{useDate}
+           and ifnull(time_period, '') = ifnull(#{timePeriod}, '')
+         limit 1
+    </select>
 
     <delete id="deleteCatMedicationByIds" parameterType="Long">
         update cat_medication set del_flag = '2' where medication_id in

@@ -32,6 +32,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatReleaseVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="tnrId != null">AND tnr_id = #{tnrId}</if>
             <if test="releaseDate != null">AND release_date = #{releaseDate}</if>
             <if test="params.beginTime != null and params.beginTime != ''">AND date_format(release_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>

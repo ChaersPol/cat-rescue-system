@@ -36,6 +36,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <where>
             <if test="adoptionId != null">AND adoption_id = #{adoptionId}</if>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="planType != null and planType != ''">AND plan_type = #{planType}</if>
             <if test="planDate != null">AND plan_date = #{planDate}</if>
             <if test="visitStatus != null and visitStatus != ''">AND visit_status = #{visitStatus}</if>
@@ -92,6 +95,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         </set>
         where visit_id = #{visitId}
+    </update>
+
+    <!-- 只改状态：回访结束开关 / 超期自动作废 -->
+    <update id="updateVisitStatus">
+        update cat_visit
+           set visit_status = #{visitStatus},
+               update_time = sysdate()
+         where visit_id = #{visitId}
     </update>
 
     <delete id="deleteCatVisitById" parameterType="Long">

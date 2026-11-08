@@ -49,6 +49,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receiptUrl != null and receiptUrl != ''">AND receipt_url = #{receiptUrl}</if>
             <if test="baseId != null">AND base_id = #{baseId}</if>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选 -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="referralId != null">AND referral_id = #{referralId}</if>
             <if test="stockId != null">AND stock_id = #{stockId}</if>
             AND del_flag = '0'

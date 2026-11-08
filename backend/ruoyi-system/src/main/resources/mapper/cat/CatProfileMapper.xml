@@ -12,6 +12,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="breed" column="breed" />
         <result property="sex" column="sex" />
         <result property="ageEstimate" column="age_estimate" />
+        <result property="birthDate" column="birth_date" />
+        <result property="birthEstimated" column="birth_estimated" />
         <result property="weight" column="weight" />
         <result property="personality" column="personality" />
         <result property="source" column="source" />
@@ -31,6 +33,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="hasQrCode" column="has_qr_code" />
         <result property="archived" column="archived" />
         <result property="createBy" column="create_by" />
+        <!-- 建档人昵称（展示用）：create_by 存的是登录名 admin，直接显示会和其它页面的姓名对不上 -->
+        <result property="creatorName" column="creator_name" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
         <result property="updateTime" column="update_time" />
@@ -38,12 +42,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatProfileVo">
-        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
+        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, qr_code, archived, create_by, create_time, update_by, update_time, remark,
+               (select ifnull(nullif(u.nick_name, ''), u.user_name) from sys_user u where u.user_name = cat_profile.create_by limit 1) as creator_name
+          from cat_profile
     </sql>
 
     <!-- 列表查询不返回 Base64 二维码，避免列表接口数据过大；只带 has_qr_code 标记 -->
     <sql id="selectCatProfileListVo">
-        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, (case when qr_code is not null and qr_code &lt;&gt; '' then 1 else 0 end) as has_qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
+        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, (case when qr_code is not null and qr_code &lt;&gt; '' then 1 else 0 end) as has_qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
     </sql>
 
     <select id="selectCatProfileById" parameterType="Long" resultMap="CatProfileResult">
@@ -99,10 +105,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                p.remark, p.qr_code,
                b.base_name, w.ward_name,
                ph.photo_url, ph.photo_folder,
-               (select concat(ifnull(v.vaccine_type, '疫苗'), ' · ', date_format(v.vaccine_date, '%Y-%m-%d'))
-                  from cat_vaccine v
-                 where v.cat_id = p.cat_id and v.del_flag = '0'
-                 order by v.vaccine_date desc, v.vaccine_id desc limit 1) as vaccine_text,
+               <!-- 疫苗栏：第一/二/三针都齐了只写「已打齐」（卡面小，不堆三行日期）；
+                    没齐就显示最近接种的那一针。狂犬/加强针不计入三针 -->
+               (case when (select count(distinct v.vaccine_type)
+                             from cat_vaccine v
+                            where v.cat_id = p.cat_id and v.del_flag = '0'
+                              and v.vaccine_type in ('第一针', '第二针', '第三针')) >= 3
+                     then '已打齐'
+                     else (select concat(ifnull(v.vaccine_type, '疫苗'), ' · ', date_format(v.vaccine_date, '%Y-%m-%d'))
+                             from cat_vaccine v
+                            where v.cat_id = p.cat_id and v.del_flag = '0'
+                            order by v.vaccine_date desc, v.vaccine_id desc limit 1)
+                end) as vaccine_text,
                coalesce(
                    (select concat(r.hospital_name, ' · ', date_format(r.send_date, '%Y-%m-%d'))
                       from cat_referral r
@@ -121,13 +135,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           from cat_profile p
           left join cat_base b on b.base_id = p.base_id
           left join cat_ward w on w.ward_id = p.ward_id
-          <!-- 特征照片：优先「正面照」文件夹，其次取最新一张图片 -->
+          <!-- 信息卡封面：按上传时间倒序取最新一张；「信息卡」是拍下来的纸质卡，
+               不适合当猫咪封面，所以排到最后兜底，只有确实没有别的照片时才用 -->
           left join lateral (
               select coalesce(nullif(p2.thumb_url, ''), p2.file_url) as photo_url,
                      p2.folder as photo_folder
                 from cat_photo p2
                where p2.cat_id = p.cat_id and p2.file_type = '1'
-               order by (p2.folder = '正面照') desc, p2.create_time desc, p2.photo_id desc
+               order by (case when ifnull(p2.folder, '') = '信息卡' then 1 else 0 end),
+                        p2.create_time desc, p2.photo_id desc
                limit 1
           ) ph on true
          where p.cat_id in
@@ -147,6 +163,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="breed != null and breed != ''">AND breed = #{breed}</if>
             <if test="sex != null and sex != ''">AND sex = #{sex}</if>
             <if test="ageEstimate != null and ageEstimate != ''">AND age_estimate = #{ageEstimate}</if>
+            <!-- 年龄筛选：库里有年龄的按出生日期算整月数，没出生日期的单独走「未知」 -->
+            <if test="ageMinMonths != null">AND timestampdiff(month, birth_date, curdate()) &gt;= #{ageMinMonths}</if>
+            <if test="ageMaxMonths != null">AND timestampdiff(month, birth_date, curdate()) &lt;= #{ageMaxMonths}</if>
+            <if test="ageUnknown != null and ageUnknown">AND birth_date is null</if>
             <if test="weight != null and weight != ''">AND weight = #{weight}</if>
             <if test="personality != null and personality != ''">AND personality = #{personality}</if>
             <if test="source != null and source != ''">AND source = #{source}</if>
@@ -156,9 +176,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormed != null and dewormed != ''">AND dewormed = #{dewormed}</if>
             <if test="vaccinated != null and vaccinated != ''">AND vaccinated = #{vaccinated}</if>
             <if test="feature != null and feature != ''">AND feature like concat('%', #{feature}, '%')</if>
+            <!-- 关键词：一个框搜名字/编号/别名/特征/品种/性别/录入年龄。
+                 多段用空格分隔时逐段 AND（「橘猫 母」= 品种含橘猫 且 性别是母）；
+                 年龄段由 Service 转成 ageMinMonths/ageMaxMonths，不在这里匹配 -->
+            <if test="keywords != null and keywords.length > 0">
+                <foreach item="kw" collection="keywords">
+                    AND (
+                        cat_name like concat('%', #{kw}, '%')
+                        or archive_no like concat('%', #{kw}, '%')
+                        or ifnull(alias, '') like concat('%', #{kw}, '%')
+                        or ifnull(feature, '') like concat('%', #{kw}, '%')
+                        or ifnull(breed, '') like concat('%', #{kw}, '%')
+                        or ifnull(age_estimate, '') like concat('%', #{kw}, '%')
+                        or (case sex when '0' then '公' when '1' then '母' when '2' then '未知' else '' end)
+                           like concat('%', #{kw}, '%')
+                    )
+                </foreach>
+            </if>
             <if test="status != null and status != ''">AND status = #{status}</if>
             <if test="baseId != null">AND base_id = #{baseId}</if>
             <if test="wardId != null">AND ward_id = #{wardId}</if>
+            <!-- 病房筛选里的「未分配病房」伪选项 -->
+            <if test="wardUnassigned != null and wardUnassigned">AND ward_id is null</if>
             <!-- 助理按病房授权范围过滤；未授权任何病房时不可见任何档案 -->
             <if test="wardScope != null and wardScope">
                 <choose>
@@ -194,6 +233,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="breed != null">breed,</if>
             <if test="sex != null">sex,</if>
             <if test="ageEstimate != null">age_estimate,</if>
+            <if test="birthDate != null">birth_date,</if>
+            <if test="birthEstimated != null">birth_estimated,</if>
             <if test="weight != null">weight,</if>
             <if test="personality != null">personality,</if>
             <if test="source != null">source,</if>
@@ -219,6 +260,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="breed != null">#{breed},</if>
             <if test="sex != null">#{sex},</if>
             <if test="ageEstimate != null">#{ageEstimate},</if>
+            <if test="birthDate != null">#{birthDate},</if>
+            <if test="birthEstimated != null">#{birthEstimated},</if>
             <if test="weight != null">#{weight},</if>
             <if test="personality != null">#{personality},</if>
             <if test="source != null">#{source},</if>
@@ -248,7 +291,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="alias != null and alias != ''">alias = #{alias},</if>
             <if test="breed != null and breed != ''">breed = #{breed},</if>
             <if test="sex != null and sex != ''">sex = #{sex},</if>
-            <if test="ageEstimate != null and ageEstimate != ''">age_estimate = #{ageEstimate},</if>
+            <!-- 年龄描述允许写空串（用户清空年龄），所以这里不能带 != '' -->
+            <if test="ageEstimate != null">age_estimate = #{ageEstimate},</if>
+            <if test="birthDate != null">birth_date = #{birthDate},</if>
+            <if test="birthEstimated != null">birth_estimated = #{birthEstimated},</if>
+            <!-- 提交了空年龄且没有出生日期 = 用户主动清空生日；内部更新（只改状态等）不会带这两个字段，不受影响 -->
+            <if test="ageEstimate != null and ageEstimate.length() == 0 and birthDate == null">birth_date = null,</if>
             <if test="weight != null and weight != ''">weight = #{weight},</if>
             <if test="personality != null and personality != ''">personality = #{personality},</if>
             <if test="source != null and source != ''">source = #{source},</if>
@@ -317,5 +365,59 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             select hospital_name from cat_referral
              where del_flag = '0' and hospital_name is not null and hospital_name &lt;&gt; ''
         ) t order by hospital_name
+    </select>
+
+    <!-- 品种候选：档案里用过的品种去重，供筛选下拉（也允许直接输入新词） -->
+    <select id="selectBreedOptions" resultType="java.lang.String">
+        select distinct breed from cat_profile
+         where del_flag = '0' and breed is not null and breed &lt;&gt; ''
+         order by breed
+    </select>
+
+    <!-- 已满 N 岁、仍在册的老龄猫（未删除、未归档），出生日期空的不计入 -->
+    <select id="selectSeniorCats" resultMap="CatProfileResult">
+        <include refid="selectCatProfileListVo"/>
+        where del_flag = '0'
+          and birth_date is not null
+          and birth_date &lt;= date_sub(curdate(), interval #{years} year)
+          and (archived is null or archived = '0')
+        order by birth_date
+    </select>
+
+    <!--
+      按病房统计在册猫咪数（筛选下拉里显示「治疗病房1号（3）」）
+      - 口径与列表默认一致：未删除、不限状态、含已归档（列表默认也不过滤归档）
+      - 助理按病房授权收敛范围，未授权的病房不下发
+      - 用 left join 保证没有猫的病房也能出现在下拉里（显示 0）
+    -->
+    <select id="selectWardStats" resultType="java.util.Map">
+        select t.wardId, t.wardName, t.baseId, t.baseName, t.catCount
+          from (
+            select w.ward_id as wardId, w.ward_name as wardName, w.base_id as baseId,
+                   b.base_name as baseName, count(p.cat_id) as catCount,
+                   0 as unassigned, w.order_num as orderNum
+              from cat_ward w
+              left join cat_base b on b.base_id = w.base_id
+              left join cat_profile p on p.ward_id = w.ward_id and p.del_flag = '0'
+             where w.del_flag = '0'
+            <if test="wardScope != null and wardScope">
+                <choose>
+                    <when test="wardIds != null and wardIds.length > 0">
+                        and w.ward_id in
+                        <foreach item="wid" collection="wardIds" open="(" separator="," close=")">#{wid}</foreach>
+                    </when>
+                    <otherwise>and 1 = 0</otherwise>
+                </choose>
+            </if>
+             group by w.ward_id, w.ward_name, w.base_id, b.base_name, w.order_num
+            union all
+            <!-- 还没有分配病房的猫，单独给一条，免得下拉数字和总数对不上 -->
+            select null as wardId, '未分配病房' as wardName, null as baseId, null as baseName,
+                   count(*) as catCount, 1 as unassigned, 0 as orderNum
+              from cat_profile
+             where del_flag = '0' and ward_id is null
+            <if test="wardScope != null and wardScope">and 1 = 0</if>
+          ) t
+         order by t.unassigned, t.baseName, t.orderNum, t.wardId
     </select>
 </mapper>

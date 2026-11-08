@@ -22,6 +22,7 @@ import com.ruoyi.cat.mapper.CatReferralMapper;
 import com.ruoyi.cat.mapper.CatReminderMapper;
 import com.ruoyi.cat.mapper.CatVaccineMapper;
 import com.ruoyi.cat.mapper.CatVisitMapper;
+import com.ruoyi.cat.util.CatAgeUtils;
 
 /**
  * 提醒生成服务
@@ -56,6 +57,10 @@ public class CatReminderGenerateService
     private static final String KEY_OVERDUE = "reminder.overdue.days";
     /** 外送医院待接回：默认超过 7 天提醒 */
     private static final String KEY_REFERRAL = "referral.pending.days";
+    /** 老龄猫关注：默认满 7 岁提醒一次 */
+    private static final String KEY_SENIOR_YEARS = "reminder.senior.age";
+    /** 回访超期作废：计划日期超过 N 个月仍未登记，就不再提醒 */
+    private static final String KEY_VISIT_VOID_MONTHS = "visit.void.months";
 
     /** 各类型提醒的收件岗位配置，值为逗号分隔的岗位名称 */
     private static final String KEY_POST_VACCINE = "reminder.post.vaccine";
@@ -63,6 +68,7 @@ public class CatReminderGenerateService
     private static final String KEY_POST_VISIT = "reminder.post.visit";
     private static final String KEY_POST_STOCK = "reminder.post.stock";
     private static final String KEY_POST_REFERRAL = "reminder.post.referral";
+    private static final String KEY_POST_SENIOR = "reminder.post.senior";
 
     /**
      * 读取文本配置项，缺失时返回默认值
@@ -149,6 +155,7 @@ public class CatReminderGenerateService
         count += generateVisitReminders();
         count += generateStockReminders();
         count += generateReferralReminders();
+        count += generateSeniorReminders();
         return count;
     }
 
@@ -266,10 +273,19 @@ public class CatReminderGenerateService
 
     /**
      * 领养回访到期提醒
+     * <p>
+     * 生成之前先把「计划日期已经过去太久还没登记」的计划作废：
+     * 回访只在领养后 3 天 / 1 个月 / 3 个月有意义，一年后还在报没有价值。
+     * 作废条件里的月数走 cat_config（visit.void.months，默认 3）。
      */
     private int generateVisitReminders()
     {
         int count = 0;
+        int voidMonths = cfgInt(KEY_VISIT_VOID_MONTHS, 3);
+        Calendar limitCal = Calendar.getInstance();
+        limitCal.add(Calendar.MONTH, -Math.max(voidMonths, 1));
+        Date limit = limitCal.getTime();
+
         CatVisit query = new CatVisit();
         query.setVisitStatus("0"); // 待回访
         List<CatVisit> visits = catVisitMapper.selectCatVisitList(query);
@@ -278,6 +294,13 @@ public class CatReminderGenerateService
         {
             if (v.getPlanDate() == null)
             {
+                continue;
+            }
+            // 超期太久：置为已作废，连同已经生成的提醒一起收掉，不再打扰
+            if (v.getPlanDate().before(limit))
+            {
+                catVisitMapper.updateVisitStatus(v.getVisitId(), "3");
+                clearVisitReminders(v.getVisitId());
                 continue;
             }
             CatReminder reminder = new CatReminder();
@@ -296,6 +319,20 @@ public class CatReminderGenerateService
             }
         }
         return count;
+    }
+
+    /**
+     * 清除某条回访计划关联的提醒（含已读记录）
+     */
+    private void clearVisitReminders(Long visitId)
+    {
+        Long[] ids = new Long[] { visitId };
+        List<Long> reminderIds = catReminderMapper.selectReminderIdsBySourceIds("visit", ids);
+        if (reminderIds != null && !reminderIds.isEmpty())
+        {
+            catReminderMapper.deleteReminderReadByReminderIds(reminderIds.toArray(new Long[0]));
+        }
+        catReminderMapper.deleteRemindersBySourceIds("visit", ids);
     }
 
     /**
@@ -356,6 +393,45 @@ public class CatReminderGenerateService
             reminder.setTitle("外送待接回提醒");
             reminder.setContent("猫咪「" + catName(r.getCatId()) + "」在「" + nvl(r.getHospitalName()) + "」治疗已超" + pendingDays
                 + "天，请跟进接回或出院登记");
+            reminder.setRemindDate(new Date());
+            reminder.setStatus("0");
+            reminder.setTargetUser(target);
+            if (insertIfAbsent(reminder))
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 老龄猫关注提醒（默认满 7 岁提醒一次）
+     * <p>
+     * 年龄不落库，靠出生日期实时算：猫一到岁数，下一次定时任务就会命中，
+     * 不需要人工打「老龄」标记。同一只猫只会生成一条（sourceType + sourceId 去重）。
+     */
+    private int generateSeniorReminders()
+    {
+        int seniorAge = cfgInt(KEY_SENIOR_YEARS, 7);
+        if (seniorAge <= 0)
+        {
+            return 0;
+        }
+        List<CatProfile> cats = catProfileMapper.selectSeniorCats(seniorAge);
+        String target = resolveTargetUser(KEY_POST_SENIOR);
+        int count = 0;
+        for (CatProfile cat : cats)
+        {
+            String ageText = CatAgeUtils.formatAge(cat.getBirthDate(), "1".equals(cat.getBirthEstimated()));
+            CatReminder reminder = new CatReminder();
+            reminder.setCatId(cat.getCatId());
+            reminder.setSourceType("senior");
+            reminder.setSourceId(cat.getCatId());
+            reminder.setReminderType("老龄");
+            reminder.setTitle("老龄猫关注提醒");
+            reminder.setContent("猫咪「" + nvl(cat.getCatName()) + "」已满 " + seniorAge + " 岁"
+                + (ageText == null ? "" : "（当前 " + ageText + "）")
+                + "，建议安排老年体检并调整照护方案");
             reminder.setRemindDate(new Date());
             reminder.setStatus("0");
             reminder.setTargetUser(target);

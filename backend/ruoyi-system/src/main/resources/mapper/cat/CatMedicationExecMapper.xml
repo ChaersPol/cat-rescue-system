@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatMedicationExecMapper">
+
+    <resultMap type="CatMedicationExec" id="CatMedicationExecResult">
+        <result property="execId" column="exec_id" />
+        <result property="catId" column="cat_id" />
+        <result property="useDate" column="use_date" />
+        <result property="timePeriod" column="time_period" />
+        <result property="status" column="status" />
+        <result property="executor" column="executor" />
+        <result property="execTime" column="exec_time" />
+        <result property="photos" column="photos" />
+        <result property="photoTime" column="photo_time" />
+        <result property="adverseReaction" column="adverse_reaction" />
+        <result property="remark" column="remark" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectExec" resultMap="CatMedicationExecResult">
+        select exec_id, cat_id, use_date, time_period, status, executor, exec_time,
+               photos, photo_time, adverse_reaction, remark,
+               create_by, create_time, update_by, update_time
+          from cat_medication_exec
+         where cat_id = #{catId}
+           and use_date = #{useDate}
+           and ifnull(time_period, '') = ifnull(#{timePeriod}, '')
+         limit 1
+    </select>
+
+    <insert id="insertExec" parameterType="CatMedicationExec" useGeneratedKeys="true" keyProperty="execId">
+        insert into cat_medication_exec (
+            cat_id, use_date, time_period, status, executor, exec_time,
+            photos, photo_time, adverse_reaction, remark, create_by, create_time
+        ) values (
+            #{catId}, #{useDate}, #{timePeriod}, #{status}, #{executor}, #{execTime},
+            #{photos}, #{photoTime}, #{adverseReaction}, #{remark}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateExec" parameterType="CatMedicationExec">
+        update cat_medication_exec
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="executor != null">executor = #{executor},</if>
+            <if test="execTime != null">exec_time = #{execTime},</if>
+            <!-- 照片允许清空，所以不加 != '' 判断 -->
+            <if test="photos != null">photos = #{photos},</if>
+            <if test="photoTime != null">photo_time = #{photoTime},</if>
+            <if test="adverseReaction != null">adverse_reaction = #{adverseReaction},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where exec_id = #{execId}
+    </update>
+</mapper>

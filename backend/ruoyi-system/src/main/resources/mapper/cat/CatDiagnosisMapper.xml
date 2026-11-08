@@ -8,8 +8,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="diagnosisId" column="diagnosis_id" />
         <result property="catId" column="cat_id" />
         <result property="baseId" column="base_id" />
+        <result property="sourceBaseId" column="source_base_id" />
+        <result property="wardId" column="ward_id" />
         <result property="visitDate" column="visit_date" />
+        <result property="visitType" column="visit_type" />
         <result property="doctor" column="doctor" />
+        <result property="doctorUserId" column="doctor_user_id" />
         <result property="symptoms" column="symptoms" />
         <result property="diagnosisResult" column="diagnosis_result" />
         <result property="checkItems" column="check_items" />
@@ -26,8 +30,35 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatDiagnosisVo">
-        select diagnosis_id, cat_id, base_id, visit_date, doctor, symptoms, diagnosis_result, check_items, medical_advice, check_photos,
+        select diagnosis_id, cat_id, base_id, source_base_id, ward_id, visit_date, visit_type, doctor, doctor_user_id,
+               symptoms, diagnosis_result, check_items, medical_advice, check_photos,
                correction_note, correction_by, correction_time, create_by, create_time, update_by, update_time, remark from cat_diagnosis
+    </sql>
+
+    <!--
+       查询条件公共片段：列表、导出、按猫合并、统计四处共用，避免改一个漏一个。
+       这里的字段名都不带表别名，调用方保证只有 cat_diagnosis 一张表（或派生表）。
+    -->
+    <sql id="diagnosisWhere">
+        <if test="catId != null">AND cat_id = #{catId}</if>
+        <!-- 治疗基地 -->
+        <if test="baseId != null">AND base_id = #{baseId}</if>
+        <!-- 来源基地：猫咪从哪个基地送来的 -->
+        <if test="sourceBaseId != null">AND source_base_id = #{sourceBaseId}</if>
+        <if test="wardId != null">AND ward_id = #{wardId}</if>
+        <!-- 病房筛选里的「未填病房」伪选项（前端传 wardId=0） -->
+        <if test="wardUnassigned != null and wardUnassigned">AND ward_id is null</if>
+        <if test="visitType != null and visitType != ''">AND visit_type = #{visitType}</if>
+        <if test="visitDate != null">AND visit_date = #{visitDate}</if>
+        <if test="params.beginTime != null and params.beginTime != ''">AND date_format(visit_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
+        <if test="params.endTime != null and params.endTime != ''">AND date_format(visit_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
+        <if test="doctor != null and doctor != ''">AND doctor = #{doctor}</if>
+        <if test="doctorUserId != null">AND doctor_user_id = #{doctorUserId}</if>
+        <if test="symptoms != null and symptoms != ''">AND symptoms = #{symptoms}</if>
+        <if test="diagnosisResult != null and diagnosisResult != ''">AND diagnosis_result = #{diagnosisResult}</if>
+        <if test="checkItems != null and checkItems != ''">AND check_items = #{checkItems}</if>
+        <if test="medicalAdvice != null and medicalAdvice != ''">AND medical_advice = #{medicalAdvice}</if>
+        <if test="checkPhotos != null and checkPhotos != ''">AND check_photos = #{checkPhotos}</if>
     </sql>
 
     <select id="selectCatDiagnosisById" parameterType="Long" resultMap="CatDiagnosisResult">
@@ -38,28 +69,178 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectCatDiagnosisList" parameterType="CatDiagnosis" resultMap="CatDiagnosisResult">
         <include refid="selectCatDiagnosisVo"/>
         <where>
-            <if test="catId != null">AND cat_id = #{catId}</if>
-            <if test="baseId != null">AND base_id = #{baseId}</if>
-            <if test="visitDate != null">AND visit_date = #{visitDate}</if>
-            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(visit_date,'%y.%m.%d') &gt;= date_format(#{params.beginTime},'%y.%m.%d')</if>
-            <if test="params.endTime != null and params.endTime != ''">AND date_format(visit_date,'%y.%m.%d') &lt;= date_format(#{params.endTime},'%y.%m.%d')</if>
-            <if test="doctor != null and doctor != ''">AND doctor = #{doctor}</if>
-            <if test="symptoms != null and symptoms != ''">AND symptoms = #{symptoms}</if>
-            <if test="diagnosisResult != null and diagnosisResult != ''">AND diagnosis_result = #{diagnosisResult}</if>
-            <if test="checkItems != null and checkItems != ''">AND check_items = #{checkItems}</if>
-            <if test="medicalAdvice != null and medicalAdvice != ''">AND medical_advice = #{medicalAdvice}</if>
-            <if test="checkPhotos != null and checkPhotos != ''">AND check_photos = #{checkPhotos}</if>
+            <include refid="diagnosisWhere"/>
             AND del_flag = '0'
         </where>
         order by diagnosis_id desc
+    </select>
+
+    <!--
+       按猫合并视图：一只猫一行
+       - visitCount / initialCount / first / last 用窗口函数在派生表里一次算完
+       - rn = 1 取「最近一次就诊」的明细（诊断结果、医生、类型）
+       - 当前病房取档案实时值（猫现在住哪），来源基地取诊断时的快照
+    -->
+    <select id="selectCatDiagnosisSummaryList" parameterType="CatDiagnosis" resultType="CatDiagnosisSummary">
+        select t.cat_id as catId,
+               t.visit_count as visitCount,
+               t.initial_count as initialCount,
+               t.first_visit as firstVisitDate,
+               t.last_visit as lastVisitTime,
+               t.doctor as lastDoctor,
+               t.diagnosis_result as lastDiagnosisResult,
+               t.visit_type as lastVisitType,
+               t.source_base_id as sourceBaseId,
+               p.cat_name as catName,
+               p.archive_no as archiveNo,
+               p.base_id as baseId,
+               p.ward_id as wardId,
+               p.status as catStatus
+          from (
+                select d.*,
+                       row_number() over (partition by d.cat_id order by d.visit_date desc, d.diagnosis_id desc) as rn,
+                       count(1) over (partition by d.cat_id) as visit_count,
+                       sum(case when d.visit_type = '1' then 1 else 0 end) over (partition by d.cat_id) as initial_count,
+                       min(d.visit_date) over (partition by d.cat_id) as first_visit,
+                       max(d.visit_date) over (partition by d.cat_id) as last_visit
+                  from cat_diagnosis d
+                 where d.del_flag = '0'
+                 <include refid="diagnosisWhere"/>
+               ) t
+          join cat_profile p on p.cat_id = t.cat_id
+         where t.rn = 1
+         order by t.last_visit desc, t.cat_id desc
+    </select>
+
+    <!-- 当前筛选条件下的诊断记录条数 -->
+    <select id="countCatDiagnosis" parameterType="CatDiagnosis" resultType="int">
+        select count(1) from cat_diagnosis
+        <where>
+            <include refid="diagnosisWhere"/>
+            AND del_flag = '0'
+        </where>
+    </select>
+
+    <!--
+       当前筛选范围内的「猫数」
+       - 选了病房/基地：按猫咪档案当前所在位置统计（人真的在那个病房里才算）
+       - 都没选：按有诊断记录的猫去重
+       已放归(4)/已领养(5)/已离世(6) 的猫不算在内（用户确认：已经离开救助站的猫不计入病房猫数）
+    -->
+    <select id="countCatsInScope" parameterType="CatDiagnosis" resultType="int">
+        <choose>
+            <when test="wardId != null or baseId != null">
+                select count(1)
+                  from cat_profile p
+                 where p.del_flag = '0'
+                   and p.status not in ('4', '5', '6')
+                <if test="wardId != null">and p.ward_id = #{wardId}</if>
+                <if test="baseId != null">and p.base_id = #{baseId}</if>
+            </when>
+            <otherwise>
+                select count(distinct d.cat_id)
+                  from cat_diagnosis d
+                 where d.del_flag = '0'
+                   and exists (select 1 from cat_profile p
+                                where p.cat_id = d.cat_id
+                                  and p.del_flag = '0'
+                                  and p.status not in ('4', '5', '6'))
+                <include refid="diagnosisWhere"/>
+            </otherwise>
+        </choose>
+    </select>
+
+    <!--
+       病房下拉里的「病房名（N）」：N = 该病房当前在册猫数（已放归/已领养/已离世不算）
+       未选治疗基地时返回全部病房，前端按基地分组展示
+    -->
+    <select id="selectWardStats" parameterType="CatDiagnosis" resultType="java.util.Map">
+        select w.ward_id as wardId, w.ward_name as wardName, w.base_id as baseId,
+               b.base_name as baseName,
+               (select count(1) from cat_profile p
+                 where p.ward_id = w.ward_id and p.del_flag = '0'
+                   and p.status not in ('4', '5', '6')) as catCount
+          from cat_ward w
+          left join cat_base b on b.base_id = w.base_id
+         where w.del_flag = '0'
+        <if test="baseId != null">and w.base_id = #{baseId}</if>
+         order by b.base_name, w.order_num, w.ward_id
+    </select>
+
+    <!-- 这只猫在本站看过几次病（新增弹窗据此把就诊类型预选成初诊/复诊） -->
+    <select id="countVisitByCatId" parameterType="Long" resultType="int">
+        select count(1) from cat_diagnosis where cat_id = #{catId} and del_flag = '0'
+    </select>
+
+    <!--
+       病房/基地里「在册但一次都没接诊过」的猫
+       用于列表为空时的空状态提示：告诉医生这个病房还有哪几只猫等着接诊，
+       而不是干巴巴一句「暂无数据」——猫明明在病房里，却没有记录，用户会以为是系统丢数据。
+       只算「完全没有诊断记录」的猫；有记录但记录在别的病房的猫不算（它的病历在那边）。
+    -->
+    <select id="selectPendingCats" parameterType="CatDiagnosis" resultType="java.util.Map">
+        select p.cat_id as catId, p.cat_name as catName, p.archive_no as archiveNo,
+               p.base_id as baseId, p.ward_id as wardId
+          from cat_profile p
+         where p.del_flag = '0'
+           and p.status not in ('4', '5', '6')
+        <if test="wardId != null">and p.ward_id = #{wardId}</if>
+        <if test="baseId != null">and p.base_id = #{baseId}</if>
+           and not exists (select 1 from cat_diagnosis d
+                            where d.cat_id = p.cat_id and d.del_flag = '0')
+         order by p.ward_id, p.archive_no, p.cat_id
+         limit 30
+    </select>
+
+    <!--
+       接诊医生候选：只列「医生」角色、状态正常的账号。
+       管理员新增诊断时从这里选人，不再手打名字，避免出现「王医生」这类对不上账号的脏数据。
+    -->
+    <select id="selectDoctorOptions" resultType="java.util.Map">
+        select u.user_id as userId, u.user_name as userName, u.nick_name as nickName
+          from sys_user u
+          join sys_user_role ur on ur.user_id = u.user_id
+          join sys_role r on r.role_id = ur.role_id
+         where u.del_flag = '0' and u.status = '0'
+           and r.del_flag = '0' and r.status = '0' and r.role_key = 'doctor'
+         group by u.user_id, u.user_name, u.nick_name
+         order by u.user_id
+    </select>
+
+    <!-- 校验某个账号确实是医生角色（新增/修改时防止把非医生账号填进病历） -->
+    <select id="selectDoctorUserById" parameterType="Long" resultType="java.util.Map">
+        select u.user_id as userId, u.user_name as userName, u.nick_name as nickName
+          from sys_user u
+          join sys_user_role ur on ur.user_id = u.user_id
+          join sys_role r on r.role_id = ur.role_id
+         where u.user_id = #{userId}
+           and u.del_flag = '0' and u.status = '0'
+           and r.del_flag = '0' and r.status = '0' and r.role_key = 'doctor'
+    </select>
+
+    <!-- 按昵称反查医生账号（兼容只传姓名的调用方） -->
+    <select id="selectDoctorUserByNickName" parameterType="String" resultType="java.util.Map">
+        select u.user_id as userId, u.user_name as userName, u.nick_name as nickName
+          from sys_user u
+          join sys_user_role ur on ur.user_id = u.user_id
+          join sys_role r on r.role_id = ur.role_id
+         where u.nick_name = #{nickName}
+           and u.del_flag = '0' and u.status = '0'
+           and r.del_flag = '0' and r.status = '0' and r.role_key = 'doctor'
+         order by u.user_id
+         limit 1
     </select>
 
     <insert id="insertCatDiagnosis" parameterType="CatDiagnosis" useGeneratedKeys="true" keyProperty="diagnosisId">
         insert into cat_diagnosis (
             <if test="catId != null">cat_id,</if>
             <if test="baseId != null">base_id,</if>
+            <if test="sourceBaseId != null">source_base_id,</if>
+            <if test="wardId != null">ward_id,</if>
             <if test="visitDate != null">visit_date,</if>
+            <if test="visitType != null">visit_type,</if>
             <if test="doctor != null">doctor,</if>
+            <if test="doctorUserId != null">doctor_user_id,</if>
             <if test="symptoms != null">symptoms,</if>
             <if test="diagnosisResult != null">diagnosis_result,</if>
             <if test="checkItems != null">check_items,</if>
@@ -73,8 +254,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         )values(
             <if test="catId != null">#{catId},</if>
             <if test="baseId != null">#{baseId},</if>
+            <if test="sourceBaseId != null">#{sourceBaseId},</if>
+            <if test="wardId != null">#{wardId},</if>
             <if test="visitDate != null">#{visitDate},</if>
+            <if test="visitType != null">#{visitType},</if>
             <if test="doctor != null">#{doctor},</if>
+            <if test="doctorUserId != null">#{doctorUserId},</if>
             <if test="symptoms != null">#{symptoms},</if>
             <if test="diagnosisResult != null">#{diagnosisResult},</if>
             <if test="checkItems != null">#{checkItems},</if>
@@ -93,8 +278,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="catId != null">cat_id = #{catId},</if>
             <if test="baseId != null">base_id = #{baseId},</if>
+            <if test="sourceBaseId != null">source_base_id = #{sourceBaseId},</if>
+            <!-- 允许写入空值：把病房改回「未填」时要能真正清掉 -->
+            <if test="wardId != null">ward_id = #{wardId},</if>
             <if test="visitDate != null">visit_date = #{visitDate},</if>
+            <if test="visitType != null and visitType != ''">visit_type = #{visitType},</if>
             <if test="doctor != null and doctor != ''">doctor = #{doctor},</if>
+            <if test="doctorUserId != null">doctor_user_id = #{doctorUserId},</if>
             <if test="symptoms != null and symptoms != ''">symptoms = #{symptoms},</if>
             <if test="diagnosisResult != null and diagnosisResult != ''">diagnosis_result = #{diagnosisResult},</if>
             <if test="checkItems != null and checkItems != ''">check_items = #{checkItems},</if>
@@ -108,6 +298,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         </set>
         where diagnosis_id = #{diagnosisId}
+    </update>
+
+    <!-- 清空病房（前端传 wardId=0 或空时，MyBatis 的 <if> 不会写，这里单独一条语句） -->
+    <update id="clearWard" parameterType="Long">
+        update cat_diagnosis set ward_id = null, update_time = sysdate() where diagnosis_id = #{diagnosisId}
     </update>
 
     <delete id="deleteCatDiagnosisById" parameterType="Long">

@@ -74,6 +74,27 @@ public class CatPhotoController extends BaseController
         return getDataTable(list);
     }
 
+    /**
+     * 相册筛选用的品种清单（取档案里真实存在的品种，不写死字典）
+     */
+    @PreAuthorize("@ss.hasPermi('cat:photo:list')")
+    @GetMapping("/breeds")
+    public AjaxResult breeds()
+    {
+        return success(photoIdService.selectBreedOptions());
+    }
+
+    /**
+     * 信息卡视图：一只猫一张卡，封面取该猫最新照片
+     */
+    @PreAuthorize("@ss.hasPermi('cat:photo:list')")
+    @GetMapping("/catCards")
+    public TableDataInfo catCards(CatPhoto query)
+    {
+        startPage();
+        return getDataTable(photoIdService.selectPhotoCatCards(query));
+    }
+
     @PreAuthorize("@ss.hasPermi('cat:photo:export')")
     @Log(title = "猫咪照片", businessType = BusinessType.EXPORT)
     @PostMapping("/export")

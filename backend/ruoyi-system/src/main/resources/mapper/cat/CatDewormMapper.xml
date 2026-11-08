@@ -10,7 +10,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="dewormType" column="deworm_type" />
         <result property="dewormDrug" column="deworm_drug" />
         <result property="dewormDate" column="deworm_date" />
+        <result property="sourceType" column="source_type" />
+        <result property="diagnosisId" column="diagnosis_id" />
         <result property="nextDate" column="next_date" />
+        <result property="materialId" column="material_id" />
+        <result property="materialName" column="material_name" />
+        <result property="stockQty" column="stock_qty" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -19,7 +24,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatDewormVo">
-        select deworm_id, cat_id, deworm_type, deworm_drug, deworm_date, next_date, create_by, create_time, update_by, update_time, remark from cat_deworm
+        select deworm_id, cat_id, deworm_type, deworm_drug, deworm_date, source_type, diagnosis_id, next_date, material_id, material_name, stock_qty, create_by, create_time, update_by, update_time, remark from cat_deworm
     </sql>
 
     <select id="selectCatDewormById" parameterType="Long" resultMap="CatDewormResult">
@@ -31,9 +36,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatDewormVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="dewormType != null and dewormType != ''">AND deworm_type = #{dewormType}</if>
             <if test="dewormDrug != null and dewormDrug != ''">AND deworm_drug = #{dewormDrug}</if>
             <if test="dewormDate != null">AND deworm_date = #{dewormDate}</if>
+            <if test="sourceType != null and sourceType != ''">AND source_type = #{sourceType}</if>
+            <if test="diagnosisId != null">AND diagnosis_id = #{diagnosisId}</if>
             <if test="nextDate != null">AND next_date = #{nextDate}</if>
             <if test="dueDays != null">AND next_date is not null AND next_date &lt;= date_add(curdate(), interval #{dueDays} day)</if>
             AND del_flag = '0'
@@ -51,6 +61,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormType != null">deworm_type,</if>
             <if test="dewormDrug != null">deworm_drug,</if>
             <if test="dewormDate != null">deworm_date,</if>
+            <if test="sourceType != null">source_type,</if>
+            <if test="diagnosisId != null">diagnosis_id,</if>
+            <if test="materialId != null">material_id,</if>
+            <if test="materialName != null">material_name,</if>
+            <if test="stockQty != null">stock_qty,</if>
+            <if test="remark != null">remark,</if>
             <if test="nextDate != null">next_date,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time
@@ -59,6 +75,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormType != null">#{dewormType},</if>
             <if test="dewormDrug != null">#{dewormDrug},</if>
             <if test="dewormDate != null">#{dewormDate},</if>
+            <if test="sourceType != null">#{sourceType},</if>
+            <if test="diagnosisId != null">#{diagnosisId},</if>
+            <if test="materialId != null">#{materialId},</if>
+            <if test="materialName != null">#{materialName},</if>
+            <if test="stockQty != null">#{stockQty},</if>
+            <if test="remark != null">#{remark},</if>
             <if test="nextDate != null">#{nextDate},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate()
@@ -73,6 +95,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormDrug != null and dewormDrug != ''">deworm_drug = #{dewormDrug},</if>
             <if test="dewormDate != null">deworm_date = #{dewormDate},</if>
             <if test="nextDate != null">next_date = #{nextDate},</if>
+            <if test="materialId != null">material_id = #{materialId}, material_name = #{materialName}, stock_qty = #{stockQty},</if>
+            <if test="materialId == null and clearMaterial != null and clearMaterial">
+                material_id = null, material_name = null, stock_qty = null,
+            </if>
+            <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
         </set>
@@ -82,6 +109,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <delete id="deleteCatDewormById" parameterType="Long">
         update cat_deworm set del_flag = '2' where deworm_id = #{dewormId}
     </delete>
+
+    <!-- 修改/删除诊断时，把之前由它自动生成的驱虫记录软删 -->
+    <update id="deleteAutoByDiagnosisId" parameterType="Long">
+        update cat_deworm set del_flag = '2' where diagnosis_id = #{diagnosisId} and source_type = '2'
+    </update>
 
     <delete id="deleteCatDewormByIds" parameterType="Long">
         update cat_deworm set del_flag = '2' where deworm_id in

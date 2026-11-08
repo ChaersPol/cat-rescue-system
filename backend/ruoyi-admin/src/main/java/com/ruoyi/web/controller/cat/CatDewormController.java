@@ -38,6 +38,20 @@ public class CatDewormController extends BaseController
     @Autowired
     private CatRefNameFiller refNameFiller;
 
+    @Autowired
+    private com.ruoyi.cat.service.impl.CatImmunizationSummaryService summaryService;
+
+    /**
+     * 驱虫弹窗里的「上次驱虫」：只给上一次体内、上一次体外两条，
+     * 录入时一眼看清这次该补哪一种、距上次多少天。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:deworm:list')")
+    @GetMapping("/history/{catId}")
+    public AjaxResult history(@PathVariable("catId") Long catId)
+    {
+        return success(summaryService.dewormHistory(catId));
+    }
+
     @PreAuthorize("@ss.hasPermi('cat:deworm:list')")
     @GetMapping("/list")
     public TableDataInfo list(CatDeworm dewormId)

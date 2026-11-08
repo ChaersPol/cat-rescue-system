@@ -20,6 +20,7 @@ import com.ruoyi.cat.service.ICatReminderService;
 import com.ruoyi.system.service.ISysRoleService;
 import org.springframework.web.bind.annotation.PutMapping;
 import com.ruoyi.cat.domain.CatProfile;
+import com.ruoyi.cat.domain.CatBase;
 import com.ruoyi.cat.domain.CatConfig;
 import com.ruoyi.cat.domain.CatPhoto;
 import com.ruoyi.cat.domain.CatDiagnosis;
@@ -30,6 +31,7 @@ import com.ruoyi.cat.domain.CatReferral;
 import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.domain.CatDeath;
 import com.ruoyi.cat.mapper.CatProfileMapper;
+import com.ruoyi.cat.mapper.CatBaseMapper;
 import com.ruoyi.cat.mapper.CatDiagnosisMapper;
 import com.ruoyi.cat.mapper.CatMedicationMapper;
 import com.ruoyi.cat.mapper.CatVaccineMapper;
@@ -51,6 +53,8 @@ public class CatMobileController
 {
     @Autowired
     private CatProfileMapper catProfileMapper;
+    @Autowired
+    private CatBaseMapper catBaseMapper;
     @Autowired
     private CatDiagnosisMapper catDiagnosisMapper;
     @Autowired
@@ -138,8 +142,15 @@ public class CatMobileController
 
         Map<String, Object> result = new HashMap<>();
         result.put("profile", profile);
+        result.put("catId", catId);
         // 头像照片（相册里挑一张，没有则前端回退成名字首字）
         result.put("avatar", pickAvatarUrl(catId));
+
+        // 扫码人是否已登录、什么岗位：前端据此决定「+ 快速记一笔」里显示哪些入口
+        Map<String, Object> staff = currentStaffInfo();
+        result.put("loggedIn", staff != null);
+        result.put("staffName", staff == null ? null : staff.get("staffName"));
+        result.put("roles", staff == null ? new ArrayList<String>() : staff.get("roles"));
 
         // 扫码权限方案：A 模式仅返回基础信息，医疗病历需登录后台查看
         String scanMode = getScanPermissionMode();
@@ -222,14 +233,36 @@ public class CatMobileController
         // 流转记录
         CatFlow flowQuery = new CatFlow();
         flowQuery.setCatId(catId);
-        for (CatFlow f : catFlowMapper.selectCatFlowList(flowQuery))
+        List<CatFlow> flowList = catFlowMapper.selectCatFlowList(flowQuery);
+        // 按时间正序：手机上「按流转轨迹筛选」的选项要按阶段先后排，最新的在后面
+        flowList.sort((a, b) -> Long.compare(flowMillis(a.getOperateTime()), flowMillis(b.getOperateTime())));
+        Map<Long, String> baseNames = mobileBaseNameMap();
+        List<Map<String, Object>> flowOptions = new ArrayList<>();
+        for (CatFlow f : flowList)
         {
             Map<String, Object> item = new HashMap<>();
             item.put("type", "流转");
             item.put("time", f.getOperateTime());
             item.put("content", f.getFlowType() + "：" + (f.getFlowReason() == null ? "" : f.getFlowReason()));
             item.put("doctor", f.getOperateBy());
+            // 带上 flowId：手机时间线里点这一条就能筛到「这次流转之前」的病历
+            item.put("flowId", f.getFlowId());
+            // 这条流转发生在哪个基地 —— 手机上筛到这个阶段时用来提示「这一阶段病例产生于哪儿」
+            Long placeId = f.getFromBaseId() != null ? f.getFromBaseId() : f.getToBaseId();
+            item.put("baseId", placeId);
+            item.put("baseName", placeId == null ? null : baseNames.get(placeId));
             timeline.add(item);
+
+            Map<String, Object> option = new HashMap<>();
+            option.put("flowId", f.getFlowId());
+            option.put("operateTime", f.getOperateTime());
+            option.put("flowType", f.getFlowType());
+            option.put("flowReason", f.getFlowReason());
+            option.put("fromBaseId", f.getFromBaseId());
+            option.put("toBaseId", f.getToBaseId());
+            option.put("fromBaseName", f.getFromBaseId() == null ? null : baseNames.get(f.getFromBaseId()));
+            option.put("toBaseName", f.getToBaseId() == null ? null : baseNames.get(f.getToBaseId()));
+            flowOptions.add(option);
         }
 
         // 死亡记录
@@ -244,13 +277,75 @@ public class CatMobileController
             timeline.add(item);
         }
 
+        // 每条病历标上「当时猫咪在哪个基地」：取该时间点之前最后一次流转的转入基地
+        // （手机按流转阶段筛选时，一眼就能看出这些病例是在哪个基地产生的）
+        Long currentBaseId = profile.getBaseId();
+        for (Map<String, Object> item : timeline)
+        {
+            if (item.get("baseName") != null)
+            {
+                continue;
+            }
+            Long placeId = mobileBaseAt(item.get("time"), flowList, currentBaseId);
+            item.put("baseId", placeId);
+            item.put("baseName", placeId == null ? null : baseNames.get(placeId));
+        }
+
         // 按时间倒序（最新在前；无时间的排最后）
         // 注意：不能拿 String.valueOf(Date) 比较——Date.toString() 形如
         // "Thu Apr 01 13:40:00 CST 2026"，按字符串排会先比星期、再比英文月份，顺序全乱。
         timeline.sort((a, b) -> Long.compare(timelineMillis(b.get("time")), timelineMillis(a.get("time"))));
 
         result.put("timeline", timeline);
+        // 流转轨迹：给前端做「截至某次流转」的阶段筛选
+        result.put("flows", flowOptions);
         return AjaxResult.success(result);
+    }
+
+    /** 全部基地：id → 名称 */
+    private Map<Long, String> mobileBaseNameMap()
+    {
+        Map<Long, String> map = new HashMap<>();
+        for (CatBase b : catBaseMapper.selectCatBaseList(new CatBase()))
+        {
+            map.put(b.getBaseId(), b.getBaseName());
+        }
+        return map;
+    }
+
+    /**
+     * 某条记录发生时猫咪所在的基地：该时间点之前最后一次流转的转入基地，之前没有流转就按档案当前基地兜底
+     */
+    private Long mobileBaseAt(Object time, List<CatFlow> flowsAsc, Long fallbackBaseId)
+    {
+        long t = timelineMillis(time);
+        if (t == Long.MIN_VALUE || flowsAsc == null)
+        {
+            return fallbackBaseId;
+        }
+        Long baseId = null;
+        for (CatFlow f : flowsAsc)
+        {
+            if (f.getOperateTime() == null)
+            {
+                continue;
+            }
+            if (f.getOperateTime().getTime() > t)
+            {
+                break;
+            }
+            if (f.getToBaseId() != null)
+            {
+                baseId = f.getToBaseId();
+            }
+        }
+        return baseId != null ? baseId : fallbackBaseId;
+    }
+
+    /** 流转时间的排序值（空值排最前，当作最早的一次） */
+    private static long flowMillis(Date time)
+    {
+        return time == null ? Long.MIN_VALUE : time.getTime();
     }
 
     /**
@@ -302,6 +397,46 @@ public class CatMobileController
     {
         int count = catReminderService.markAllRead(currentReminderScope());
         return AjaxResult.success("已标记 " + count + " 条为已读");
+    }
+
+    /**
+     * 当前扫码人信息：未登录返回 null
+     */
+    private Map<String, Object> currentStaffInfo()
+    {
+        try
+        {
+            Long userId = SecurityUtils.getUserId();
+            Map<String, Object> info = new HashMap<>();
+            info.put("userId", userId);
+            com.ruoyi.common.core.domain.entity.SysUser user = SecurityUtils.getLoginUser().getUser();
+            String nickName = user.getNickName();
+            info.put("staffName", StringUtils.isNotEmpty(nickName) ? nickName : SecurityUtils.getUsername());
+            List<String> roleKeys = new ArrayList<>();
+            if (SecurityUtils.isAdmin(userId))
+            {
+                roleKeys.add("admin");
+            }
+            // 直接用登录上下文里的角色：selectRolesByUserId 返回的是「全部角色 + 是否拥有」，
+            // 不是这个人自己的角色，用它判断岗位会出错
+            if (user.getRoles() != null)
+            {
+                for (SysRole role : user.getRoles())
+                {
+                    if (role.getRoleKey() != null && !roleKeys.contains(role.getRoleKey()))
+                    {
+                        roleKeys.add(role.getRoleKey());
+                    }
+                }
+            }
+            info.put("roles", roleKeys);
+            return info;
+        }
+        catch (Exception e)
+        {
+            // 匿名扫码：没有登录上下文，按未登录处理
+            return null;
+        }
     }
 
     /**

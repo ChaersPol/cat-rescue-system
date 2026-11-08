@@ -21,4 +21,7 @@ public interface CatDewormMapper
     public int deleteCatDewormById(Long dewormId);
 
     public int deleteCatDewormByIds(Long[] dewormIds);
+
+    /** 修改/删除诊断时，软删这张诊断单自动生成的台账记录 */
+    public int deleteAutoByDiagnosisId(Long diagnosisId);
 }

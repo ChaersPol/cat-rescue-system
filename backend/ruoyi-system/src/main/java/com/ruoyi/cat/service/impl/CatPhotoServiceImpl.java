@@ -1,6 +1,7 @@
 package com.ruoyi.cat.service.impl;
 
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,18 @@ public class CatPhotoServiceImpl implements ICatPhotoService
     public List<CatPhoto> selectCatPhotoList(CatPhoto photoId)
     {
         return photoIdMapper.selectCatPhotoList(photoId);
+    }
+
+    @Override
+    public List<String> selectBreedOptions()
+    {
+        return photoIdMapper.selectBreedOptions();
+    }
+
+    @Override
+    public List<Map<String, Object>> selectPhotoCatCards(CatPhoto query)
+    {
+        return photoIdMapper.selectPhotoCatCards(query);
     }
 
     @Override

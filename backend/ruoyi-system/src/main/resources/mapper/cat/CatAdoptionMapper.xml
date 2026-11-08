@@ -12,6 +12,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="adopterAddress" column="adopter_address" />
         <result property="adoptionDate" column="adoption_date" />
         <result property="agreementUrl" column="agreement_url" />
+        <result property="visitClosed" column="visit_closed" />
+        <result property="visitClosedTime" column="visit_closed_time" />
+        <result property="visitClosedBy" column="visit_closed_by" />
+        <result property="visitTotal" column="visit_total" />
+        <result property="visitDone" column="visit_done" />
+        <result property="visitPending" column="visit_pending" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -19,27 +25,39 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="remark" column="remark" />
     </resultMap>
 
+    <!-- 列表顺带把回访进度算出来：一页 10 条，三条子查询走 idx_adoption，代价可接受，
+         免得前端为了显示「已回访 1/3」再逐行请求一次 -->
     <sql id="selectCatAdoptionVo">
-        select adoption_id, cat_id, adopter_name, adopter_phone, adopter_address, adoption_date, agreement_url, create_by, create_time, update_by, update_time, remark from cat_adoption
+        select a.adoption_id, a.cat_id, a.adopter_name, a.adopter_phone, a.adopter_address, a.adoption_date,
+               a.agreement_url, a.visit_closed, a.visit_closed_time, a.visit_closed_by,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark,
+               (select count(*) from cat_visit v where v.adoption_id = a.adoption_id) as visit_total,
+               (select count(*) from cat_visit v where v.adoption_id = a.adoption_id and v.visit_status = '1') as visit_done,
+               (select count(*) from cat_visit v where v.adoption_id = a.adoption_id and v.visit_status = '0') as visit_pending
+          from cat_adoption a
     </sql>
 
     <select id="selectCatAdoptionById" parameterType="Long" resultMap="CatAdoptionResult">
         <include refid="selectCatAdoptionVo"/>
-        where adoption_id = #{adoptionId}
+        where a.adoption_id = #{adoptionId}
     </select>
 
     <select id="selectCatAdoptionList" parameterType="CatAdoption" resultMap="CatAdoptionResult">
         <include refid="selectCatAdoptionVo"/>
         <where>
-            <if test="catId != null">AND cat_id = #{catId}</if>
-            <if test="adopterName != null and adopterName != ''">AND adopter_name like concat('%', #{adopterName}, '%')</if>
-            <if test="adopterPhone != null and adopterPhone != ''">AND adopter_phone like concat('%', #{adopterPhone}, '%')</if>
-            <if test="adopterAddress != null and adopterAddress != ''">AND adopter_address = #{adopterAddress}</if>
-            <if test="adoptionDate != null">AND adoption_date = #{adoptionDate}</if>
-            <if test="agreementUrl != null and agreementUrl != ''">AND agreement_url = #{agreementUrl}</if>
-            AND del_flag = '0'
+            <if test="catId != null">AND a.cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND a.cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND a.cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
+            <if test="adopterName != null and adopterName != ''">AND a.adopter_name like concat('%', #{adopterName}, '%')</if>
+            <if test="adopterPhone != null and adopterPhone != ''">AND a.adopter_phone like concat('%', #{adopterPhone}, '%')</if>
+            <if test="adopterAddress != null and adopterAddress != ''">AND a.adopter_address = #{adopterAddress}</if>
+            <if test="adoptionDate != null">AND a.adoption_date = #{adoptionDate}</if>
+            <if test="agreementUrl != null and agreementUrl != ''">AND a.agreement_url = #{agreementUrl}</if>
+            <if test="visitClosed != null and visitClosed != ''">AND a.visit_closed = #{visitClosed}</if>
+            AND a.del_flag = '0'
         </where>
-        order by adoption_id desc
+        order by a.adoption_id desc
     </select>
 
     <insert id="insertCatAdoption" parameterType="CatAdoption" useGeneratedKeys="true" keyProperty="adoptionId">
@@ -79,6 +97,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         </set>
         where adoption_id = #{adoptionId}
+    </update>
+
+    <!-- 回访结束开关：三个字段整体覆盖（重新打开时时间、操作人要能清空，不能只做非空判断） -->
+    <update id="updateVisitClosed">
+        update cat_adoption
+           set visit_closed = #{visitClosed},
+               visit_closed_time = #{visitClosedTime},
+               visit_closed_by = #{visitClosedBy},
+               update_time = sysdate()
+         where adoption_id = #{adoptionId}
     </update>
 
     <delete id="deleteCatAdoptionById" parameterType="Long">

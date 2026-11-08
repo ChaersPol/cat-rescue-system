@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -40,6 +41,23 @@ public class CatVaccineController extends BaseController
 
     @Autowired
     private com.ruoyi.cat.service.impl.CatReminderConflictService conflictService;
+
+    @Autowired
+    private com.ruoyi.cat.service.impl.CatImmunizationSummaryService summaryService;
+
+    /**
+     * 疫苗弹窗里的「该猫接种记录」：把这猫打过的所有疫苗按时间倒序列出来，
+     * 顺带带上基础免疫进度与狂犬/加强针到期日，改一条记录时不用再回列表翻。
+     *
+     * @param excludeId 正在修改的这条自己的 id，进度里排除掉，避免看着像多打了一针
+     */
+    @PreAuthorize("@ss.hasPermi('cat:vaccine:list')")
+    @GetMapping("/history/{catId}")
+    public AjaxResult history(@PathVariable("catId") Long catId,
+            @RequestParam(value = "excludeId", required = false) Long excludeId)
+    {
+        return success(summaryService.vaccineHistory(catId, excludeId));
+    }
 
     @PreAuthorize("@ss.hasPermi('cat:vaccine:list')")
     @GetMapping("/list")

@@ -87,4 +87,22 @@ public class CatAdoptionController extends BaseController
     {
         return toAjax(adoptionIdService.deleteCatAdoptionByIds(adoptionIds));
     }
+
+    /**
+     * 回访结束开关（可反复开关）
+     * 关闭时把该领养下待回访的计划一起收掉并清提醒；重新打开时恢复还来得及的计划
+     */
+    @PreAuthorize("@ss.hasPermi('cat:adoption:edit')")
+    @Log(title = "领养登记-回访结束开关", businessType = BusinessType.UPDATE)
+    @PutMapping("/visitClosed/{adoptionId}/{closed}")
+    public AjaxResult visitClosed(@PathVariable("adoptionId") Long adoptionId,
+                                  @PathVariable("closed") Boolean closed)
+    {
+        int affected = adoptionIdService.setVisitClosed(adoptionId, Boolean.TRUE.equals(closed));
+        if (Boolean.TRUE.equals(closed))
+        {
+            return success("回访已结束，已把 " + affected + " 条待回访计划标记为「已结束」并清除提醒");
+        }
+        return success("回访已重新开启，已恢复 " + affected + " 条待回访计划（计划日期已超期的转为已作废）");
+    }
 }

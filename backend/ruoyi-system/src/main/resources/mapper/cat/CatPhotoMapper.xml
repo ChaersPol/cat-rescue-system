@@ -16,6 +16,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateBy" column="update_by" />
         <result property="updateTime" column="update_time" />
         <result property="remark" column="remark" />
+        <result property="catName" column="cat_name" />
+        <result property="archiveNo" column="archive_no" />
+        <result property="breed" column="breed" />
+        <result property="sex" column="sex" />
+        <result property="baseId" column="base_id" />
+        <result property="wardId" column="ward_id" />
+        <result property="baseName" column="base_name" />
+        <result property="wardName" column="ward_name" />
     </resultMap>
 
     <sql id="selectCatPhotoVo">
@@ -28,14 +36,73 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectCatPhotoList" parameterType="CatPhoto" resultMap="CatPhotoResult">
-        <include refid="selectCatPhotoVo"/>
+        select ph.photo_id, ph.cat_id, ph.folder, ph.file_type, ph.file_url, ph.thumb_url,
+               ph.create_by, ph.create_time, ph.update_by, ph.update_time, ph.remark,
+               p.cat_name, p.archive_no, p.breed, p.sex, p.base_id, p.ward_id,
+               b.base_name, w.ward_name
+          from cat_photo ph
+          left join cat_profile p on p.cat_id = ph.cat_id
+          left join cat_base b on b.base_id = p.base_id
+          left join cat_ward w on w.ward_id = p.ward_id
         <where>
-            <if test="catId != null">AND cat_id = #{catId}</if>
-            <if test="folder != null and folder != ''">AND folder = #{folder}</if>
-            <if test="fileType != null and fileType != ''">AND file_type = #{fileType}</if>
-            <if test="fileUrl != null and fileUrl != ''">AND file_url = #{fileUrl}</if>
+            <if test="catId != null">AND ph.cat_id = #{catId}</if>
+            <if test="folder != null and folder != ''">AND ph.folder = #{folder}</if>
+            <if test="fileType != null and fileType != ''">AND ph.file_type = #{fileType}</if>
+            <if test="fileUrl != null and fileUrl != ''">AND ph.file_url = #{fileUrl}</if>
+            <!-- 相册筛选：品种 / 性别 / 来源基地 / 所属房间都取猫咪档案当前值 -->
+            <if test="breed != null and breed != ''">AND p.breed = #{breed}</if>
+            <if test="sex != null and sex != ''">AND p.sex = #{sex}</if>
+            <if test="baseId != null">AND p.base_id = #{baseId}</if>
+            <if test="wardId != null">AND p.ward_id = #{wardId}</if>
         </where>
-        order by photo_id desc
+        order by ph.create_time desc, ph.photo_id desc
+    </select>
+
+    <!-- 品种下拉：只取档案里真实存在的品种，避免写死一份和档案对不上的清单 -->
+    <select id="selectBreedOptions" resultType="String">
+        select distinct breed
+          from cat_profile
+         where del_flag = '0'
+           and breed is not null and breed != ''
+         order by breed
+    </select>
+
+    <!-- 按猫聚合的相册信息卡：一只猫一张卡，封面取该猫最新一张照片 -->
+    <select id="selectPhotoCatCards" parameterType="CatPhoto" resultType="java.util.LinkedHashMap">
+        select p.cat_id as catId, p.cat_name as catName, p.archive_no as archiveNo,
+               p.breed as breed, p.sex as sex, p.base_id as baseId, p.ward_id as wardId,
+               b.base_name as baseName, w.ward_name as wardName,
+               (select count(*) from cat_photo x where x.cat_id = p.cat_id
+                 <if test="folder != null and folder != ''">and x.folder = #{folder}</if>
+                 <if test="fileType != null and fileType != ''">and x.file_type = #{fileType}</if>
+               ) as photoCount,
+               (select coalesce(nullif(x.thumb_url, ''), x.file_url)
+                  from cat_photo x
+                 where x.cat_id = p.cat_id
+                 <if test="folder != null and folder != ''">and x.folder = #{folder}</if>
+                 <if test="fileType != null and fileType != ''">and x.file_type = #{fileType}</if>
+                 order by x.create_time desc, x.photo_id desc limit 1) as coverUrl,
+               (select x.create_time from cat_photo x
+                 where x.cat_id = p.cat_id
+                 <if test="folder != null and folder != ''">and x.folder = #{folder}</if>
+                 <if test="fileType != null and fileType != ''">and x.file_type = #{fileType}</if>
+                 order by x.create_time desc, x.photo_id desc limit 1) as latestTime
+          from cat_profile p
+          left join cat_base b on b.base_id = p.base_id
+          left join cat_ward w on w.ward_id = p.ward_id
+        <where>
+            p.del_flag = '0'
+            and exists (select 1 from cat_photo x where x.cat_id = p.cat_id
+                        <if test="folder != null and folder != ''">and x.folder = #{folder}</if>
+                        <if test="fileType != null and fileType != ''">and x.file_type = #{fileType}</if>
+                       )
+            <if test="catId != null">AND p.cat_id = #{catId}</if>
+            <if test="breed != null and breed != ''">AND p.breed = #{breed}</if>
+            <if test="sex != null and sex != ''">AND p.sex = #{sex}</if>
+            <if test="baseId != null">AND p.base_id = #{baseId}</if>
+            <if test="wardId != null">AND p.ward_id = #{wardId}</if>
+        </where>
+        order by latestTime desc
     </select>
 
     <insert id="insertCatPhoto" parameterType="CatPhoto" useGeneratedKeys="true" keyProperty="photoId">

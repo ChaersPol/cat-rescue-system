@@ -166,6 +166,66 @@ public class ServletUtils
     }
 
     /**
+     * 获取浏览器地址栏上的源地址（scheme://host[:port]），取不到返回空串
+     * <p>
+     * 依次看 Origin、Referer 请求头，只保留 scheme://host[:port]，路径部分丢掉。
+     * <p>
+     * 为什么要单独有这么一个方法：开发时前端在 81、后端在 8081，vite 代理会改写 Host 头
+     * （changeOrigin=true），于是 {@link #getRequestBaseUrl()} 拿到的是后端端口 8081，
+     * 而不是用户实际在用的 81。只有浏览器自己发的 Origin / Referer 才带真实端口。
+     * 生产环境走 nginx 反代时，它同样等于用户访问的域名，结果一致。
+     */
+    public static String getClientOrigin()
+    {
+        HttpServletRequest request;
+        try
+        {
+            ServletRequestAttributes attributes = getRequestAttributes();
+            request = attributes == null ? null : attributes.getRequest();
+        }
+        catch (Exception e)
+        {
+            return StringUtils.EMPTY;
+        }
+        if (request == null)
+        {
+            return StringUtils.EMPTY;
+        }
+        String origin = firstHeaderValue(request, "Origin");
+        if (StringUtils.isBlank(origin) || "null".equalsIgnoreCase(origin))
+        {
+            // file:// 页面、或跨域请求没带 Origin 时，退回 Referer（同源 XHR 一定会带）
+            origin = firstHeaderValue(request, "Referer");
+        }
+        return toOrigin(origin);
+    }
+
+    /**
+     * 从完整地址里截出 scheme://host[:port]，非法地址返回空串
+     */
+    private static String toOrigin(String url)
+    {
+        if (StringUtils.isBlank(url))
+        {
+            return StringUtils.EMPTY;
+        }
+        String value = url.trim();
+        int schemeIdx = value.indexOf("://");
+        if (schemeIdx <= 0)
+        {
+            return StringUtils.EMPTY;
+        }
+        int pathIdx = value.indexOf('/', schemeIdx + 3);
+        String origin = pathIdx > 0 ? value.substring(0, pathIdx) : value;
+        int queryIdx = origin.indexOf('?');
+        if (queryIdx > 0)
+        {
+            origin = origin.substring(0, queryIdx);
+        }
+        return origin;
+    }
+
+    /**
      * 取逗号分隔的请求头中的第一个值（多级代理会追加多份）
      */
     private static String firstHeaderValue(HttpServletRequest request, String name)

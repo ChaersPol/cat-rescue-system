@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatDiagnosisItemMapper">
+
+    <resultMap type="CatDiagnosisItem" id="CatDiagnosisItemResult">
+        <result property="detailId" column="detail_id" />
+        <result property="diagnosisId" column="diagnosis_id" />
+        <result property="catId" column="cat_id" />
+        <result property="itemId" column="item_id" />
+        <result property="itemName" column="item_name" />
+        <result property="itemType" column="item_type" />
+        <result property="materialId" column="material_id" />
+        <result property="quantity" column="quantity" />
+        <result property="unit" column="unit" />
+        <result property="price" column="price" />
+        <result property="amount" column="amount" />
+        <result property="usageNote" column="usage_note" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <select id="selectByDiagnosisId" parameterType="Long" resultMap="CatDiagnosisItemResult">
+        select detail_id, diagnosis_id, cat_id, item_id, item_name, item_type, material_id,
+               quantity, unit, price, amount, usage_note, create_time
+        from cat_diagnosis_item
+        where diagnosis_id = #{diagnosisId}
+        order by detail_id asc
+    </select>
+
+    <insert id="batchInsert">
+        insert into cat_diagnosis_item
+            (diagnosis_id, cat_id, item_id, item_name, item_type, material_id,
+             quantity, unit, price, amount, usage_note, create_time)
+        values
+        <foreach collection="list" item="it" separator=",">
+            (#{it.diagnosisId}, #{it.catId}, #{it.itemId}, #{it.itemName}, #{it.itemType}, #{it.materialId},
+             #{it.quantity}, #{it.unit}, #{it.price}, #{it.amount}, #{it.usageNote}, sysdate())
+        </foreach>
+    </insert>
+
+    <delete id="deleteByDiagnosisId" parameterType="Long">
+        delete from cat_diagnosis_item where diagnosis_id = #{diagnosisId}
+    </delete>
+
+</mapper>

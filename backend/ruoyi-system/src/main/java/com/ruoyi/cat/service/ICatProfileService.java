@@ -43,6 +43,17 @@ public interface ICatProfileService
     public int regenerateAllQrCode();
 
     /**
+     * 按当前访问地址生成二维码图片（Base64，不落库）
+     * <p>
+     * 二维码是「指到哪儿」的东西，访问地址一变（换端口、换域名）老图就废了。
+     * 所以详情页、打印卡片页都走这个方法实时画，保证图和地址永远是同一份。
+     *
+     * @param archiveNo 档案编号
+     * @return data:image/png;base64,...；档案编号为空返回空串
+     */
+    public String encodeQrCode(String archiveNo);
+
+    /**
      * 外送医院候选（档案与转诊里用过的医院名去重），供表单下拉选择
      */
     public List<String> selectHospitalOptions();

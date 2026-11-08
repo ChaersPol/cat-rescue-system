@@ -33,9 +33,31 @@ public class CatProfile extends BaseEntity
     /** 性别（0公 1母 2未知） */
     @Excel(name = "性别", dictType = "cat_sex")
     private String sex;
-    /** 大概年龄 */
-    @Excel(name = "大概年龄")
+    /** 大概年龄（录入时的原始描述，如「约2岁」「3个月」，年龄展示走实时计算） */
+    @Excel(name = "录入年龄")
     private String ageEstimate;
+    /** 出生日期（档案只存这个，年龄每次按当前日期实时算） */
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    @Excel(name = "出生日期", dateFormat = "yyyy-MM-dd")
+    private Date birthDate;
+    /** 出生日期是否估算（0准确 1估算，非准确生日展示时带「约」） */
+    @Excel(name = "出生日期来源", readConverterExp = "0=准确,1=估算")
+    private String birthEstimated;
+    /** 实时年龄文案（非表字段，查询时按当前日期计算，如「约2岁3个月」） */
+    @Excel(name = "当前年龄")
+    private String ageText;
+    /** 出生至今的整月数（非表字段，供前端排序与年龄区间筛选） */
+    private Integer ageMonths;
+    /** 年龄区间筛选：最小月数（非表字段，含边界） */
+    private Integer ageMinMonths;
+    /** 年龄区间筛选：最大月数（非表字段，含边界） */
+    private Integer ageMaxMonths;
+    /** 年龄筛选「未知」：只查没有出生日期的档案（非表字段） */
+    private Boolean ageUnknown;
+    /** 关键词：名字/编号/特征/品种/性别/年龄 统一搜（非表字段，界面只有一个输入框） */
+    private String keyword;
+    /** 关键词拆出来的文本片段（非表字段，Service 解析后填充，mapper 逐段 AND 匹配） */
+    private String[] keywords;
     /** 体重 */
     @Excel(name = "体重")
     private String weight;
@@ -73,6 +95,8 @@ public class CatProfile extends BaseEntity
     /** 当前所在病房id */
     @Excel(name = "当前所在病房ID", cellType = ColumnType.NUMERIC)
     private Long wardId;
+    /** 只看「未分配病房」的猫（非表字段，病房筛选下拉里的伪选项 wardId=0 转成它） */
+    private Boolean wardUnassigned;
     /** 归属基地id */
     @Excel(name = "归属基地ID", cellType = ColumnType.NUMERIC)
     private Long ownerBaseId;
@@ -88,12 +112,20 @@ public class CatProfile extends BaseEntity
     /** 是否归档（0未归档 1已归档） */
     @Excel(name = "是否归档", dictType = "cat_yes_no")
     private String archived;
+    /** 建档人昵称（非表字段，展示用；create_by 存的是登录名） */
+    private String creatorName;
     /** 标签id数组（非表字段） */
     private Long[] tagIds;
     /** 可见病房范围（非表字段，助理按病房授权过滤） */
     private Long[] wardIds;
     /** 是否启用病房授权过滤（非表字段） */
     private Boolean wardScope;
+    /**
+     * 实际转移时间（非表字段，仅编辑档案补录病房时用）。
+     * 人已经把猫放进屋、当时没在电脑上录，事后补录时填当时的时间；
+     * 流转记录的 create_time 仍记真实保存时间，两者分开，能查清"哪天放的、哪天补的"。
+     */
+    private String moveTime;
     public Long getCatId()
     {
         return catId;
@@ -149,6 +181,78 @@ public class CatProfile extends BaseEntity
     public void setAgeEstimate(String ageEstimate)
     {
         this.ageEstimate = ageEstimate;
+    }
+    public Date getBirthDate()
+    {
+        return birthDate;
+    }
+    public void setBirthDate(Date birthDate)
+    {
+        this.birthDate = birthDate;
+    }
+    public String getBirthEstimated()
+    {
+        return birthEstimated;
+    }
+    public void setBirthEstimated(String birthEstimated)
+    {
+        this.birthEstimated = birthEstimated;
+    }
+    public String getAgeText()
+    {
+        return ageText;
+    }
+    public void setAgeText(String ageText)
+    {
+        this.ageText = ageText;
+    }
+    public Integer getAgeMonths()
+    {
+        return ageMonths;
+    }
+    public void setAgeMonths(Integer ageMonths)
+    {
+        this.ageMonths = ageMonths;
+    }
+    public Integer getAgeMinMonths()
+    {
+        return ageMinMonths;
+    }
+    public void setAgeMinMonths(Integer ageMinMonths)
+    {
+        this.ageMinMonths = ageMinMonths;
+    }
+    public Integer getAgeMaxMonths()
+    {
+        return ageMaxMonths;
+    }
+    public void setAgeMaxMonths(Integer ageMaxMonths)
+    {
+        this.ageMaxMonths = ageMaxMonths;
+    }
+    public Boolean getAgeUnknown()
+    {
+        return ageUnknown;
+    }
+    public void setAgeUnknown(Boolean ageUnknown)
+    {
+        this.ageUnknown = ageUnknown;
+    }
+    public String getKeyword()
+    {
+        return keyword;
+    }
+    public void setKeyword(String keyword)
+    {
+        this.keyword = keyword;
+    }
+    public String[] getKeywords()
+    {
+        return keywords;
+    }
+    public void setKeywords(String[] keywords)
+    {
+        this.keywords = keywords;
     }
     public String getWeight()
     {
@@ -246,6 +350,14 @@ public class CatProfile extends BaseEntity
     {
         this.wardId = wardId;
     }
+    public Boolean getWardUnassigned()
+    {
+        return wardUnassigned;
+    }
+    public void setWardUnassigned(Boolean wardUnassigned)
+    {
+        this.wardUnassigned = wardUnassigned;
+    }
     public Long getOwnerBaseId()
     {
         return ownerBaseId;
@@ -294,6 +406,14 @@ public class CatProfile extends BaseEntity
     {
         this.archived = archived;
     }
+    public String getCreatorName()
+    {
+        return creatorName;
+    }
+    public void setCreatorName(String creatorName)
+    {
+        this.creatorName = creatorName;
+    }
     public Long[] getTagIds()
     {
         return tagIds;
@@ -318,6 +438,14 @@ public class CatProfile extends BaseEntity
     {
         this.wardScope = wardScope;
     }
+    public String getMoveTime()
+    {
+        return moveTime;
+    }
+    public void setMoveTime(String moveTime)
+    {
+        this.moveTime = moveTime;
+    }
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
@@ -328,6 +456,9 @@ public class CatProfile extends BaseEntity
             .append("breed", getBreed())
             .append("sex", getSex())
             .append("ageEstimate", getAgeEstimate())
+            .append("birthDate", getBirthDate())
+            .append("birthEstimated", getBirthEstimated())
+            .append("ageText", getAgeText())
             .append("weight", getWeight())
             .append("personality", getPersonality())
             .append("source", getSource())

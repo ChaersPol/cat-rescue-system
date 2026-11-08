@@ -73,10 +73,14 @@ public class CatRefNameFiller
         rule("CatVaccine", "catId", "catRefName", "cat");
         rule("CatDeworm", "catId", "catRefName", "cat");
         rule("CatMedication", "catId", "catRefName", "cat");
+        rule("CatMedicationGroup", "catId", "catRefName", "cat");
+        rule("CatPrescription", "catId", "catRefName", "cat");
         rule("CatPhoto", "catId", "catRefName", "cat");
         rule("CatReminder", "catId", "catRefName", "cat");
         rule("CatDiagnosis", "catId", "catRefName", "cat");
         rule("CatDiagnosis", "baseId", "baseRefName", "base");
+        rule("CatDiagnosis", "sourceBaseId", "sourceBaseRefName", "base");
+        rule("CatDiagnosis", "wardId", "wardRefName", "ward");
         rule("CatReferral", "catId", "catRefName", "cat");
         rule("CatReferral", "targetBaseId", "targetBaseRefName", "base");
         rule("CatFlow", "catId", "catRefName", "cat");
@@ -92,6 +96,7 @@ public class CatRefNameFiller
         rule("CatWard", "baseId", "baseRefName", "base");
         rule("CatMaterial", "categoryId", "materialCategoryRefName", "materialCategory");
         rule("CatStockRecord", "materialId", "materialRefName", "material");
+        rule("CatStockRecord", "catId", "catRefName", "cat");
         rule("CatStockRecord", "expenseId", "expenseRefName", "expense");
         rule("CatWardAuth", "userId", "userRefName", "user");
         rule("CatWardAuth", "wardId", "wardRefName", "ward");

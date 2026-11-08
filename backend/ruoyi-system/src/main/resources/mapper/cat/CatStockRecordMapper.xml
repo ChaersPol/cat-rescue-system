@@ -15,7 +15,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="receiver" column="receiver" />
         <result property="purpose" column="purpose" />
         <result property="operator" column="operator" />
+        <result property="sourceType" column="source_type" />
+        <result property="diagnosisId" column="diagnosis_id" />
+        <result property="catId" column="cat_id" />
         <result property="expenseId" column="expense_id" />
+        <result property="refType" column="ref_type" />
+        <result property="refId" column="ref_id" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -24,7 +29,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatStockRecordVo">
-        select record_id, material_id, record_type, quantity, record_date, supplier, receiver_base, receiver, purpose, operator, expense_id, create_by, create_time, update_by, update_time, remark from cat_stock_record
+        select record_id, material_id, record_type, quantity, record_date, supplier, receiver_base, receiver, purpose, operator, source_type, diagnosis_id, cat_id, expense_id, ref_type, ref_id, create_by, create_time, update_by, update_time, remark from cat_stock_record
     </sql>
 
     <select id="selectCatStockRecordById" parameterType="Long" resultMap="CatStockRecordResult">
@@ -44,6 +49,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receiver != null and receiver != ''">AND receiver = #{receiver}</if>
             <if test="purpose != null and purpose != ''">AND purpose = #{purpose}</if>
             <if test="operator != null and operator != ''">AND operator = #{operator}</if>
+            <if test="sourceType != null and sourceType != ''">AND source_type = #{sourceType}</if>
+            <if test="diagnosisId != null">AND diagnosis_id = #{diagnosisId}</if>
+            <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="expenseId != null">AND expense_id = #{expenseId}</if>
         </where>
         order by record_id desc
@@ -60,7 +71,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receiver != null">receiver,</if>
             <if test="purpose != null">purpose,</if>
             <if test="operator != null">operator,</if>
+            <if test="sourceType != null">source_type,</if>
+            <if test="diagnosisId != null">diagnosis_id,</if>
+            <if test="catId != null">cat_id,</if>
             <if test="expenseId != null">expense_id,</if>
+            <if test="refType != null">ref_type,</if>
+            <if test="refId != null">ref_id,</if>
             <if test="remark != null">remark,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time
@@ -74,7 +90,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receiver != null">#{receiver},</if>
             <if test="purpose != null">#{purpose},</if>
             <if test="operator != null">#{operator},</if>
+            <if test="sourceType != null">#{sourceType},</if>
+            <if test="diagnosisId != null">#{diagnosisId},</if>
+            <if test="catId != null">#{catId},</if>
             <if test="expenseId != null">#{expenseId},</if>
+            <if test="refType != null">#{refType},</if>
+            <if test="refId != null">#{refId},</if>
             <if test="remark != null">#{remark},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate()
@@ -93,6 +114,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receiver != null and receiver != ''">receiver = #{receiver},</if>
             <if test="purpose != null and purpose != ''">purpose = #{purpose},</if>
             <if test="operator != null and operator != ''">operator = #{operator},</if>
+            <if test="sourceType != null and sourceType != ''">source_type = #{sourceType},</if>
+            <if test="diagnosisId != null">diagnosis_id = #{diagnosisId},</if>
+            <if test="catId != null">cat_id = #{catId},</if>
             <if test="expenseId != null">expense_id = #{expenseId},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()
@@ -108,4 +132,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from cat_stock_record where record_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
     </delete>
+
+    <!-- 诊断单自动出入库的净值：出库记正、入库（冲销）记负，按物资汇总 -->
+    <select id="selectNetByDiagnosisId" parameterType="Long" resultType="java.util.Map">
+        select material_id as materialId,
+               sum(case when record_type = '2' then quantity else -quantity end) as netQty
+        from cat_stock_record
+        where diagnosis_id = #{diagnosisId} and source_type = '2'
+        group by material_id
+    </select>
+
+    <!-- 台账（用药/疫苗/驱虫）自动出库的净值，口径同上 -->
+    <select id="selectNetByRef" resultType="java.util.Map">
+        select material_id as materialId,
+               sum(case when record_type = '2' then quantity else -quantity end) as netQty
+        from cat_stock_record
+        where ref_type = #{refType} and ref_id = #{refId}
+        group by material_id
+    </select>
 </mapper>

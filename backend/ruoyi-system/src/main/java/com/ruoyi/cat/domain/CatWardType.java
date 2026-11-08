@@ -25,8 +25,8 @@ public class CatWardType extends BaseEntity
     @Excel(name = "类型名称")
     private String typeName;
 
-    /** 标签颜色（primary/success/info/warning/danger） */
-    @Excel(name = "标签颜色")
+    /** 标签颜色（primary/success/warning/danger/info + 扩展色 purple/pink/yellow/black） */
+    @Excel(name = "标签颜色", readConverterExp = "primary=蓝色,success=绿色,warning=橙色,danger=红色,info=灰色,purple=紫色,pink=粉色,yellow=黄色,black=黑色")
     private String tagType;
 
     /** 显示顺序 */

@@ -88,4 +88,25 @@ public interface CatProfileMapper
      * 查询历史使用过的外送医院名称（档案 + 转诊记录），供表单下拉选择
      */
     public List<String> selectHospitalOptions();
+
+    /**
+     * 查询历史使用过的品种（去重），供筛选下拉选择
+     */
+    public List<String> selectBreedOptions();
+
+    /**
+     * 查询已满指定岁数、仍在册的老龄猫（出生日期为空的不算）
+     * <p>
+     * 「满 7 岁」这类关注提醒用：出生日期实时算，到期自然命中，不需要人工标记老龄。
+     */
+    public List<CatProfile> selectSeniorCats(@Param("years") int years);
+
+    /**
+     * 按病房统计在册猫咪数（筛选下拉显示「病房名（N）」）
+     *
+     * @param wardIds   助理授权的病房范围；wardScope=false 时忽略
+     * @param wardScope 是否按病房授权收敛（助理账号为 true）
+     */
+    public List<java.util.Map<String, Object>> selectWardStats(@Param("wardIds") Long[] wardIds,
+                                                              @Param("wardScope") boolean wardScope);
 }

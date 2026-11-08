@@ -28,6 +28,7 @@ import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.cat.domain.CatProfile;
+import com.ruoyi.cat.domain.CatBase;
 import com.ruoyi.cat.domain.CatPhoto;
 import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.domain.CatDiagnosis;
@@ -40,6 +41,7 @@ import com.ruoyi.cat.domain.CatTnr;
 import com.ruoyi.cat.domain.CatRelease;
 import com.ruoyi.cat.domain.CatAdoption;
 import com.ruoyi.cat.mapper.CatProfileMapper;
+import com.ruoyi.cat.mapper.CatBaseMapper;
 import com.ruoyi.cat.mapper.CatPhotoMapper;
 import com.ruoyi.cat.mapper.CatFlowMapper;
 import com.ruoyi.cat.mapper.CatDiagnosisMapper;
@@ -53,6 +55,7 @@ import com.ruoyi.cat.mapper.CatReleaseMapper;
 import com.ruoyi.cat.mapper.CatAdoptionMapper;
 import com.ruoyi.cat.service.ICatProfileService;
 import com.ruoyi.cat.service.ICatWardAuthService;
+import com.ruoyi.cat.util.CatImmunizationRule;
 
 /**
  * 猫咪档案 控制器
@@ -74,6 +77,8 @@ public class CatProfileController extends BaseController
 
     @Autowired
     private CatProfileMapper catProfileMapper;
+    @Autowired
+    private CatBaseMapper catBaseMapper;
     @Autowired
     private CatPhotoMapper catPhotoMapper;
     @Autowired
@@ -97,6 +102,9 @@ public class CatProfileController extends BaseController
     @Autowired
     private CatAdoptionMapper catAdoptionMapper;
 
+    @Autowired
+    private com.ruoyi.cat.service.impl.CatImmunizationSummaryService immunizationSummaryService;
+
     /**
      * 单猫完整档案（档案详情页用）
      * <p>
@@ -119,16 +127,20 @@ public class CatProfileController extends BaseController
         result.put("tagNames", catProfileMapper.selectTagNamesByCatId(catId));
         result.put("tagIds", catProfileMapper.selectTagIdsByCatId(catId));
 
-        // 相册（按文件夹分组由前端处理）
+        // 相册（按拍摄时间倒序，第一张即最新照片，用作头像 / 信息卡封面）
         CatPhoto photoQuery = new CatPhoto();
         photoQuery.setCatId(catId);
-        result.put("photos", catPhotoMapper.selectCatPhotoList(photoQuery));
+        List<CatPhoto> photos = catPhotoMapper.selectCatPhotoList(photoQuery);
+        result.put("photos", photos);
+        result.put("avatar", pickCoverUrl(photos));
 
-        // 流转轨迹
+        // 流转轨迹（按时间正序，界面与「按阶段看病历」都依赖这个顺序）
         CatFlow flowQuery = new CatFlow();
         flowQuery.setCatId(catId);
         List<CatFlow> flows = catFlowMapper.selectCatFlowList(flowQuery);
+        flows.sort((a, b) -> compareTime(a.getOperateTime(), b.getOperateTime()));
         result.put("flows", flows);
+        result.put("baseNames", baseNameMap());
 
         // 领养、死亡、TNR、放归
         CatAdoption adoptionQuery = new CatAdoption();
@@ -151,17 +163,27 @@ public class CatProfileController extends BaseController
         List<CatRelease> releases = catReleaseMapper.selectCatReleaseList(releaseQuery);
         result.put("release", releases.isEmpty() ? null : releases.get(0));
 
-        // 合并时间线
-        result.put("timeline", buildTimeline(catId));
+        // 合并时间线（带上每条记录当时所在基地，便于按流转阶段划分）
+        result.put("timeline", buildTimeline(catId, profile, flows));
+        // 疫苗第几针 / 驱虫第几次的时间点汇总，用于档案页「免疫与驱虫」卡片
+        result.put("vaccineSummary", buildVaccineSummary(catId));
+        result.put("dewormSummary", buildDewormSummary(catId));
+        // 免疫概览：基础免疫进度、狂犬/加强针到期日、上次体内外驱虫，不点进列表也能量出该不该补针
+        result.put("immuneOverview", immunizationSummaryService.overview(catId, null));
         return success(result);
     }
 
     /**
      * 构建病历时间线：所有诊疗与流转记录按时间倒序合并
+     * <p>
+     * 每条记录都带 {@code baseId / baseName}，表示这条病历产生时猫咪所在的基地；
+     * 前端可按某次流转节点把时间线截断，看「这次流转之前，病例是在哪个基地产生的」。
      */
-    private List<Map<String, Object>> buildTimeline(Long catId)
+    private List<Map<String, Object>> buildTimeline(Long catId, CatProfile profile, List<CatFlow> flowsAsc)
     {
         List<Map<String, Object>> timeline = new ArrayList<>();
+        Map<Long, String> baseNames = baseNameMap();
+        Long currentBaseId = profile == null ? null : profile.getBaseId();
 
         CatDiagnosis diagnosisQuery = new CatDiagnosis();
         diagnosisQuery.setCatId(catId);
@@ -177,6 +199,9 @@ public class CatProfileController extends BaseController
             item.put("correctionBy", d.getCorrectionBy());
             item.put("correctionTime", d.getCorrectionTime());
             item.put("recordId", d.getDiagnosisId());
+            // 诊断单自己记了治疗基地，直接用；没有就按当时的流转阶段推断
+            putPlace(item, d.getBaseId() != null ? d.getBaseId()
+                    : baseAt(d.getVisitDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -190,28 +215,53 @@ public class CatProfileController extends BaseController
             item.put("adverseReaction", m.getAdverseReaction());
             item.put("photos", m.getPhotos());
             item.put("recordId", m.getMedicationId());
+            putPlace(item, baseAt(m.getUseDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
+        // 疫苗：只给基础免疫（第一/二/三针）编针次；狂犬、加强针是年度苗，不参与「第 N 针」
         CatVaccine vaccineQuery = new CatVaccine();
         vaccineQuery.setCatId(catId);
-        for (CatVaccine v : vaccineMapper.selectCatVaccineList(vaccineQuery))
+        List<CatVaccine> vaccines = vaccineMapper.selectCatVaccineList(vaccineQuery);
+        vaccines.sort((a, b) -> compareTime(a.getVaccineDate(), b.getVaccineDate()));
+        int doseNo = 0;
+        for (CatVaccine v : vaccines)
         {
+            String type = StringUtils.isEmpty(v.getVaccineType()) ? "疫苗" : v.getVaccineType();
             Map<String, Object> item = newItem("疫苗", v.getVaccineDate(), v.getResponsible());
-            item.put("title", v.getVaccineType());
+            boolean baseDose = CatImmunizationRule.isBaseDose(type);
+            if (baseDose)
+            {
+                doseNo++;
+            }
+            // 类型本身就写了「第一针」的不再重复拼；「狂犬/加强针」原样展示
+            boolean needNo = baseDose && !type.contains("针");
+            item.put("title", needNo ? type + "（第" + doseNo + "针）" : type);
             item.put("detail", v.getNextDate() == null ? null : "下次接种：" + new SimpleDateFormat("yyyy-MM-dd").format(v.getNextDate()));
             item.put("recordId", v.getVaccineId());
+            item.put("doseNo", baseDose ? doseNo : null);
+            putPlace(item, baseAt(v.getVaccineDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
+        // 驱虫：体内、体外分开编号，各自「第 N 次」，混着编号会让人以为体外也打了好几次
         CatDeworm dewormQuery = new CatDeworm();
         dewormQuery.setCatId(catId);
-        for (CatDeworm dw : dewormMapper.selectCatDewormList(dewormQuery))
+        List<CatDeworm> deworms = dewormMapper.selectCatDewormList(dewormQuery);
+        deworms.sort((a, b) -> compareTime(a.getDewormDate(), b.getDewormDate()));
+        int inNo = 0;
+        int outNo = 0;
+        for (CatDeworm dw : deworms)
         {
+            boolean isOut = dw.getDewormType() != null && dw.getDewormType().contains("体外");
+            int no = isOut ? ++outNo : ++inNo;
             Map<String, Object> item = newItem("驱虫", dw.getDewormDate(), null);
-            item.put("title", dw.getDewormDrug());
+            String drug = StringUtils.isEmpty(dw.getDewormDrug()) ? "驱虫" : dw.getDewormDrug();
+            item.put("title", drug + "（" + (isOut ? "体外" : "体内") + "第" + no + "次）");
             item.put("detail", dw.getNextDate() == null ? null : "下次驱虫：" + new SimpleDateFormat("yyyy-MM-dd").format(dw.getNextDate()));
             item.put("recordId", dw.getDewormId());
+            item.put("doseNo", no);
+            putPlace(item, baseAt(dw.getDewormDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -226,6 +276,7 @@ public class CatProfileController extends BaseController
             item.put("hospitalResult", r.getResult());
             item.put("photos", r.getFiles());
             item.put("recordId", r.getReferralId());
+            putPlace(item, baseAt(r.getSendDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -238,6 +289,11 @@ public class CatProfileController extends BaseController
             item.put("content", f.getFlowReason());
             item.put("detail", f.getHospitalName());
             item.put("recordId", f.getFlowId());
+            // 流转这条记录本身：写清从哪到哪，转入基地即流转之后的所在地
+            item.put("baseId", f.getToBaseId());
+            item.put("baseName", baseNames.get(f.getToBaseId()));
+            item.put("fromBaseName", baseNames.get(f.getFromBaseId()));
+            item.put("toBaseName", baseNames.get(f.getToBaseId()));
             timeline.add(item);
         }
 
@@ -251,6 +307,7 @@ public class CatProfileController extends BaseController
             item.put("detail", death.getBodyDisposal());
             item.put("photos", death.getPhotos());
             item.put("recordId", death.getDeathId());
+            putPlace(item, baseAt(death.getDeathDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -263,6 +320,7 @@ public class CatProfileController extends BaseController
             item.put("content", t.getCapturePoint());
             item.put("detail", t.getSurgeryRecord());
             item.put("recordId", t.getTnrId());
+            putPlace(item, baseAt(t.getCaptureTime(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -274,6 +332,7 @@ public class CatProfileController extends BaseController
             item.put("title", "放归 " + (r.getReleasePoint() == null ? "" : r.getReleasePoint()));
             item.put("content", r.getReleaseStatus());
             item.put("recordId", r.getReleaseId());
+            putPlace(item, baseAt(r.getReleaseDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -286,6 +345,7 @@ public class CatProfileController extends BaseController
             item.put("content", a.getAdopterPhone());
             item.put("detail", a.getAdopterAddress());
             item.put("recordId", a.getAdoptionId());
+            putPlace(item, baseAt(a.getAdoptionDate(), flowsAsc, currentBaseId), baseNames);
             timeline.add(item);
         }
 
@@ -294,6 +354,141 @@ public class CatProfileController extends BaseController
         // "Thu Apr 01 13:40:00 CST 2026"，按字符串排会先比星期、再比英文月份，顺序全乱。
         timeline.sort((a, b) -> Long.compare(timelineMillis(b.get("time")), timelineMillis(a.get("time"))));
         return timeline;
+    }
+
+    /** 全部基地 id → 名称 */
+    private Map<Long, String> baseNameMap()
+    {
+        Map<Long, String> map = new HashMap<>();
+        for (CatBase b : catBaseMapper.selectCatBaseList(new CatBase()))
+        {
+            map.put(b.getBaseId(), b.getBaseName());
+        }
+        return map;
+    }
+
+    /**
+     * 某条病历发生时猫咪所在的基地：取该时间点之前最后一次流转的转入基地；
+     * 之前没有流转记录，就按档案当前基地兜底。
+     */
+    private Long baseAt(Date time, List<CatFlow> flowsAsc, Long fallbackBaseId)
+    {
+        if (time == null || flowsAsc == null)
+        {
+            return fallbackBaseId;
+        }
+        Long baseId = null;
+        long t = time.getTime();
+        for (CatFlow f : flowsAsc)
+        {
+            if (f.getOperateTime() == null)
+            {
+                continue;
+            }
+            if (f.getOperateTime().getTime() > t)
+            {
+                break;
+            }
+            if (f.getToBaseId() != null)
+            {
+                baseId = f.getToBaseId();
+            }
+        }
+        return baseId != null ? baseId : fallbackBaseId;
+    }
+
+    private void putPlace(Map<String, Object> item, Long baseId, Map<Long, String> baseNames)
+    {
+        item.put("baseId", baseId);
+        item.put("baseName", baseId == null ? null : baseNames.get(baseId));
+    }
+
+    /** 日期比较：空值排在最前（升序） */
+    private static int compareTime(Date a, Date b)
+    {
+        long ta = a == null ? Long.MIN_VALUE : a.getTime();
+        long tb = b == null ? Long.MIN_VALUE : b.getTime();
+        return Long.compare(ta, tb);
+    }
+
+    /** 疫苗时间点：第几针、哪天打的、下次什么时候 */
+    private List<Map<String, Object>> buildVaccineSummary(Long catId)
+    {
+        CatVaccine query = new CatVaccine();
+        query.setCatId(catId);
+        List<CatVaccine> vaccines = vaccineMapper.selectCatVaccineList(query);
+        vaccines.sort((a, b) -> compareTime(a.getVaccineDate(), b.getVaccineDate()));
+        List<Map<String, Object>> summary = new ArrayList<>();
+        int no = 0;
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
+        for (CatVaccine v : vaccines)
+        {
+            String type = StringUtils.isEmpty(v.getVaccineType()) ? "疫苗" : v.getVaccineType();
+            boolean baseDose = CatImmunizationRule.isBaseDose(type);
+            if (baseDose)
+            {
+                no++;
+            }
+            Map<String, Object> row = new HashMap<>();
+            row.put("no", baseDose ? no : null);
+            // 针次列直接给文案：基础免疫「第 N 针」，狂犬 / 加强针显示类型本身
+            row.put("doseLabel", baseDose ? "第" + no + "针" : type);
+            row.put("date", v.getVaccineDate() == null ? null : fmt.format(v.getVaccineDate()));
+            row.put("type", v.getVaccineType());
+            row.put("nextDate", v.getNextDate() == null ? null : fmt.format(v.getNextDate()));
+            row.put("daysLeft", CatImmunizationRule.daysLeft(v.getNextDate()));
+            row.put("responsible", v.getResponsible());
+            row.put("sourceType", v.getSourceType());
+            summary.add(row);
+        }
+        return summary;
+    }
+
+    /** 驱虫时间点：体内/体外各自第几次、哪天驱的、下次什么时候 */
+    private List<Map<String, Object>> buildDewormSummary(Long catId)
+    {
+        CatDeworm query = new CatDeworm();
+        query.setCatId(catId);
+        List<CatDeworm> deworms = dewormMapper.selectCatDewormList(query);
+        deworms.sort((a, b) -> compareTime(a.getDewormDate(), b.getDewormDate()));
+        List<Map<String, Object>> summary = new ArrayList<>();
+        int inNo = 0;
+        int outNo = 0;
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
+        for (CatDeworm dw : deworms)
+        {
+            boolean isOut = dw.getDewormType() != null && dw.getDewormType().contains("体外");
+            int no = isOut ? ++outNo : ++inNo;
+            Map<String, Object> row = new HashMap<>();
+            row.put("no", no);
+            row.put("noLabel", (isOut ? "体外第" : "体内第") + no + "次");
+            row.put("dewormType", dw.getDewormType());
+            row.put("date", dw.getDewormDate() == null ? null : fmt.format(dw.getDewormDate()));
+            row.put("drug", dw.getDewormDrug());
+            row.put("nextDate", dw.getNextDate() == null ? null : fmt.format(dw.getNextDate()));
+            row.put("daysLeft", CatImmunizationRule.daysLeft(dw.getNextDate()));
+            row.put("sourceType", dw.getSourceType());
+            summary.add(row);
+        }
+        return summary;
+    }
+
+    /** 相册第一张（已按时间倒序）就是最新照片，用作头像/信息卡封面 */
+    private String pickCoverUrl(List<CatPhoto> photos)
+    {
+        if (photos == null || photos.isEmpty())
+        {
+            return null;
+        }
+        for (CatPhoto p : photos)
+        {
+            if ("2".equals(p.getFileType()))
+            {
+                continue;
+            }
+            return StringUtils.isNotEmpty(p.getThumbUrl()) ? p.getThumbUrl() : p.getFileUrl();
+        }
+        return null;
     }
 
     /**
@@ -340,7 +535,8 @@ public class CatProfileController extends BaseController
             item.put("catId", p.getCatId());
             item.put("archiveNo", p.getArchiveNo());
             item.put("catName", p.getCatName());
-            item.put("qrCode", p.getQrCode());
+            // 按当前访问地址实时画，不用库里那张（换端口后老图指向的是旧地址）
+            item.put("qrCode", catIdService.encodeQrCode(p.getArchiveNo()));
             result.add(item);
         }
         return success(result);
@@ -356,7 +552,13 @@ public class CatProfileController extends BaseController
         {
             return success(new ArrayList<>());
         }
-        return success(catProfileMapper.selectCardsByIds(catIds));
+        List<com.ruoyi.cat.domain.CatCardVo> cards = catProfileMapper.selectCardsByIds(catIds);
+        for (com.ruoyi.cat.domain.CatCardVo card : cards)
+        {
+            // 打印时现画：贴纸上的码必须是「打印这一刻」的访问地址
+            card.setQrCode(catIdService.encodeQrCode(card.getArchiveNo()));
+        }
+        return success(cards);
     }
 
     /**
@@ -405,6 +607,12 @@ public class CatProfileController extends BaseController
     @GetMapping("/list")
     public TableDataInfo list(CatProfile catId)
     {
+        // 病房筛选下拉里的「未分配病房」用 wardId=0 表示，转成「ward_id is null」
+        if (catId.getWardId() != null && catId.getWardId() == 0L)
+        {
+            catId.setWardId(null);
+            catId.setWardUnassigned(Boolean.TRUE);
+        }
         applyWardScope(catId);
         startPage();
         List<CatProfile> list = catIdService.selectCatProfileList(catId);
@@ -454,7 +662,9 @@ public class CatProfileController extends BaseController
             catId.setStatus("1");
         }
         checkStatusLocation(catId);
-        return toAjax(catIdService.insertCatProfile(catId));
+        // 返回新档案的 catId：前端建档后要直接跳去打印笼位信息卡，需要知道是哪只
+        int rows = catIdService.insertCatProfile(catId);
+        return rows > 0 ? AjaxResult.success("新增成功", catId.getCatId()) : AjaxResult.error();
     }
 
     @PreAuthorize("@ss.hasPermi('cat:profile:edit')")
@@ -509,6 +719,34 @@ public class CatProfileController extends BaseController
     public AjaxResult hospitalOptions()
     {
         return success(catIdService.selectHospitalOptions());
+    }
+
+    /**
+     * 品种候选：档案里用过的品种去重，供列表筛选下拉使用（也能直接输入新词）
+     */
+    @PreAuthorize("@ss.hasPermi('cat:profile:list')")
+    @GetMapping("/breedOptions")
+    public AjaxResult breedOptions()
+    {
+        return success(catProfileMapper.selectBreedOptions());
+    }
+
+    /**
+     * 按病房统计在册猫咪数
+     * <p>
+     * 列表页「所在病房」筛选下拉里显示成「治疗病房1号（3）」，让护士一眼看到每个病房有多少只。
+     * 口径与列表默认一致（未删除、不限状态），助理账号按病房授权收敛。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:profile:list')")
+    @GetMapping("/wardStats")
+    public AjaxResult wardStats()
+    {
+        if (catWardAuthService.isWardScopedUser())
+        {
+            List<Long> wardIds = catWardAuthService.selectWardIdsByUserId(SecurityUtils.getUserId());
+            return success(catProfileMapper.selectWardStats(wardIds.toArray(new Long[0]), true));
+        }
+        return success(catProfileMapper.selectWardStats(null, false));
     }
 
     @PreAuthorize("@ss.hasPermi('cat:profile:remove')")

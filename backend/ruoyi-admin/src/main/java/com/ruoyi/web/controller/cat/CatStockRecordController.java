@@ -100,7 +100,8 @@ public class CatStockRecordController extends BaseController
     @PostMapping("/reverse/{recordId}")
     public AjaxResult reverse(@PathVariable("recordId") Long recordId)
     {
-        int rows = recordIdService.reverseCatStockRecord(recordId, getUsername());
+        // 操作人交给服务层按登录账号填充（普通员工记本人，管理员可指定），不再传登录名
+        int rows = recordIdService.reverseCatStockRecord(recordId, null);
         return rows > 0 ? success("冲销成功，库存已回滚") : AjaxResult.error("冲销失败，原记录不存在");
     }
 }

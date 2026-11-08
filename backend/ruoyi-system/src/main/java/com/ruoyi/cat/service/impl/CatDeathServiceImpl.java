@@ -9,6 +9,7 @@ import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.domain.CatProfile;
 import com.ruoyi.cat.mapper.CatDeathMapper;
 import com.ruoyi.cat.service.ICatDeathService;
+import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.cat.service.ICatTransferService;
 
 /**
@@ -24,6 +25,9 @@ public class CatDeathServiceImpl implements ICatDeathService
 
     @Autowired
     private ICatTransferService catTransferService;
+
+    @Autowired
+    private ICatStaffService staffService;
 
     @Override
     public CatDeath selectCatDeathById(Long deathId)
@@ -41,6 +45,11 @@ public class CatDeathServiceImpl implements ICatDeathService
     @Transactional
     public int insertCatDeath(CatDeath catDeath)
     {
+        // 操作医生只能是医生账号；登记人谁登记记谁（管理员可代录）
+        catDeath.setDoctor(staffService.requireForInsert("操作医生", ICatStaffService.SCOPE_DOCTOR,
+                catDeath.getDoctor(), true));
+        catDeath.setRegistrar(staffService.requireForInsert("登记人", ICatStaffService.SCOPE_ALL,
+                catDeath.getRegistrar(), true));
         int rows = catDeathMapper.insertCatDeath(catDeath);
         // 提交后猫咪状态自动变更为已离世，自动归档
         if (rows > 0 && catDeath.getCatId() != null)
@@ -62,6 +71,10 @@ public class CatDeathServiceImpl implements ICatDeathService
     @Override
     public int updateCatDeath(CatDeath catDeath)
     {
+        catDeath.setDoctor(staffService.normalizeForUpdate(ICatStaffService.SCOPE_DOCTOR,
+                catDeath.getDoctor(), false));
+        catDeath.setRegistrar(staffService.normalizeForUpdate(ICatStaffService.SCOPE_ALL,
+                catDeath.getRegistrar(), false));
         return catDeathMapper.updateCatDeath(catDeath);
     }
 

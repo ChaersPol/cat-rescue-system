@@ -39,6 +39,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCatReferralVo"/>
         <where>
             <if test="catId != null">AND cat_id = #{catId}</if>
+            <!-- 按猫档案当前所在基地/病房筛选（业务表只存 cat_id，位置实时取自档案） -->
+            <if test="catBaseId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND base_id = #{catBaseId})</if>
+            <if test="catWardId != null">AND cat_id IN (SELECT cat_id FROM cat_profile WHERE del_flag = '0' AND ward_id = #{catWardId})</if>
             <if test="sendDate != null">AND send_date = #{sendDate}</if>
             <if test="sendReason != null and sendReason != ''">AND send_reason = #{sendReason}</if>
             <if test="hospitalName != null and hospitalName != ''">AND hospital_name = #{hospitalName}</if>

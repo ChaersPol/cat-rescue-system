@@ -32,6 +32,22 @@ public class CatPhoto extends BaseEntity
     /** 缩略图地址（列表/相册展示用，图片自动缩放、视频自动抽帧） */
     @Excel(name = "缩略图地址")
     private String thumbUrl;
+    /** 猫咪名（关联档案，展示用） */
+    private String catName;
+    /** 档案编号（关联档案，展示用） */
+    private String archiveNo;
+    /** 品种：既是筛选条件，也是相册卡片展示项 */
+    private String breed;
+    /** 性别：既是筛选条件，也是相册卡片展示项 */
+    private String sex;
+    /** 来源基地：既是筛选条件，也是相册卡片展示项 */
+    private Long baseId;
+    /** 所属病房：既是筛选条件，也是相册卡片展示项 */
+    private Long wardId;
+    /** 基地名称（展示用） */
+    private String baseName;
+    /** 病房名称（展示用） */
+    private String wardName;
     public Long getPhotoId()
     {
         return photoId;
@@ -89,6 +105,86 @@ public class CatPhoto extends BaseEntity
     public void setThumbUrl(String thumbUrl)
     {
         this.thumbUrl = thumbUrl;
+    }
+
+    public String getCatName()
+    {
+        return catName;
+    }
+
+    public void setCatName(String catName)
+    {
+        this.catName = catName;
+    }
+
+    public String getArchiveNo()
+    {
+        return archiveNo;
+    }
+
+    public void setArchiveNo(String archiveNo)
+    {
+        this.archiveNo = archiveNo;
+    }
+
+    public String getBreed()
+    {
+        return breed;
+    }
+
+    public void setBreed(String breed)
+    {
+        this.breed = breed;
+    }
+
+    public String getSex()
+    {
+        return sex;
+    }
+
+    public void setSex(String sex)
+    {
+        this.sex = sex;
+    }
+
+    public Long getBaseId()
+    {
+        return baseId;
+    }
+
+    public void setBaseId(Long baseId)
+    {
+        this.baseId = baseId;
+    }
+
+    public Long getWardId()
+    {
+        return wardId;
+    }
+
+    public void setWardId(Long wardId)
+    {
+        this.wardId = wardId;
+    }
+
+    public String getBaseName()
+    {
+        return baseName;
+    }
+
+    public void setBaseName(String baseName)
+    {
+        this.baseName = baseName;
+    }
+
+    public String getWardName()
+    {
+        return wardName;
+    }
+
+    public void setWardName(String wardName)
+    {
+        this.wardName = wardName;
     }
     @Override
     public String toString() {

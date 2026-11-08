@@ -12,6 +12,12 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  */
 public class CatReferral extends BaseEntity
 {
+    /** 猫所属基地 ID（筛选条件，非本表字段） */
+    private Long catBaseId;
+
+    /** 猫所属病房 ID（筛选条件，非本表字段） */
+    private Long catWardId;
+
     private static final long serialVersionUID = 1L;
     /** 转诊记录id */
     @Excel(name = "转诊记录ID", cellType = ColumnType.NUMERIC)
@@ -187,6 +193,26 @@ public class CatReferral extends BaseEntity
     {
         this.status = status;
     }
+    public Long getCatBaseId()
+    {
+        return catBaseId;
+    }
+
+    public void setCatBaseId(Long catBaseId)
+    {
+        this.catBaseId = catBaseId;
+    }
+
+    public Long getCatWardId()
+    {
+        return catWardId;
+    }
+
+    public void setCatWardId(Long catWardId)
+    {
+        this.catWardId = catWardId;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)

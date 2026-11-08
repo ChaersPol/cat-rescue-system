@@ -1,5 +1,6 @@
 package com.ruoyi.web.controller.cat;
 
+import java.util.Date;
 import java.util.List;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,8 +19,11 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatMedication;
+import com.ruoyi.cat.domain.CatMedicationExec;
+import com.ruoyi.cat.domain.CatMedicationGroup;
 import com.ruoyi.cat.service.ICatMedicationService;
 import com.ruoyi.cat.util.CatRefNameFiller;
 
@@ -45,6 +49,71 @@ public class CatMedicationController extends BaseController
         startPage();
         List<CatMedication> list = medicationIdService.selectCatMedicationList(medicationId);
         return getDataTable(list);
+    }
+
+    /**
+     * 合并视图：同一只猫 + 同一天 + 同一时间段 一行
+     * <p>
+     * 明细视图（/list）保留：一次喂三味药在明细里是三行，统计药品消耗要按条算。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:medication:list')")
+    @GetMapping("/group/list")
+    public TableDataInfo groupList(CatMedicationGroup query)
+    {
+        startPage();
+        List<CatMedicationGroup> list = medicationIdService.selectCatMedicationGroupList(query);
+        refNameFiller.fill(list);
+        return getDataTable(list);
+    }
+
+    /** 合并视图展开：某一组（猫 + 日期 + 时间段）的药品明细 */
+    @PreAuthorize("@ss.hasPermi('cat:medication:list')")
+    @GetMapping("/group/details")
+    public AjaxResult groupDetails(@RequestParam Long catId,
+                                   @RequestParam String useDate,
+                                   @RequestParam(required = false, defaultValue = "") String timePeriod)
+    {
+        Date date = parseDate(useDate);
+        if (date == null)
+        {
+            return error("用药日期格式不正确");
+        }
+        return success(medicationIdService.selectGroupDetails(catId, date, timePeriod));
+    }
+
+    private Date parseDate(String text)
+    {
+        try
+        {
+            return DateUtils.parseDate(text);
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
+    }
+
+    /**
+     * 执行打卡（整组）：助理点「完成」/「撤回」/「补照片」，医生也能替助理记录
+     * <p>
+     * 点完成必须已经上传照片；状态记在「猫 + 日期 + 时间段」这一组上。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:medication:edit')")
+    @Log(title = "用药执行打卡", businessType = BusinessType.UPDATE)
+    @PutMapping("/exec")
+    public AjaxResult saveExec(@RequestBody CatMedicationExec request)
+    {
+        return success(medicationIdService.saveExec(request));
+    }
+
+    /** 医生改「这一次」的用药方案（一组内可增删药品），已完成打卡的组不允许改 */
+    @PreAuthorize("@ss.hasPermi('cat:medication:edit')")
+    @Log(title = "每日用药记录", businessType = BusinessType.UPDATE)
+    @PutMapping("/group")
+    public AjaxResult saveGroupPlan(@RequestBody CatMedicationGroup request)
+    {
+        medicationIdService.saveGroupPlan(request);
+        return success();
     }
 
     @PreAuthorize("@ss.hasPermi('cat:medication:export')")

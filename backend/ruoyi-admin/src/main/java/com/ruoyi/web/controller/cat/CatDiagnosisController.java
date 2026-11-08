@@ -20,7 +20,9 @@ import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.cat.domain.CatDiagnosis;
+import com.ruoyi.cat.domain.CatDiagnosisSummary;
 import com.ruoyi.cat.service.ICatDiagnosisService;
+import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.cat.util.CatRefNameFiller;
 
 /**
@@ -38,6 +40,9 @@ public class CatDiagnosisController extends BaseController
     @Autowired
     private CatRefNameFiller refNameFiller;
 
+    @Autowired
+    private ICatStaffService staffService;
+
     @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
     @GetMapping("/list")
     public TableDataInfo list(CatDiagnosis diagnosisId)
@@ -45,6 +50,63 @@ public class CatDiagnosisController extends BaseController
         startPage();
         List<CatDiagnosis> list = diagnosisIdService.selectCatDiagnosisList(diagnosisId);
         return getDataTable(list);
+    }
+
+    /**
+     * 按猫合并视图：一只猫一行（就诊次数、首次/最近就诊、最近一次诊断结果）
+     * <p>
+     * 原来的流水视图保留：查流水、统计医生工作量仍然按次数算。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
+    @GetMapping("/summary")
+    public TableDataInfo summary(CatDiagnosis diagnosisId)
+    {
+        startPage();
+        List<CatDiagnosisSummary> list = diagnosisIdService.selectCatDiagnosisSummaryList(diagnosisId);
+        return getDataTable(list);
+    }
+
+    /**
+     * 当前筛选范围的统计：该病房（基地）多少只猫 + 共多少条诊断记录
+     */
+    @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
+    @GetMapping("/stat")
+    public AjaxResult stat(CatDiagnosis diagnosisId)
+    {
+        return success(diagnosisIdService.selectDiagnosisStat(diagnosisId));
+    }
+
+    /**
+     * 病房下拉数据：每个病房当前在册猫数（已放归 / 已领养 / 已离世不计入）
+     */
+    @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
+    @GetMapping("/wardStats")
+    public AjaxResult wardStats(CatDiagnosis diagnosisId)
+    {
+        return success(diagnosisIdService.selectWardStats(diagnosisId));
+    }
+
+    /**
+     * 新增弹窗选中猫咪后带出：来源基地、当前基地/病房、默认就诊类型
+     */
+    @PreAuthorize("@ss.hasPermi('cat:diagnosis:list')")
+    @GetMapping("/catInfo/{catId}")
+    public AjaxResult catInfo(@PathVariable("catId") Long catId)
+    {
+        return success(diagnosisIdService.selectCatHint(catId));
+    }
+
+    /**
+     * 接诊医生候选：只返回「医生」角色的账号
+     * <p>
+     * 医生本人登录时前端直接显示自己的名字，只有超管/管理员才会用到这个下拉。
+     * 权限挂在 add 上，不依赖 system:user:list，避免以后给别的角色开录入权限时 403。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:diagnosis:add')")
+    @GetMapping("/doctorOptions")
+    public AjaxResult doctorOptions()
+    {
+        return success(diagnosisIdService.selectDoctorOptions());
     }
 
     @PreAuthorize("@ss.hasPermi('cat:diagnosis:export')")
@@ -100,7 +162,7 @@ public class CatDiagnosisController extends BaseController
     public AjaxResult correction(@RequestBody CatDiagnosis diagnosisId)
     {
         int rows = diagnosisIdService.correctCatDiagnosis(diagnosisId.getDiagnosisId(),
-                diagnosisId.getCorrectionNote(), SecurityUtils.getUsername());
+                diagnosisId.getCorrectionNote(), staffService.currentStaffName());
         return rows > 0 ? success("已追加更正备注，原始记录保持不变") : AjaxResult.error("更正失败");
     }
 

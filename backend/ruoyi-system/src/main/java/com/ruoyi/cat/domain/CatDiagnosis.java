@@ -26,12 +26,29 @@ public class CatDiagnosis extends BaseEntity
     /** 治疗基地（名称+类型），导出展示用非表字段 */
     @Excel(name = "治疗基地")
     private String baseRefName;
+    /** 来源基地id（就诊时猫咪归属基地快照，用于追溯「猫是从哪个基地送来的」） */
+    private Long sourceBaseId;
+    /** 来源基地名称，导出展示用非表字段 */
+    @Excel(name = "来源基地")
+    private String sourceBaseRefName;
+    /** 所在病房id（就诊时所在病房快照） */
+    private Long wardId;
+    /** 所在病房名称，导出展示用非表字段 */
+    @Excel(name = "所在病房")
+    private String wardRefName;
+    /** 只看「未填病房」的记录（非表字段，病房筛选下拉里的伪选项 wardId=0 转成它） */
+    private Boolean wardUnassigned;
     /** 就诊日期 */
     @Excel(name = "就诊日期", dateFormat = "yyyy-MM-dd")
     private Date visitDate;
-    /** 操作医生 */
+    /** 就诊类型（1初诊 2复诊） */
+    @Excel(name = "就诊类型", readConverterExp = "1=初诊,2=复诊")
+    private String visitType;
+    /** 操作医生（姓名快照，取接诊医生账号的昵称；改名后历史记录仍保留当时的名字） */
     @Excel(name = "操作医生")
     private String doctor;
+    /** 接诊医生账号ID（sys_user.user_id）；历史手填记录可能为空 */
+    private Long doctorUserId;
     /** 主诉/症状 */
     @Excel(name = "主诉/症状")
     private String symptoms;
@@ -58,6 +75,31 @@ public class CatDiagnosis extends BaseEntity
     private Date correctionTime;
     /** 是否已更正（非表字段，供列表标红提示） */
     private Boolean corrected;
+    /** 本次开具的检查项目/用药明细（非表字段，前端二级弹窗选择后提交） */
+    private java.util.List<CatDiagnosisItem> items;
+    /**
+     * 本次诊断开的用药处方（非表字段）
+     * <p>
+     * 医生诊断完开药：填「几味药 / 几个时间段 / 连吃几天」，保存后自动展开成
+     * 每一天、每个时间段、每味药的用药记录，助理照着打卡。
+     */
+    private CatPrescription prescription;
+    public CatPrescription getPrescription()
+    {
+        return prescription;
+    }
+    public void setPrescription(CatPrescription prescription)
+    {
+        this.prescription = prescription;
+    }
+    public java.util.List<CatDiagnosisItem> getItems()
+    {
+        return items;
+    }
+    public void setItems(java.util.List<CatDiagnosisItem> items)
+    {
+        this.items = items;
+    }
     public Long getDiagnosisId()
     {
         return diagnosisId;
@@ -98,6 +140,54 @@ public class CatDiagnosis extends BaseEntity
     {
         this.baseRefName = baseRefName;
     }
+    public Long getSourceBaseId()
+    {
+        return sourceBaseId;
+    }
+    public void setSourceBaseId(Long sourceBaseId)
+    {
+        this.sourceBaseId = sourceBaseId;
+    }
+    public String getSourceBaseRefName()
+    {
+        return sourceBaseRefName;
+    }
+    public void setSourceBaseRefName(String sourceBaseRefName)
+    {
+        this.sourceBaseRefName = sourceBaseRefName;
+    }
+    public Long getWardId()
+    {
+        return wardId;
+    }
+    public void setWardId(Long wardId)
+    {
+        this.wardId = wardId;
+    }
+    public String getWardRefName()
+    {
+        return wardRefName;
+    }
+    public void setWardRefName(String wardRefName)
+    {
+        this.wardRefName = wardRefName;
+    }
+    public Boolean getWardUnassigned()
+    {
+        return wardUnassigned;
+    }
+    public void setWardUnassigned(Boolean wardUnassigned)
+    {
+        this.wardUnassigned = wardUnassigned;
+    }
+    public String getVisitType()
+    {
+        return visitType;
+    }
+    public void setVisitType(String visitType)
+    {
+        this.visitType = visitType;
+    }
     public Date getVisitDate()
     {
         return visitDate;
@@ -113,6 +203,14 @@ public class CatDiagnosis extends BaseEntity
     public void setDoctor(String doctor)
     {
         this.doctor = doctor;
+    }
+    public Long getDoctorUserId()
+    {
+        return doctorUserId;
+    }
+    public void setDoctorUserId(Long doctorUserId)
+    {
+        this.doctorUserId = doctorUserId;
     }
     public String getSymptoms()
     {
@@ -192,8 +290,12 @@ public class CatDiagnosis extends BaseEntity
             .append("diagnosisId", getDiagnosisId())
             .append("catId", getCatId())
             .append("baseId", getBaseId())
+            .append("sourceBaseId", getSourceBaseId())
+            .append("wardId", getWardId())
             .append("visitDate", getVisitDate())
+            .append("visitType", getVisitType())
             .append("doctor", getDoctor())
+            .append("doctorUserId", getDoctorUserId())
             .append("symptoms", getSymptoms())
             .append("diagnosisResult", getDiagnosisResult())
             .append("checkItems", getCheckItems())
