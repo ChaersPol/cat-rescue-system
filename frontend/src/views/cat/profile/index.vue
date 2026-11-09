@@ -346,6 +346,8 @@
 
 <script setup name="CatProfile">
 import { listCatProfile, getCatProfile, delCatProfile, addCatProfile, updateCatProfile, regenerateCatQrCode, regenerateAllCatQrCode, archiveCatProfile, unarchiveCatProfile, listHospitalOptions, listWardStats } from "@/api/cat/profile"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
@@ -921,15 +923,24 @@ function askPrintCard(catId, tip) {
 }
 
 function handleDelete(row) {
-  const delIds = row.catId || ids.value
-  proxy.$modal.confirm('是否确认删除该猫咪档案？删除后不可恢复。').then(function () {
-    return delCatProfile(delIds)
-  }).then(() => {
-    invalidateMasterData(MASTER_KIND.CAT)
-    getList()
-    getWardStats()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.catId ? [row.catId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('profile', delIds),
+    entityLabel: '猫咪档案',
+    cascade: true,
+    deleteFn: () => delCatProfile(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后不可恢复，如果只是想停用，建议改用「归档」。`,
+    afterDelete: () => {
+      invalidateMasterData(MASTER_KIND.CAT)
+      getList()
+      getWardStats()
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 function handleExport() {

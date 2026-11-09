@@ -105,6 +105,8 @@
 
 <script setup name="CatMaterial">
 import { listCatMaterial, getCatMaterial, delCatMaterial, addCatMaterial, updateCatMaterial } from "@/api/cat/material"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { listCatMaterialCategory } from "@/api/cat/materialcategory"
 import { useNarrow } from "@/utils/useNarrow"
 
@@ -244,13 +246,21 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.materialId || ids.value
-  proxy.$modal.confirm('是否确认删除该数据？').then(function () {
-    return delCatMaterial(delIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.materialId ? [row.materialId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('material', delIds),
+    entityLabel: '物资',
+    deleteFn: () => delCatMaterial(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后该物资会从出入库与开药的选项里消失，此操作不可撤销。`,
+    afterDelete: () => {
+      getList()
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 function handleExport() {

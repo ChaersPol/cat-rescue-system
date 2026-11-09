@@ -184,6 +184,8 @@
 
 <script setup name="CatAdoption">
 import { listCatAdoption, getCatAdoption, delCatAdoption, addCatAdoption, updateCatAdoption, setAdoptionVisitClosed } from "@/api/cat/adoption"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { useFormDraft } from "@/utils/formDraft"
 import { listCatProfile } from "@/api/cat/profile"
 import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
@@ -335,13 +337,22 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.adoptionId || ids.value
-  proxy.$modal.confirm('是否确认删除该领养记录？').then(function () {
-    return delCatAdoption(delIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.adoptionId ? [row.adoptionId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('adoption', delIds),
+    entityLabel: '领养记录',
+    cascade: true,
+    deleteFn: () => delCatAdoption(delIds),
+    normalTip: names => `确认删除 ${names} ？删除后不可恢复。`,
+    afterDelete: () => {
+      getList()
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 // 结束回访：该领养下待回访计划一起收掉，提醒同时清空，之后还能重新开启

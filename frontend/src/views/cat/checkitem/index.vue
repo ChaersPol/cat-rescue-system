@@ -159,6 +159,8 @@
 
 <script setup name="CatCheckItem">
 import { listCatCheckItem, getCatCheckItem, addCatCheckItem, updateCatCheckItem, delCatCheckItem } from '@/api/cat/checkitem'
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { listCatMaterial } from '@/api/cat/material'
 import { useNarrow } from '@/utils/useNarrow'
 
@@ -343,12 +345,17 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  proxy.$modal.confirm(`确认删除「${row.itemName}」吗？删除后开单里就选不到它了，历史诊断不受影响。`).then(() => {
-    return delCatCheckItem(row.itemId)
-  }).then(() => {
-    proxy.$modal.msgSuccess('删除成功')
-    getList()
-  }).catch(() => {})
+  const delIds = [row.itemId]
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('checkitem', delIds),
+    entityLabel: '检查项目',
+    deleteFn: () => delCatCheckItem(row.itemId),
+    normalTip: () => `确认删除「${row.itemName}」？\n删除后开单里就选不到它了，历史诊断不受影响。`,
+    afterDelete: () => {
+      proxy.$modal.msgSuccess('删除成功')
+      getList()
+    }
+  })
 }
 
 getList()

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.cat.domain.CatBase;
 import com.ruoyi.cat.mapper.CatBaseMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatBaseService;
 import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.common.utils.StringUtils;
@@ -17,6 +18,9 @@ import com.ruoyi.common.utils.StringUtils;
 @Service
 public class CatBaseServiceImpl implements ICatBaseService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     @Autowired
     private CatBaseMapper baseIdMapper;
 
@@ -64,6 +68,7 @@ public class CatBaseServiceImpl implements ICatBaseService
     @Override
     public int deleteCatBaseByIds(Long[] baseIds)
     {
+        deleteImpactService.assertNoReference("base", baseIds, "基地");
         return baseIdMapper.deleteCatBaseByIds(baseIds);
     }
 }

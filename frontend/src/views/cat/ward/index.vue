@@ -116,7 +116,8 @@
 import { useBaseCache, useWardTypeCache, invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 import { tagTypeOf, tagStyleOf } from "@/utils/catTag"
 import { useNarrow } from "@/utils/useNarrow"
-import { listCatWard, getCatWard, delCatWard, addCatWard, updateCatWard } from "@/api/cat/ward"
+import { listCatWard, getCatWard, delCatWard, addCatWard, updateCatWard, getWardCatCounts } from "@/api/cat/ward"
+import { deleteConfirm, buildBlockedMessage } from "@/utils/deleteConfirm"
 
 const { proxy } = getCurrentInstance()
 const { isNarrow } = useNarrow()
@@ -247,13 +248,45 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.wardId || ids.value
-  proxy.$modal.confirm('病房删除后将从病房下拉与筛选中消失。若病房内还有在册猫咪，请先把猫咪转到其它病房再删除。是否确认删除？').then(function () {
-    return delCatWard(delIds)
-  }).then(() => {
-    invalidateMasterData(MASTER_KIND.WARD)
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.wardId ? [row.wardId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  // 先查实时数量，不能拿列表里的旧数据判断（别人可能刚把猫挪进来）
+  getWardCatCounts(delIds).then(response => {
+    const rows = response.data || []
+    const names = rows.map(r => r.wardName).filter(Boolean).join('、') || '所选病房'
+    const occupied = rows.filter(r => Number(r.catCount) > 0)
+    const blocked = occupied.length > 0
+    const total = occupied.reduce((sum, w) => sum + Number(w.catCount || 0), 0)
+
+    deleteConfirm(proxy, {
+      blocked,
+      title: blocked ? '无法删除' : '删除确认',
+      message: blocked
+        ? buildBlockedMessage(
+            `还有 ${total} 只猫咪住在以下病房，不能删除：`,
+            occupied.map(w => ({ name: w.wardName, detail: `${w.catCount} 只` })),
+            '请先到「猫咪档案」把这些猫咪转到其它病房，再回来删除该病房。')
+        : `确认删除 ${names} ？\n删除后该病房会从病房下拉与筛选中消失，指向它的病房授权也会一并清除，此操作不可撤销。`,
+      onConfirm: () => delCatWard(delIds).then(() => {
+        // 其它页面的病房下拉/名称翻译立即刷新
+        invalidateMasterData(MASTER_KIND.WARD)
+        getList()
+        proxy.$modal.msgSuccess("删除成功")
+      }).catch(() => {
+        // 后端是最终防线：万一刚有人把猫挪进来，重新查一次再提示
+        getWardCatCounts(delIds).then(res => {
+          const now = (res.data || []).filter(r => Number(r.catCount) > 0)
+          if (now.length) {
+            proxy.$modal.msgError(`「${now[0].wardName}」里现在有 ${now[0].catCount} 只猫咪，请先转移再删除`)
+            getList()
+          }
+        }).catch(() => {})
+        throw new Error('ward-delete-failed')
+      })
+    })
   }).catch(() => {})
 }
 

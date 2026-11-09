@@ -16,6 +16,7 @@ import com.ruoyi.cat.mapper.CatAdoptionMapper;
 import com.ruoyi.cat.mapper.CatConfigMapper;
 import com.ruoyi.cat.mapper.CatReminderMapper;
 import com.ruoyi.cat.mapper.CatVisitMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatAdoptionService;
 import com.ruoyi.cat.service.ICatTransferService;
 import com.ruoyi.common.exception.ServiceException;
@@ -29,6 +30,9 @@ import com.ruoyi.common.utils.SecurityUtils;
 @Service
 public class CatAdoptionServiceImpl implements ICatAdoptionService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     /** 回访状态：待回访 */
     private static final String VISIT_PENDING = "0";
     /** 回访状态：已作废（超期未登记，系统自动关掉） */
@@ -201,8 +205,10 @@ public class CatAdoptionServiceImpl implements ICatAdoptionService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteCatAdoptionByIds(Long[] adoptionIds)
     {
+        deleteImpactService.cascadeBeforeDelete("adoption", adoptionIds);
         return catAdoptionMapper.deleteCatAdoptionByIds(adoptionIds);
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -78,6 +79,17 @@ public class CatWardController extends BaseController
     public AjaxResult edit(@RequestBody CatWard wardId)
     {
         return toAjax(wardIdService.updateCatWard(wardId));
+    }
+
+    /**
+     * 删除确认用：查询所选病房各自的在册猫数量。
+     * 没有猫的病房也会返回（catCount = 0），前端据此把「确定删除」置灰或放开。
+     */
+    @PreAuthorize("@ss.hasPermi('cat:ward:list')")
+    @GetMapping("/catCounts")
+    public AjaxResult catCounts(@RequestParam Long[] wardIds)
+    {
+        return success(wardIdService.selectWardCatCounts(wardIds));
     }
 
     @PreAuthorize("@ss.hasPermi('cat:ward:remove')")

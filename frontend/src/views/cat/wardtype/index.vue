@@ -103,6 +103,8 @@
 
 <script setup name="CatWardType">
 import { listCatWardType, getCatWardType, delCatWardType, addCatWardType, updateCatWardType } from "@/api/cat/wardtype"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 import { CAT_TAG_COLORS, tagTypeOf, tagStyleOf } from "@/utils/catTag"
 import { useNarrow } from "@/utils/useNarrow"
@@ -221,14 +223,22 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.typeId || ids.value
-  proxy.$modal.confirm('是否确认删除选中的病房类型？').then(function () {
-    return delCatWardType(delIds)
-  }).then(() => {
-    getList()
-    invalidateMasterData(MASTER_KIND.WARD_TYPE)
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.typeId ? [row.typeId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('wardtype', delIds),
+    entityLabel: '病房类型',
+    deleteFn: () => delCatWardType(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后该类型会从病房表单的下拉里消失，此操作不可撤销。`,
+    afterDelete: () => {
+      getList()
+      invalidateMasterData(MASTER_KIND.WARD_TYPE)
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 function handleExport() {

@@ -30,6 +30,12 @@ public interface CatWardMapper
      */
     public List<Map<String, Object>> selectWardCatCounts(Long[] wardIds);
 
+    /**
+     * 前端删除确认用：返回所选病房各自的在册猫数量
+     * （key：wardId / wardName / catCount），没有猫的病房也返回，catCount 为 0
+     */
+    public List<Map<String, Object>> selectWardCatCountList(Long[] wardIds);
+
     /** 病房删除时连带清掉授权行 */
     public int deleteWardAuthByWardIds(Long[] wardIds);
 

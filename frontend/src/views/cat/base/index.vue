@@ -103,6 +103,8 @@
 
 <script setup name="CatBase">
 import { listCatBase, getCatBase, delCatBase, addCatBase, updateCatBase } from '@/api/cat/base'
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { invalidateMasterData, MASTER_KIND } from '@/utils/catCache'
 import { useNarrow } from '@/utils/useNarrow'
 
@@ -222,14 +224,22 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.baseId || ids.value
-  proxy.$modal.confirm('是否确认删除选中的基地？').then(function () {
-    return delCatBase(delIds)
-  }).then(() => {
-    invalidateMasterData(MASTER_KIND.BASE)
-    getList()
-    proxy.$modal.msgSuccess('删除成功')
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.baseId ? [row.baseId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('base', delIds),
+    entityLabel: '基地',
+    deleteFn: () => delCatBase(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后该基地会从基地下拉与筛选中消失，此操作不可撤销。`,
+    afterDelete: () => {
+      invalidateMasterData(MASTER_KIND.BASE)
+      getList()
+      proxy.$modal.msgSuccess('删除成功')
+    }
+  })
 }
 
 function handleExport() {

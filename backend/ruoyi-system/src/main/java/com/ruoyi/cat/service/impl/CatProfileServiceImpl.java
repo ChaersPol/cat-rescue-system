@@ -16,6 +16,7 @@ import com.ruoyi.cat.domain.CatFlow;
 import com.ruoyi.cat.mapper.CatProfileMapper;
 import com.ruoyi.cat.mapper.CatConfigMapper;
 import com.ruoyi.cat.mapper.CatFlowMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatProfileService;
 import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.cat.util.CatAgeUtils;
@@ -36,6 +37,9 @@ import java.util.Date;
 @Service
 public class CatProfileServiceImpl implements ICatProfileService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     /**
      * 手机扫码访问不到的本机主机名
      */
@@ -430,8 +434,10 @@ public class CatProfileServiceImpl implements ICatProfileService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteCatProfileByIds(Long[] catIds)
     {
+        deleteImpactService.cascadeBeforeDelete("profile", catIds);
         return catProfileMapper.deleteCatProfileByIds(catIds);
     }
 

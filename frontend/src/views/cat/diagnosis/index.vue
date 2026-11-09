@@ -534,6 +534,8 @@
 
 <script setup name="CatDiagnosis">
 import { useCatCache, useBaseCache, useWardCache, formatCatLabel } from "@/utils/catCache"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { listCatDiagnosis, listCatDiagnosisSummary, getCatDiagnosis, delCatDiagnosis, addCatDiagnosis, updateCatDiagnosis, correctCatDiagnosis, getDiagnosisStat, listDiagnosisWardStats, getDiagnosisCatInfo, listDiagnosisDoctorOptions } from "@/api/cat/diagnosis"
 import { listCatCheckItem } from "@/api/cat/checkitem"
 import { useFormDraft } from "@/utils/formDraft"
@@ -1300,16 +1302,25 @@ function askPrintCard(catId) {
 }
 
 function handleDelete(row) {
-  const delIds = row.diagnosisId || ids.value
-  proxy.$modal.confirm('是否确认删除该数据？').then(function () {
-    return delCatDiagnosis(delIds)
-  }).then(() => {
-    if (row.catId) {
-      dropHistory(row.catId)
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.diagnosisId ? [row.diagnosisId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('diagnosis', delIds),
+    entityLabel: '诊断单',
+    cascade: true,
+    deleteFn: () => delCatDiagnosis(delIds),
+    normalTip: names => `确认删除 ${names} ？删除后不可恢复。`,
+    afterDelete: () => {
+      if (row && row.catId) {
+        dropHistory(row.catId)
+      }
+      getList()
+      proxy.$modal.msgSuccess("删除成功")
     }
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  })
 }
 
 function handleExport() {

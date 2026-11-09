@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.cat.domain.CatMaterial;
 import com.ruoyi.cat.mapper.CatMaterialMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatMaterialService;
 
 /**
@@ -15,6 +16,9 @@ import com.ruoyi.cat.service.ICatMaterialService;
 @Service
 public class CatMaterialServiceImpl implements ICatMaterialService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     @Autowired
     private CatMaterialMapper materialIdMapper;
 
@@ -45,6 +49,7 @@ public class CatMaterialServiceImpl implements ICatMaterialService
     @Override
     public int deleteCatMaterialByIds(Long[] materialIds)
     {
+        deleteImpactService.assertNoReference("material", materialIds, "物资");
         return materialIdMapper.deleteCatMaterialByIds(materialIds);
     }
 }

@@ -31,6 +31,7 @@ import com.ruoyi.cat.mapper.CatProfileMapper;
 import com.ruoyi.cat.mapper.CatStockRecordMapper;
 import com.ruoyi.cat.mapper.CatVaccineMapper;
 import com.ruoyi.cat.mapper.CatWardMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatDiagnosisService;
 import com.ruoyi.cat.service.ICatStaffService;
 import com.ruoyi.cat.service.ICatPrescriptionService;
@@ -49,6 +50,9 @@ import com.ruoyi.system.service.ISysRoleService;
 @Service
 public class CatDiagnosisServiceImpl implements ICatDiagnosisService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     @Autowired
     private CatDiagnosisMapper diagnosisIdMapper;
 
@@ -750,9 +754,10 @@ public class CatDiagnosisServiceImpl implements ICatDiagnosisService
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int deleteCatDiagnosisByIds(Long[] diagnosisIds)
     {
+        deleteImpactService.cascadeBeforeDelete("diagnosis", diagnosisIds);
         if (diagnosisIds != null)
         {
             for (Long id : diagnosisIds)

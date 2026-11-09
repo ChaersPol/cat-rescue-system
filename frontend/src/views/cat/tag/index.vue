@@ -75,6 +75,8 @@
 
 <script setup name="CatTag">
 import { listCatTag, getCatTag, delCatTag, addCatTag, updateCatTag } from "@/api/cat/tag"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
@@ -183,13 +185,21 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.tagId || ids.value
-  proxy.$modal.confirm('是否确认删除该数据？').then(function () {
-    return delCatTag(delIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.tagId ? [row.tagId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('tag', delIds),
+    entityLabel: '标签',
+    deleteFn: () => delCatTag(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后该标签会从猫咪档案的标签选择里消失，已打标的猫咪不受影响。`,
+    afterDelete: () => {
+      getList()
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 function handleExport() {

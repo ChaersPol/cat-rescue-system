@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.cat.domain.CatTag;
 import com.ruoyi.cat.mapper.CatTagMapper;
+import com.ruoyi.cat.service.ICatDeleteImpactService;
 import com.ruoyi.cat.service.ICatTagService;
 
 /**
@@ -15,6 +16,9 @@ import com.ruoyi.cat.service.ICatTagService;
 @Service
 public class CatTagServiceImpl implements ICatTagService
 {
+    @Autowired
+    private ICatDeleteImpactService deleteImpactService;
+
     @Autowired
     private CatTagMapper tagIdMapper;
 
@@ -45,6 +49,7 @@ public class CatTagServiceImpl implements ICatTagService
     @Override
     public int deleteCatTagByIds(Long[] tagIds)
     {
+        deleteImpactService.assertNoReference("tag", tagIds, "标签");
         return tagIdMapper.deleteCatTagByIds(tagIds);
     }
 }

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cat.mapper.CatDeleteImpactMapper">
+
+    <!--
+      删除前的引用检查（通用入口，见 docs/CONVENTIONS.md 第十四节）。
+      统一输出：id / name / refCount / detail
+        refCount = 引用总数，前端用它决定「能不能删」
+        detail   = 中文明细，直接展示给用户
+
+      约定：只统计「删了会留下悬空引用」的数据
+        - 在册数据（cat_profile / cat_ward / cat_material 等）按 del_flag = '0' 过滤
+        - 历史单据（诊断 / 费用 / 流水）只要存在就算引用，不做 del_flag 过滤以外的筛选
+      查不到引用的行也要返回 refCount = 0，前端据此区分「可删」与「查不到」。
+    -->
+    <select id="selectDeleteImpact" resultType="java.util.HashMap">
+        <choose>
+            <!-- 基地：在册猫 / 有效病房 / 诊断单 / 费用单 -->
+            <when test="module == 'base'">
+                select t.id, t.name, (t.c1 + t.c2 + t.c3 + t.c4) as refCount,
+                       concat_ws('、',
+                           if(t.c1 > 0, concat(t.c1, ' 只猫咪'), null),
+                           if(t.c2 > 0, concat(t.c2, ' 间病房'), null),
+                           if(t.c3 > 0, concat(t.c3, ' 条诊断'), null),
+                           if(t.c4 > 0, concat(t.c4, ' 条费用'), null)) as detail
+                  from (
+                    select b.base_id as id, b.base_name as name,
+                           (select count(1) from cat_profile p where p.base_id = b.base_id and p.del_flag = '0') c1,
+                           (select count(1) from cat_ward w where w.base_id = b.base_id and w.del_flag = '0') c2,
+                           (select count(1) from cat_diagnosis d where d.base_id = b.base_id and d.del_flag = '0') c3,
+                           (select count(1) from cat_expense e where e.base_id = b.base_id and e.del_flag = '0') c4
+                      from cat_base b
+                     where b.base_id in
+                    <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+                  ) t
+            </when>
+
+            <!-- 病房类型：还在用的病房 -->
+            <when test="module == 'wardtype'">
+                select t.type_id as id, t.type_name as name, ifnull(x.c1, 0) as refCount,
+                       if(ifnull(x.c1, 0) > 0, concat(ifnull(x.c1, 0), ' 间病房'), '') as detail
+                  from cat_ward_type t
+                  left join (select ward_type_id, count(1) c1 from cat_ward where del_flag = '0' group by ward_type_id) x
+                    on x.ward_type_id = t.type_id
+                 where t.type_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 标签：在册猫咪打了这个标签 -->
+            <when test="module == 'tag'">
+                select t.tag_id as id, t.tag_name as name, ifnull(x.c1, 0) as refCount,
+                       if(ifnull(x.c1, 0) > 0, concat(ifnull(x.c1, 0), ' 只猫咪'), '') as detail
+                  from cat_tag t
+                  left join (select pt.tag_id, count(1) c1
+                               from cat_profile_tag pt
+                               join cat_profile p on p.cat_id = pt.cat_id and p.del_flag = '0'
+                              group by pt.tag_id) x on x.tag_id = t.tag_id
+                 where t.tag_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 费用分类：已录入的费用单 -->
+            <when test="module == 'feecategory'">
+                select t.category_id as id, t.category_name as name, ifnull(x.c1, 0) as refCount,
+                       if(ifnull(x.c1, 0) > 0, concat(ifnull(x.c1, 0), ' 条费用'), '') as detail
+                  from cat_fee_category t
+                  left join (select category_id, count(1) c1 from cat_expense where del_flag = '0' group by category_id) x
+                    on x.category_id = t.category_id
+                 where t.category_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 物资分类：分类下还在的物资 -->
+            <when test="module == 'materialcategory'">
+                select t.category_id as id, t.category_name as name, ifnull(x.c1, 0) as refCount,
+                       if(ifnull(x.c1, 0) > 0, concat(ifnull(x.c1, 0), ' 种物资'), '') as detail
+                  from cat_material_category t
+                  left join (select category_id, count(1) c1 from cat_material where del_flag = '0' group by category_id) x
+                    on x.category_id = t.category_id
+                 where t.category_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 物资：出入库 / 用药 / 疫苗 / 驱虫 / 诊断明细 / 检查项目 都可能引用它 -->
+            <when test="module == 'material'">
+                select t.id, t.name, (t.c1 + t.c2 + t.c3 + t.c4 + t.c5 + t.c6) as refCount,
+                       concat_ws('、',
+                           if(t.c1 > 0, concat(t.c1, ' 条出入库'), null),
+                           if(t.c2 > 0, concat(t.c2, ' 条用药'), null),
+                           if(t.c3 > 0, concat(t.c3, ' 条疫苗'), null),
+                           if(t.c4 > 0, concat(t.c4, ' 条驱虫'), null),
+                           if(t.c5 > 0, concat(t.c5, ' 条诊断明细'), null),
+                           if(t.c6 > 0, concat(t.c6, ' 个检查项目'), null)) as detail
+                  from (
+                    select m.material_id as id, m.material_name as name,
+                           (select count(1) from cat_stock_record r where r.material_id = m.material_id) c1,
+                           (select count(1) from cat_medication d where d.material_id = m.material_id and d.del_flag = '0') c2,
+                           (select count(1) from cat_vaccine v where v.material_id = m.material_id and v.del_flag = '0') c3,
+                           (select count(1) from cat_deworm w where w.material_id = m.material_id and w.del_flag = '0') c4,
+                           (select count(1) from cat_diagnosis_item i where i.material_id = m.material_id) c5,
+                           (select count(1) from cat_check_item ci where ci.material_id = m.material_id and ci.del_flag = '0') c6
+                      from cat_material m
+                     where m.material_id in
+                    <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+                  ) t
+            </when>
+
+            <!-- 检查项目：子项目 / 被诊断或处方引用 -->
+            <when test="module == 'checkitem'">
+                select t.id, t.name, (t.c1 + t.c2 + t.c3) as refCount,
+                       concat_ws('、',
+                           if(t.c1 > 0, concat(t.c1, ' 个子项目'), null),
+                           if(t.c2 > 0, concat(t.c2, ' 条诊断明细'), null),
+                           if(t.c3 > 0, concat(t.c3, ' 条处方明细'), null)) as detail
+                  from (
+                    select ci.item_id as id, ci.item_name as name,
+                           (select count(1) from cat_check_item s where s.parent_id = ci.item_id and s.del_flag = '0') c1,
+                           (select count(1) from cat_diagnosis_item di where di.item_id = ci.item_id) c2,
+                           (select count(1) from cat_prescription_item pi where pi.item_id = ci.item_id) c3
+                      from cat_check_item ci
+                     where ci.item_id in
+                    <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+                  ) t
+            </when>
+
+            <!-- 领养记录：下面的回访计划（删除时一并清理） -->
+            <when test="module == 'adoption'">
+                select a.adoption_id as id,
+                       concat(ifnull(p.cat_name, '未知猫咪'), ' · ', ifnull(date_format(a.adoption_date, '%Y-%m-%d'), '')) as name,
+                       ifnull(x.c1, 0) as refCount,
+                       if(ifnull(x.c1, 0) > 0, concat(ifnull(x.c1, 0), ' 条回访计划'), '') as detail
+                  from cat_adoption a
+                  left join cat_profile p on p.cat_id = a.cat_id
+                  left join (select adoption_id, count(1) c1 from cat_visit group by adoption_id) x
+                    on x.adoption_id = a.adoption_id
+                 where a.adoption_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 处方：明细（删除时一并清理）+ 关联用药（删除时解除关联） -->
+            <when test="module == 'prescription'">
+                select pr.prescription_id as id,
+                       concat(ifnull(p.cat_name, '未知猫咪'), ' · ', ifnull(date_format(pr.start_date, '%Y-%m-%d'), '')) as name,
+                       (ifnull(i.c1, 0) + ifnull(m.c1, 0)) as refCount,
+                       concat_ws('、',
+                           if(ifnull(i.c1, 0) > 0, concat(ifnull(i.c1, 0), ' 条处方明细'), null),
+                           if(ifnull(m.c1, 0) > 0, concat(ifnull(m.c1, 0), ' 条关联用药'), null)) as detail
+                  from cat_prescription pr
+                  left join cat_profile p on p.cat_id = pr.cat_id
+                  left join (select prescription_id, count(1) c1 from cat_prescription_item group by prescription_id) i
+                    on i.prescription_id = pr.prescription_id
+                  left join (select prescription_id, count(1) c1 from cat_medication where del_flag = '0' group by prescription_id) m
+                    on m.prescription_id = pr.prescription_id
+                 where pr.prescription_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 诊断单：明细（删除时一并清理）+ 关联的用药/疫苗/驱虫/处方（解除关联，记录本身保留） -->
+            <when test="module == 'diagnosis'">
+                select d.diagnosis_id as id,
+                       concat(ifnull(p.cat_name, '未知猫咪'), ' · ', ifnull(date_format(d.visit_date, '%Y-%m-%d'), '')) as name,
+                       (ifnull(i.c1, 0) + ifnull(m.c1, 0) + ifnull(v.c1, 0) + ifnull(w.c1, 0)) as refCount,
+                       concat_ws('、',
+                           if(ifnull(i.c1, 0) > 0, concat(ifnull(i.c1, 0), ' 条检查明细'), null),
+                           if(ifnull(m.c1, 0) > 0, concat(ifnull(m.c1, 0), ' 条关联用药'), null),
+                           if(ifnull(v.c1, 0) > 0, concat(ifnull(v.c1, 0), ' 条关联疫苗'), null),
+                           if(ifnull(w.c1, 0) > 0, concat(ifnull(w.c1, 0), ' 条关联驱虫'), null)) as detail
+                  from cat_diagnosis d
+                  left join cat_profile p on p.cat_id = d.cat_id
+                  left join (select diagnosis_id, count(1) c1 from cat_diagnosis_item group by diagnosis_id) i
+                    on i.diagnosis_id = d.diagnosis_id
+                  left join (select diagnosis_id, count(1) c1 from cat_medication where del_flag = '0' group by diagnosis_id) m
+                    on m.diagnosis_id = d.diagnosis_id
+                  left join (select diagnosis_id, count(1) c1 from cat_vaccine where del_flag = '0' group by diagnosis_id) v
+                    on v.diagnosis_id = d.diagnosis_id
+                  left join (select diagnosis_id, count(1) c1 from cat_deworm where del_flag = '0' group by diagnosis_id) w
+                    on w.diagnosis_id = d.diagnosis_id
+                 where d.diagnosis_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <!-- 猫咪档案：下面挂的所有业务记录，删除时一并软删除（不可恢复，建议优先用归档） -->
+            <when test="module == 'profile'">
+                select p.cat_id as id, concat(p.cat_name, '（', p.archive_no, '）') as name,
+                       (ifnull(a.c1,0) + ifnull(b.c1,0) + ifnull(c.c1,0) + ifnull(d.c1,0)
+                        + ifnull(e.c1,0) + ifnull(f.c1,0) + ifnull(g.c1,0)) as refCount,
+                       concat_ws('、',
+                           if(ifnull(a.c1,0) > 0, concat(ifnull(a.c1,0), ' 条病历'), null),
+                           if(ifnull(b.c1,0) > 0, concat(ifnull(b.c1,0), ' 条用药'), null),
+                           if(ifnull(c.c1,0) > 0, concat(ifnull(c.c1,0), ' 条疫苗'), null),
+                           if(ifnull(d.c1,0) > 0, concat(ifnull(d.c1,0), ' 条驱虫'), null),
+                           if(ifnull(e.c1,0) > 0, concat(ifnull(e.c1,0), ' 张照片'), null),
+                           if(ifnull(f.c1,0) > 0, concat(ifnull(f.c1,0), ' 条费用'), null),
+                           if(ifnull(g.c1,0) > 0, concat(ifnull(g.c1,0), ' 条其它记录'), null)) as detail
+                  from cat_profile p
+                  left join (select cat_id, count(1) c1 from cat_diagnosis where del_flag = '0' group by cat_id) a on a.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_medication where del_flag = '0' group by cat_id) b on b.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_vaccine where del_flag = '0' group by cat_id) c on c.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_deworm where del_flag = '0' group by cat_id) d on d.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_photo group by cat_id) e on e.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_expense where del_flag = '0' group by cat_id) f on f.cat_id = p.cat_id
+                  left join (select cat_id, count(1) c1 from cat_flow group by cat_id) g on g.cat_id = p.cat_id
+                 where p.cat_id in
+                <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+
+            <otherwise>
+                select 1 as id, '' as name, 0 as refCount, '' as detail from dual where 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+    <!-- ================= 级联清理（与上面的 impact 配套） =================
+         规则（2026-11-09 用户确认）：
+           单据自身的明细  → 随主单一起删（否则就是孤儿）
+           别人对它的引用  → 只解除关联，记录本身保留（账要能查）
+    -->
+
+    <!-- 删领养 → 一并删掉回访计划（cat_visit 没有 del_flag，只能物理删） -->
+    <delete id="deleteVisitByAdoptionIds">
+        delete from cat_visit where adoption_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 删处方 → 物理删明细（该表无 del_flag），关联用药只解除关联 -->
+    <delete id="deletePrescriptionItemByPrescriptionIds">
+        delete from cat_prescription_item where prescription_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="clearMedicationPrescription">
+        update cat_medication set prescription_id = null where prescription_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <!-- 删诊断单 → 物理删检查明细，关联的用药/疫苗/驱虫/处方解除关联（记录保留，账面可查） -->
+    <delete id="deleteDiagnosisItemByDiagnosisIds">
+        delete from cat_diagnosis_item where diagnosis_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="clearMedicationDiagnosis">
+        update cat_medication set diagnosis_id = null where diagnosis_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="clearVaccineDiagnosis">
+        update cat_vaccine set diagnosis_id = null where diagnosis_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="clearDewormDiagnosis">
+        update cat_deworm set diagnosis_id = null where diagnosis_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="clearPrescriptionDiagnosis">
+        update cat_prescription set diagnosis_id = null where diagnosis_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <!-- 删猫咪档案 → 它自己名下的业务记录一并软删（表名由 Service 端白名单控制，不接受前端传值） -->
+    <update id="softDeleteByCatId">
+        update ${table} set del_flag = '2' where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <!-- 没有 del_flag 的表只能物理删（table 同样由 Service 端白名单控制） -->
+    <delete id="hardDeleteByCatId">
+        delete from ${table} where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deleteProfileTagByCatIds">
+        delete from cat_profile_tag where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deleteDiagnosisItemByCatIds">
+        delete from cat_diagnosis_item where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deletePrescriptionItemByCatIds">
+        delete from cat_prescription_item where prescription_id in
+        (select prescription_id from cat_prescription where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>)
+    </delete>
+
+    <delete id="deleteMedicationExecByCatIds">
+        delete from cat_medication_exec where cat_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

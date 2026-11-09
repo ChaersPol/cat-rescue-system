@@ -422,3 +422,72 @@ select count(*) from cat_profile
 
 修复顺序永远是：**先迁猫 → 再清死授权 → 再按有效病房重新授权**，
 顺序颠倒会把猫「迁进」一个马上要被删掉的病房。
+
+---
+
+## 十四、删除确认必须分「有依赖 / 无依赖」两态（2026-11-09 用户定的统一规则）
+
+> 一句话：**删除被引用的数据 = 会产生脏数据 = 只提示、不给删；删除没人引用的数据 = 普通确认即可。**
+
+### 14.1 判定标准
+
+删除前先数一遍「谁在引用我」。只要下面任一成立，就是**有依赖（blocked）**：
+
+| 类型 | 举例 |
+|---|---|
+| 被在册数据引用 | 病房里还有 `cat_profile`（`del_flag='0'`）、基地下还有猫/病房、病房类型还被病房用、物资分类下还有物资 |
+| 被历史单据引用 | 费用分类被 `cat_expense` 用、检查项目被 `cat_diagnosis_item` / `cat_prescription_item` 用 |
+| 有子记录 | 检查项目下面还有子项目、领养记录下面还有回访、处方下面还有明细/用药 |
+| 删除会破坏台账 | 猫咪档案下挂病历/疫苗/费用/照片等 20 张子表；删猫不会级联，全是孤儿 |
+
+叶子型流水（照片、疫苗、驱虫、流转、回访、TNR、放归、死亡、转诊）删掉不留任何悬空引用，
+属于「无依赖」，用普通确认即可，**不要**也做成置灰。
+
+### 14.2 交互形态（必须用 RuoYi 自带样式的 `$modal.confirm`，不要自绘 el-dialog）
+
+- **blocked**：标题「无法删除」，按钮为「关 闭」+「确 定」，**确定按钮做成灰色不可点**
+  （`customClass: 'msgbox-delete msgbox-delete--blocked'` + CSS 灰底灰字 `pointer-events:none`，
+  并在 `beforeClose` 里吞掉 `confirm` 动作做兜底）。
+- **可删除**：标题「删除确认」，「取 消」+「确 定」都可点。
+- **级联删除**（单据类）：标题同样是「删除确认」，黄色警示条说明「以下关联记录会一并清除」，确定可点。
+- 后端**必须同时保留校验**（抛 `ServiceException`）：前端只是体验层，两个人同时操作时后端才是最终防线。
+
+**正文一律传结构化对象，不要拼纯文本**（纯文本只保留「主问句 + 说明」两段，用于普通确认）：
+
+```js
+message: {
+  tone: 'error',                       // error=红 / warning=黄
+  lead: '确认删除 布丁 · 2026-08-28 ？',  // 可选，加粗主问句
+  summary: '以下基地还有数据在使用，不能删除：', // 顶部彩色提示条
+  items: [{ name: '北苑流浪猫救助基地', detail: '4 只猫咪、3 间病房' }], // 明细行，detail 用「、」分隔会渲染成小标签
+  tail: '请先处理这些引用后再删除基地。'   // 可选，底部灰字
+}
+```
+
+视觉约定（2026-11-09 用户嫌原版丑后重做，别退回旧样式）：
+
+- **不要用 Element 自带的状态大图标**（`type: 'error'` 会渲染一个图标列，把正文挤歪）→ `type: ''`，
+  改为正文顶部彩色提示条（红/黄圆角条 + 小图标）
+- 明细做成**卡片列表**：左边对象名加粗，右边「4 只猫咪」「3 间病房」小标签，比「· 名称：4 只猫咪、3 间病房」一坨文字清晰得多
+- 弹窗宽度 460px，标题 16px/600，按钮 min-width 78px
+- 置灰的确定按钮必须是**灰底灰字**（`--el-fill-color` / `--el-text-color-disabled`），
+  不能是默认的「浅蓝半透明」——那样看起来像可点的次要按钮
+
+### 14.3 复用件
+
+- `frontend/src/utils/deleteConfirm.js`
+  - `deleteWithImpact(proxy, {...})`：查引用 → 自动决定弹哪一种 → 执行删除（页面首选）
+  - `deleteConfirm(proxy, { blocked, title, message, onConfirm })`：直接弹
+  - `buildBlockedMessage(summary, items, tail, { tone, lead })`：拼结构化正文
+- `frontend/src/plugins/modal.js` → `$modal.confirm(content, title, options)`（第三参可选，默认行为不变）
+- 全局样式 `.msgbox-delete / --blocked / --normal` 与 `.del-msg*`（`assets/styles/index.scss`）
+
+**明细里的名称来自数据库，拼进 HTML 前必须转义**（`deleteConfirm.js` 已内置 `esc()`），
+因为正文是用 `dangerouslyUseHTMLString: true` 渲染的。
+
+新增可删主数据时照抄这套，不要各写各的文案风格。
+
+### 14.4 已知的两处「禁止删除」既有实现
+
+- `CatWardServiceImpl`：病房里还有在册猫 → 抛异常并列出「病房（N只）」；删除时连带清 `cat_ward_auth`
+- `CatWardTypeServiceImpl` / `CatCheckItemServiceImpl`：被引用 / 有子项目 → 抛异常

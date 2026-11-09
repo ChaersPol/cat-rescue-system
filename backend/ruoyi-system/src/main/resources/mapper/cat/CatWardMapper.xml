@@ -105,6 +105,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
          group by w.ward_id, w.ward_name
     </select>
 
+    <!-- 前端删除确认用：所选病房逐个给出在册猫数量，0 只的也要返回（用于区分「可删」与「不可删」） -->
+    <select id="selectWardCatCountList" resultType="java.util.HashMap">
+        select w.ward_id as wardId, w.ward_name as wardName,
+               (select count(1) from cat_profile p where p.ward_id = w.ward_id and p.del_flag = '0') as catCount
+          from cat_ward w
+         where w.ward_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+         order by w.base_id asc, w.order_num asc, w.ward_id asc
+    </select>
+
     <!-- 病房删除时连带清掉授权，避免助理那边残留指向已删病房的行 -->
     <delete id="deleteWardAuthByWardIds" parameterType="Long">
         delete from cat_ward_auth where ward_id in

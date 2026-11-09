@@ -42,3 +42,12 @@ export function delCatWard(ids) {
     method: 'delete'
   })
 }
+
+// 查询所选病房各自的在册猫数量（没有猫的病房也会返回，catCount = 0）
+export function getWardCatCounts(wardIds) {
+  return request({
+    url: '/cat/ward/catCounts',
+    method: 'get',
+    params: { wardIds: Array.isArray(wardIds) ? wardIds.join(',') : wardIds }
+  })
+}

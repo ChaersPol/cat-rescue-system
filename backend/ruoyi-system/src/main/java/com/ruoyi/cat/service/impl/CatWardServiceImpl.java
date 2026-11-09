@@ -93,6 +93,21 @@ public class CatWardServiceImpl implements ICatWardService
     }
 
     /**
+     * 删除确认用：返回所选病房各自的在册猫数量。
+     * 与删除校验的 selectWardCatCounts 不同，这里「0 只」的病房也会返回，
+     * 前端据此区分「还能删」和「不能删」，不能只靠有没有返回行来判断。
+     */
+    @Override
+    public List<Map<String, Object>> selectWardCatCounts(Long[] wardIds)
+    {
+        if (wardIds == null || wardIds.length == 0)
+        {
+            return java.util.Collections.emptyList();
+        }
+        return wardIdMapper.selectWardCatCountList(wardIds);
+    }
+
+    /**
      * 由 wardTypeId 回填 wardType 名称。
      * 没传类型时保持原样（兼容只改状态之类的局部更新）。
      */

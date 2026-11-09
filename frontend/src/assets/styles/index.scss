@@ -178,3 +178,173 @@ aside {
     margin-bottom: 10px;
   }
 }
+
+/* ===== 统一删除确认（RuoYi MessageBox 样式） =====
+   有依赖时：确定按钮置灰不可点，只能「关闭」。
+   见 docs/CONVENTIONS.md 第十四节，逻辑在 utils/deleteConfirm.js */
+.msgbox-delete {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  padding: 20px 22px 16px;
+  border-radius: 10px;
+
+  .el-message-box__header {
+    padding: 0 0 14px;
+  }
+
+  .el-message-box__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  .el-message-box__headerbtn {
+    top: 18px;
+    right: 18px;
+  }
+
+  .el-message-box__content {
+    padding: 0;
+  }
+
+  /* 去掉 Element 自带的状态图标列，正文自己排版 */
+  .el-message-box__container {
+    display: block;
+  }
+
+  .el-message-box__message {
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .el-message-box__btns {
+    padding-top: 18px;
+
+    .el-button {
+      min-width: 78px;
+      margin-left: 10px;
+    }
+  }
+}
+
+/* 正文：彩色提示条 + 明细卡片 + 底部灰字建议 */
+.del-msg {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--el-text-color-regular);
+
+  p {
+    margin: 0;
+  }
+}
+
+.del-msg__lead {
+  margin-bottom: 10px !important;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.del-msg__banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  line-height: 1.5;
+
+  .del-msg__icon {
+    flex: 0 0 auto;
+    margin-top: 2px;
+  }
+}
+
+.del-msg__banner--error {
+  background: #fef0f0;
+  color: #c45656;
+}
+
+.del-msg__banner--warning {
+  background: #fdf6ec;
+  color: #b88230;
+}
+
+.del-msg__list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-blank);
+  overflow: hidden;
+}
+
+.del-msg__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+
+  & + & {
+    border-top: 1px solid var(--el-border-color-lighter);
+  }
+}
+
+.del-msg__name {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  word-break: break-all;
+}
+
+.del-msg__facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.del-msg__fact {
+  padding: 1px 9px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.del-msg__fact--error {
+  background: #fef0f0;
+  color: #c45656;
+}
+
+.del-msg__fact--warning {
+  background: #fdf6ec;
+  color: #b88230;
+}
+
+.del-msg__tail {
+  margin-top: 10px !important;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.del-msg__desc {
+  white-space: pre-line;
+  color: var(--el-text-color-regular);
+}
+
+/* 有依赖：确定按钮做成「灰色不可点」，而不是浅蓝半透明 */
+.msgbox-delete--blocked {
+  .el-message-box__btns .el-button--primary {
+    opacity: 1;
+    background: var(--el-fill-color);
+    border-color: var(--el-border-color);
+    color: var(--el-text-color-disabled);
+    pointer-events: none;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}

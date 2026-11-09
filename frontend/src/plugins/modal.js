@@ -51,13 +51,13 @@ export default {
   notifyWarning(content) {
     ElNotification.warning(content)
   },
-  // 确认窗体
-  confirm(content) {
-    return ElMessageBox.confirm(content, "系统提示", {
+  // 确认窗体（title / options 可选，不传时保持 RuoYi 默认行为）
+  confirm(content, title, options) {
+    return ElMessageBox.confirm(content, title || "系统提示", Object.assign({
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: "warning",
-    })
+    }, options || {}))
   },
   // 提交内容
   prompt(content) {

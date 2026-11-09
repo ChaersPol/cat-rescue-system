@@ -87,6 +87,8 @@
 
 <script setup name="CatFeeCategory">
 import { listCatFeeCategory, getCatFeeCategory, delCatFeeCategory, addCatFeeCategory, updateCatFeeCategory } from "@/api/cat/feecategory"
+import { getDeleteImpact } from "@/api/cat/deleteImpact"
+import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
@@ -198,13 +200,21 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  const delIds = row.categoryId || ids.value
-  proxy.$modal.confirm('是否确认删除该数据？').then(function () {
-    return delCatFeeCategory(delIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  // 表格行删除传 row，批量删除走勾选的 ids
+  const delIds = row && row.categoryId ? [row.categoryId] : ids.value.slice()
+  if (!delIds.length) {
+    return
+  }
+  deleteWithImpact(proxy, {
+    fetchImpact: () => getDeleteImpact('feecategory', delIds),
+    entityLabel: '费用分类',
+    deleteFn: () => delCatFeeCategory(delIds),
+    normalTip: names => `确认删除 ${names} ？\n删除后该分类会从费用登记的选项里消失，此操作不可撤销。`,
+    afterDelete: () => {
+      getList()
+      proxy.$modal.msgSuccess("删除成功")
+    }
+  })
 }
 
 function handleExport() {
