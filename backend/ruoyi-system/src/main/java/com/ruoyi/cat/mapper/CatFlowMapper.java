@@ -21,4 +21,13 @@ public interface CatFlowMapper
     public int deleteCatFlowById(Long flowId);
 
     public int deleteCatFlowByIds(Long[] flowIds);
+
+    /**
+     * 最近一次外送医院时离开的病房 id
+     * （外送会把病房清空，出院返院时用这条记录把猫放回原来的房间）
+     *
+     * @param catId 猫咪id
+     * @return 病房id，没记录过则返回 null
+     */
+    public Long selectLastOutWardId(Long catId);
 }

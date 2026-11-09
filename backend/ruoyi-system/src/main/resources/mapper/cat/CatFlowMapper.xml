@@ -54,6 +54,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by flow_id desc
     </select>
 
+    <!-- 最近一次外送医院时离开的病房：外送把病房清空后，出院返院要靠它还原回原房间 -->
+    <select id="selectLastOutWardId" parameterType="Long" resultType="java.lang.Long">
+        select from_ward_id
+          from cat_flow
+         where cat_id = #{catId}
+           and from_ward_id is not null
+           and flow_type like '%外送%'
+         order by flow_id desc
+         limit 1
+    </select>
+
     <insert id="insertCatFlow" parameterType="CatFlow" useGeneratedKeys="true" keyProperty="flowId">
         insert into cat_flow (
             <if test="catId != null">cat_id,</if>

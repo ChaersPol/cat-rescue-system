@@ -126,6 +126,10 @@
           <el-select v-model="form.dischargeTo" placeholder="请选择出院去向" clearable style="width: 100%">
             <el-option v-for="d in cat_discharge_to" :key="d.value" :label="d.label" :value="d.value" />
           </el-select>
+          <div class="form-tip" v-if="form.dischargeTo">
+            返院会自动还原外送前住的病房；那间病房已删除/停用或不属于目标基地时，猫咪状态记为「待安置」，
+            之后到档案里分配具体病房即可。
+          </div>
         </el-form-item>
         <el-form-item label="转入基地" prop="targetBaseId" v-if="form.dischargeTo === '转入指定基地'">
           <el-select v-model="form.targetBaseId" placeholder="请选择转入基地" clearable style="width: 100%">
@@ -182,7 +186,7 @@
 <script setup name="CatReferral">
 import { listCatReferral, getCatReferral, delCatReferral, addCatReferral, updateCatReferral } from '@/api/cat/referral'
 import { useFormDraft } from "@/utils/formDraft"
-import { listCatProfile } from '@/api/cat/profile'
+import { listCatProfile, getCatProfile } from '@/api/cat/profile'
 import { catLabelOf, formatCatLabel, useCatCache } from '@/utils/catCache'
 import { listCatBase } from '@/api/cat/base'
 import { resolveFileUrl, previewKind } from '@/utils/fileUrl'
@@ -368,11 +372,27 @@ function submitForm() {
   proxy.$refs['referralRef'].validate(valid => {
     if (valid) {
       if (form.value.referralId != undefined) {
+        const catId = form.value.catId
+        const hasDischarge = !!form.value.dischargeTo
         updateCatReferral(form.value).then(() => {
-          proxy.$modal.msgSuccess('保存成功，猫咪状态已同步更新')
           draft.pause()
           open.value = false
           getList()
+          if (!hasDischarge) {
+            proxy.$modal.msgSuccess('保存成功')
+            return
+          }
+          // 返院时如果没能还原到具体病房，后端会记「待安置」，这里明确提醒去分配房间
+          getCatProfile(catId).then(res => {
+            const st = res.data && String(res.data.status)
+            if (st === '9') {
+              proxy.$modal.msgWarning('已保存：猫咪回到基地但还没有病房，状态记为「待安置」，请到档案里分配具体病房')
+            } else if (st === '3') {
+              proxy.$modal.msgWarning('记录已保存，但猫咪当前状态不是「外送医院治疗中」，猫咪状态未联动，请到档案里核对')
+            } else {
+              proxy.$modal.msgSuccess('保存成功，猫咪状态已同步更新')
+            }
+          }).catch(() => proxy.$modal.msgSuccess('保存成功，猫咪状态已同步更新'))
         })
       } else {
         addCatReferral(form.value).then(() => {

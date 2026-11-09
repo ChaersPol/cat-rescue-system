@@ -491,3 +491,35 @@ message: {
 
 - `CatWardServiceImpl`：病房里还有在册猫 → 抛异常并列出「病房（N只）」；删除时连带清 `cat_ward_auth`
 - `CatWardTypeServiceImpl` / `CatCheckItemServiceImpl`：被引用 / 有子项目 → 抛异常
+
+---
+
+## 十五、外送 / 返院的病房必须成对处理（2026-11-09 毛豆「在养但没病房」）
+
+**现象**：转诊记录登记「出院去向 = 返回原归属基地 / 返回医疗基地」后，猫状态是「在养 / 基地内治疗中」，
+但 `cat_profile.ward_id` 是空的 —— 页面显示"在养"却查不到住哪间屋。
+
+**根因**：外送时 `transfer()` 对状态 3 会 `clearCatWard()` 清空病房（人确实不在站内），
+但 `CatReferralServiceImpl.updateCatReferral` 出院时只 `profile.setStatus(...)` + `transfer()`，
+**没有把病房写回去**（`updateCatProfile` 的动态 SQL 对 null 是跳过，不是清空，所以看起来"没动"）。
+同一份代码里另一个返院入口 `transferByFlow`（医院返回）却有「没病房 → 待安置(9)」的分支，两边口径不一致。
+
+**现在的规则（三条）**
+
+| 环节 | 做法 |
+|---|---|
+| 外送（`insertCatReferral`） | 必须把离开的基地/病房写进流转记录：`flow.fromBaseId / fromWardId` |
+| 返院（`applyDischarge`） | 用 `CatFlowMapper.selectLastOutWardId` 还原那间病房；还原不到 → 状态 `9 待安置` |
+| 安置（档案 / 流转记录页） | 「待安置」→ 选病房保存 → 状态回 `在养`，并补一条「基地内安置」流水 |
+
+**返院时的三个守卫**
+
+1. 只有**当前状态是 3（外送医院治疗中）**的猫才执行状态联动。回头修改早已出院的旧转诊记录
+   （改医嘱、改诊断）不再重复搬猫，避免把猫从现在的房间/基地再挪一次。
+2. 还原出来的病房必须 `del_flag='0'`、`status='0'`，**且 `base_id` 等于目标基地** ——
+   否则就是"塞进别人家的屋子"，一律当作没有病房。
+3. 「转入指定基地」不选基地直接抛 `ServiceException`；「返回原归属基地」没有 `owner_base_id` 也抛，
+   提示改用「转入指定基地」。
+
+**判定口径**：`在养(1) / 基地内治疗中(2) / 姑息照料(8)` 都表示"猫在站内某间屋里"，
+拿不到病房时不能落这三个状态，只能落 `9 待安置`，由后续安置补房。
