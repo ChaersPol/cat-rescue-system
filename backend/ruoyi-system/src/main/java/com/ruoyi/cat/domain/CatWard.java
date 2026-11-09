@@ -34,6 +34,10 @@ public class CatWard extends BaseEntity
     /** 状态（0正常 1停用） */
     @Excel(name = "状态", dictType = "sys_normal_disable")
     private String status;
+    /** 删除标志（0存在 2删除）。仅查询时回填，用于把「猫还挂在已删病房上」的情况显示出来 */
+    private String delFlag;
+    /** 查询标记（非表字段）：为 true 时把已删除的病房一并查出，仅供档案列表做历史回显 */
+    private Boolean includeDeleted;
     public Long getWardId()
     {
         return wardId;
@@ -99,6 +103,22 @@ public class CatWard extends BaseEntity
     public void setStatus(String status)
     {
         this.status = status;
+    }
+    public String getDelFlag()
+    {
+        return delFlag;
+    }
+    public void setDelFlag(String delFlag)
+    {
+        this.delFlag = delFlag;
+    }
+    public Boolean getIncludeDeleted()
+    {
+        return includeDeleted;
+    }
+    public void setIncludeDeleted(Boolean includeDeleted)
+    {
+        this.includeDeleted = includeDeleted;
     }
     @Override
     public String toString() {

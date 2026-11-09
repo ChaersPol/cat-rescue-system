@@ -248,7 +248,7 @@ function submitForm() {
 
 function handleDelete(row) {
   const delIds = row.wardId || ids.value
-  proxy.$modal.confirm('是否确认删除该数据？').then(function () {
+  proxy.$modal.confirm('病房删除后将从病房下拉与筛选中消失。若病房内还有在册猫咪，请先把猫咪转到其它病房再删除。是否确认删除？').then(function () {
     return delCatWard(delIds)
   }).then(() => {
     invalidateMasterData(MASTER_KIND.WARD)

@@ -12,6 +12,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="wardType" column="ward_type" />
         <result property="orderNum" column="order_num" />
         <result property="status" column="status" />
+        <result property="delFlag" column="del_flag" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -20,7 +21,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatWardVo">
-        select ward_id, base_id, ward_name, ward_type_id, ward_type, order_num, status, create_by, create_time, update_by, update_time, remark from cat_ward
+        select ward_id, base_id, ward_name, ward_type_id, ward_type, order_num, status, del_flag, create_by, create_time, update_by, update_time, remark from cat_ward
     </sql>
 
     <select id="selectCatWardById" parameterType="Long" resultMap="CatWardResult">
@@ -37,7 +38,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="wardType != null and wardType != ''">AND ward_type = #{wardType}</if>
             <if test="orderNum != null">AND order_num = #{orderNum}</if>
             <if test="status != null and status != ''">AND status = #{status}</if>
-            AND del_flag = '0'
+            <!-- 默认只查有效病房；档案列表回显历史病房名时传 includeDeleted=true 取全量 -->
+            <if test="includeDeleted == null or includeDeleted == false">AND del_flag = '0'</if>
         </where>
         order by base_id asc, order_num asc, ward_id asc
     </select>
@@ -90,6 +92,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <delete id="deleteCatWardByIds" parameterType="Long">
         update cat_ward set del_flag = '2' where ward_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 删除病房前的占用校验：只返回还挂着在册猫咪的病房（无猫的病房不出现） -->
+    <select id="selectWardCatCounts" resultType="java.util.HashMap">
+        select w.ward_id as wardId, w.ward_name as wardName, count(p.cat_id) as catCount
+          from cat_ward w
+          join cat_profile p on p.ward_id = w.ward_id and p.del_flag = '0'
+         where w.ward_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+         group by w.ward_id, w.ward_name
+    </select>
+
+    <!-- 病房删除时连带清掉授权，避免助理那边残留指向已删病房的行 -->
+    <delete id="deleteWardAuthByWardIds" parameterType="Long">
+        delete from cat_ward_auth where ward_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
     </delete>
 </mapper>

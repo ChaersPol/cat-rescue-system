@@ -360,6 +360,8 @@ const { cat_status, cat_sex, cat_source, cat_neutered, cat_yes_no } = useDict("c
 const list = ref([])
 const baseList = ref([])
 const wardList = ref([])
+// 含已删除病房的全量名单，只用于把「猫还挂在已删病房上」的历史名字显示出来
+const allWardList = ref([])
 const tagList = ref([])
 const hospitalOptions = ref([])
 // 病房在册数（筛选下拉显示「病房名（N）」）
@@ -625,8 +627,12 @@ function baseName(baseId) {
 }
 
 function wardName(wardId) {
-  const ward = wardList.value.find(w => w.wardId === wardId)
-  return ward ? ward.wardName : ''
+  if (!wardId) return ''
+  const ward = allWardList.value.find(w => w.wardId === wardId) || wardList.value.find(w => w.wardId === wardId)
+  if (!ward) return ''
+  // 病房被删除后猫的 ward_id 不会自动清空，显示成「（已删除）」而不是空，
+  // 否则列表只会出现「—」，看不出是数据问题还是没分房
+  return ward.delFlag === '2' ? `${ward.wardName}（已删除）` : ward.wardName
 }
 
 // 表单里的病房下拉跟随所选基地联动
@@ -647,8 +653,12 @@ function getBaseList() {
 }
 
 function getWardList() {
-  listCatWard({ pageNum: 1, pageSize: 500 }).then(response => {
-    wardList.value = response.rows || []
+  // includeDeleted=true 取回已删病房：猫可能还挂在已删病房上，只有全量才能把名字显示出来
+  listCatWard({ pageNum: 1, pageSize: 500, includeDeleted: true }).then(response => {
+    const rows = response.rows || []
+    allWardList.value = rows
+    // 下拉、筛选、编辑表单只用有效病房
+    wardList.value = rows.filter(w => w.delFlag !== '2')
   })
 }
 

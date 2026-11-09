@@ -365,3 +365,60 @@ PY
 权限集合在**登录时**写入 Redis 的 `login_tokens:<uuid>`，之后不会自动刷新。
 改完角色权限后，受影响的用户必须**退出重新登录**（刷新页面不够，`getInfo` 读的还是旧 token 里的集合）。
 排查顺序：先查 `sys_role_menu` 有没有真勾上 → 再查权限串大小写 → 最后才怀疑缓存。
+
+## 十三、病房逻辑删除必须先迁猫（2026-11-09 助理只看到 4/7 的事故）
+
+**现象**：管理员按「基地 = 18号楼」筛选看到 7 只，助理 assist01 同一筛选只看到 4 只。
+不是权限串问题、不是缓存问题，是**数据脏引用 + 按病房授权过滤**叠加的结果。
+
+**根因链**
+
+1. `cat_ward` 是逻辑删除（`del_flag='2'`），但 `cat_profile.ward_id` 不会跟着清空；
+   系统当时也没有「病房里还有猫就禁止删除」的校验。
+   18号楼 100 普通病房 A 区 / 101 隔离观察房 / 102 术后观察房 被删后，
+   5 只猫（花卷、小满、糖糖、奶片、圆圆）仍然指着这三间已删病房。
+2. 档案列表的「所在病房」列，前端 `wardName()` 只从**有效病房列表**里查名字，
+   查不到就返回空 → 页面显示「—」。所以看起来像「没分房」，实际是分在已删病房里。
+3. 助理的可见范围是 `AND ward_id IN (cat_ward_auth 里配给自己的病房)`。
+   assist01 只配了 100 / 101 / 106，其中 100、101 已删，
+   于是只剩「南间(106)」这一间能看到猫 —— 正好 4 只。**剩下的猫怎么勾都看不到。**
+
+**已经落地的三道防线**
+
+| 位置 | 做法 |
+|---|---|
+| `CatWardServiceImpl.deleteCatWardByIds` | 删除前 `selectWardCatCounts` 校验，有在册猫直接抛 `ServiceException` 并列出「病房（N只）」，提示先去迁猫 |
+| 同上 | 校验通过后 `deleteWardAuthByWardIds` 连带清掉指向这些病房的授权行，不留死授权 |
+| `CatWardMapper.selectCatWardList` | 新增 `includeDeleted` 查询标记；档案列表用 `includeDeleted=true` 取全量，已删病房显示成「南间（已删除）」而不是「—」 |
+
+**两条不能改错的既有行为**
+
+- `CatProfileMapper.xml` 里助理范围的写法是：`wardScope` 为真时，
+  有授权 → `AND ward_id IN (...)`，**没授权 → `AND 1 = 0`**。
+  这个 `1 = 0` 是故意的：助理一个病房都没配时必须零可见，不能退化成「不过滤 = 看全部」。
+- `ward_id is null`（未分配病房）的猫**不在**助理可见范围内（`IN` 对 null 不成立）。
+  这是安全默认：否则任何未分房的猫对所有助理都可见。要放开属于业务决策，必须显式改并写在这里。
+
+**线上排查 SQL（只读，先跑这个再动数据）**
+
+```sql
+-- 1. 还有猫挂在已删病房上的（非空就是脏引用）
+select p.base_id, p.ward_id, w.ward_name, count(*) cnt,
+       group_concat(p.cat_name order by p.cat_id) cats
+  from cat_profile p join cat_ward w on w.ward_id = p.ward_id
+ where p.del_flag = '0' and w.del_flag = '2'
+ group by p.base_id, p.ward_id, w.ward_name;
+
+-- 2. 还有授权指向已删病房的（删完病房没清授权）
+select a.user_id, a.ward_id, w.ward_name
+  from cat_ward_auth a join cat_ward w on w.ward_id = a.ward_id
+ where w.del_flag = '2';
+
+-- 3. 某助理实际可见条数（把 101 换成目标 user_id）
+select count(*) from cat_profile
+ where base_id = ? and del_flag = '0'
+   and ward_id in (select ward_id from cat_ward_auth where user_id = 101);
+```
+
+修复顺序永远是：**先迁猫 → 再清死授权 → 再按有效病房重新授权**，
+顺序颠倒会把猫「迁进」一个马上要被删掉的病房。
