@@ -86,6 +86,9 @@ public class CatProfile extends BaseEntity
     /** 标志性特征 */
     @Excel(name = "标志性特征")
     private String feature;
+    /** 登记人（谁把这只猫录进系统，可为志愿者姓名；留空时后端自动填当前登录人昵称） */
+    @Excel(name = "登记人")
+    private String registrar;
     /** 猫咪状态 */
     @Excel(name = "猫咪状态", dictType = "cat_status")
     private String status;
@@ -326,6 +329,14 @@ public class CatProfile extends BaseEntity
     {
         this.feature = feature;
     }
+    public String getRegistrar()
+    {
+        return registrar;
+    }
+    public void setRegistrar(String registrar)
+    {
+        this.registrar = registrar;
+    }
     public String getStatus()
     {
         return status;
@@ -468,6 +479,7 @@ public class CatProfile extends BaseEntity
             .append("dewormed", getDewormed())
             .append("vaccinated", getVaccinated())
             .append("feature", getFeature())
+            .append("registrar", getRegistrar())
             .append("status", getStatus())
             .append("baseId", getBaseId())
             .append("wardId", getWardId())

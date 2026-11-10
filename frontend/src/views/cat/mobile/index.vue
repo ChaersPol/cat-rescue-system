@@ -17,6 +17,11 @@
       </div>
     </div>
 
+    <!-- 性格 / 疾病等标签 -->
+    <div class="tag-row" v-if="tagNames.length">
+      <span class="tag-chip" v-for="t in tagNames" :key="t">{{ t }}</span>
+    </div>
+
     <!-- 基础信息 -->
     <div class="section" v-if="!loading">
       <div class="section-title">基础信息</div>
@@ -170,6 +175,8 @@ const cameraInput = ref(null)
 const uploading = ref(false)
 // 头像：优先相册照片，取不到或加载失败时回退成名字首字
 const avatarUrl = ref('')
+// 性格/疾病等标签名称（后端按 cat_profile_tag 关联出来，手机端也要能看见）
+const tagNames = ref([])
 const avatarBroken = ref(false)
 
 const avatarSrc = computed(() => {
@@ -388,6 +395,7 @@ function getData() {
       }
       needLogin.value = response.data.needLogin === true
       avatarUrl.value = response.data.avatar || ''
+      tagNames.value = response.data.tagNames || []
       loggedIn.value = response.data.loggedIn === true
       staffName.value = response.data.staffName || ''
       roles.value = response.data.roles || []
@@ -477,6 +485,24 @@ getData()
 .profile-no {
   font-size: 12px;
   opacity: 0.85;
+}
+
+/* 性格/疾病标签 */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+
+.tag-chip {
+  background: #fdeceb;
+  color: #d9534f;
+  border: 1px solid #f6c9c6;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .section {

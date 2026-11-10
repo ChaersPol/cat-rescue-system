@@ -145,6 +145,8 @@ public class CatMobileController
         result.put("catId", catId);
         // 头像照片（相册里挑一张，没有则前端回退成名字首字）
         result.put("avatar", pickAvatarUrl(catId));
+        // 性格/疾病等标签：扫码在手机上看档案时也要能看到，别只在后台页面显示
+        result.put("tagNames", catProfileMapper.selectTagNamesByCatId(catId));
 
         // 扫码人是否已登录、什么岗位：前端据此决定「+ 快速记一笔」里显示哪些入口
         Map<String, Object> staff = currentStaffInfo();

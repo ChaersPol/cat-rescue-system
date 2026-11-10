@@ -3,9 +3,11 @@ package com.ruoyi.cat.service;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -179,8 +181,197 @@ public class CatThumbnailService
         {
             return null;
         }
-        writeJpeg(scaleToWidth(source, MAX_WIDTH), thumbFileFor(src));
+        // 手机拍的照片像素是横着的，靠 EXIF Orientation 让看图软件转正；
+        // ImageIO 只读像素、不认这个标记，所以缩略图必须自己转，否则打印卡/相册里全是躺倒的
+        BufferedImage thumb = orient(scaleToWidth(source, MAX_WIDTH), readExifOrientation(src));
+        writeJpeg(thumb, thumbFileFor(src));
         return thumbUrlFor(originalUrl);
+    }
+
+    /**
+     * 按 EXIF Orientation 把像素真正转正（1 不用转，2~8 见 EXIF 规范）。
+     *
+     * <p>只对已经缩小的图做变换，内存占用可控；5~8 会让宽高互换，
+     * 所以输出图的长边仍然是 {@link #MAX_WIDTH}。</p>
+     */
+    private BufferedImage orient(BufferedImage src, int orientation)
+    {
+        if (orientation < 2 || orientation > 8)
+        {
+            return src;
+        }
+        int w = src.getWidth();
+        int h = src.getHeight();
+        boolean swap = orientation >= 5;
+        int dw = swap ? h : w;
+        int dh = swap ? w : h;
+        AffineTransform t;
+        switch (orientation)
+        {
+            case 2: // 水平镜像
+                t = new AffineTransform(-1, 0, 0, 1, w, 0);
+                break;
+            case 3: // 旋转 180°
+                t = new AffineTransform(-1, 0, 0, -1, w, h);
+                break;
+            case 4: // 垂直镜像
+                t = new AffineTransform(1, 0, 0, -1, 0, h);
+                break;
+            case 5: // 主对角线翻转
+                t = new AffineTransform(0, 1, 1, 0, 0, 0);
+                break;
+            case 6: // 顺时针 90°（手机竖拍最常见）
+                t = new AffineTransform(0, 1, -1, 0, h, 0);
+                break;
+            case 7: // 副对角线翻转
+                t = new AffineTransform(0, -1, -1, 0, h, w);
+                break;
+            default: // 8 逆时针 90°
+                t = new AffineTransform(0, -1, 1, 0, 0, w);
+                break;
+        }
+        BufferedImage dst = new BufferedImage(dw, dh, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = dst.createGraphics();
+        try
+        {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, dw, dh);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(src, t, null);
+        }
+        finally
+        {
+            g.dispose();
+        }
+        return dst;
+    }
+
+    /**
+     * 读取 JPEG 的 EXIF Orientation；非 JPEG、没有 EXIF 或解析失败都返回 1（正常方向）。
+     */
+    private int readExifOrientation(File file)
+    {
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r"))
+        {
+            long length = raf.length();
+            if (length < 12 || raf.readUnsignedShort() != 0xFFD8)
+            {
+                return 1;
+            }
+            while (raf.getFilePointer() + 4 <= length)
+            {
+                if (raf.readUnsignedByte() != 0xFF)
+                {
+                    return 1;
+                }
+                int marker = raf.readUnsignedByte();
+                while (marker == 0xFF && raf.getFilePointer() < length)
+                {
+                    marker = raf.readUnsignedByte();
+                }
+                // 无长度字段的标记：SOI / RSTn / TEM
+                if (marker == 0xD8 || (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01)
+                {
+                    continue;
+                }
+                // 走到图像数据或结束，后面不会再有 EXIF
+                if (marker == 0xDA || marker == 0xD9)
+                {
+                    return 1;
+                }
+                if (raf.getFilePointer() + 2 > length)
+                {
+                    return 1;
+                }
+                int segmentLength = raf.readUnsignedShort();
+                if (segmentLength < 2)
+                {
+                    return 1;
+                }
+                int payload = segmentLength - 2;
+                if (raf.getFilePointer() + payload > length)
+                {
+                    return 1;
+                }
+                if (marker == 0xE1 && payload > 6)
+                {
+                    byte[] data = new byte[payload];
+                    raf.readFully(data);
+                    int orientation = parseExifOrientation(data);
+                    if (orientation > 0)
+                    {
+                        return orientation;
+                    }
+                }
+                else
+                {
+                    raf.seek(raf.getFilePointer() + payload);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            log.debug("读取照片方向失败: {} ({})", file.getName(), e.getMessage());
+        }
+        return 1;
+    }
+
+    /**
+     * 从 APP1 段（Exif\0\0 + TIFF 头）里取 Orientation 标签（0x0112）
+     */
+    private int parseExifOrientation(byte[] data)
+    {
+        if (data.length < 14
+                || data[0] != 'E' || data[1] != 'x' || data[2] != 'i' || data[3] != 'f'
+                || data[4] != 0 || data[5] != 0)
+        {
+            return 0;
+        }
+        int tiff = 6;
+        boolean little = data[tiff] == 'I' && data[tiff + 1] == 'I';
+        boolean big = data[tiff] == 'M' && data[tiff + 1] == 'M';
+        if (!little && !big)
+        {
+            return 0;
+        }
+        int ifd = tiff + readExifInt(data, tiff + 4, little);
+        if (ifd < tiff || ifd + 2 > data.length)
+        {
+            return 0;
+        }
+        int count = readExifShort(data, ifd, little);
+        for (int i = 0; i < count; i++)
+        {
+            int entry = ifd + 2 + i * 12;
+            if (entry + 12 > data.length)
+            {
+                return 0;
+            }
+            if (readExifShort(data, entry, little) == 0x0112)
+            {
+                int value = readExifShort(data, entry + 8, little);
+                return value >= 1 && value <= 8 ? value : 0;
+            }
+        }
+        return 0;
+    }
+
+    private int readExifShort(byte[] data, int offset, boolean little)
+    {
+        int b0 = data[offset] & 0xFF;
+        int b1 = data[offset + 1] & 0xFF;
+        return little ? (b1 << 8 | b0) : (b0 << 8 | b1);
+    }
+
+    private int readExifInt(byte[] data, int offset, boolean little)
+    {
+        int b0 = data[offset] & 0xFF;
+        int b1 = data[offset + 1] & 0xFF;
+        int b2 = data[offset + 2] & 0xFF;
+        int b3 = data[offset + 3] & 0xFF;
+        return little ? (b3 << 24 | b2 << 16 | b1 << 8 | b0) : (b0 << 24 | b1 << 16 | b2 << 8 | b3);
     }
 
     /**

@@ -23,6 +23,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="dewormed" column="dewormed" />
         <result property="vaccinated" column="vaccinated" />
         <result property="feature" column="feature" />
+        <result property="registrar" column="registrar" />
         <result property="status" column="status" />
         <result property="baseId" column="base_id" />
         <result property="wardId" column="ward_id" />
@@ -42,14 +43,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatProfileVo">
-        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, qr_code, archived, create_by, create_time, update_by, update_time, remark,
+        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, registrar, status, base_id, ward_id, owner_base_id, hospital_name, qr_code, archived, create_by, create_time, update_by, update_time, remark,
                (select ifnull(nullif(u.nick_name, ''), u.user_name) from sys_user u where u.user_name = cat_profile.create_by limit 1) as creator_name
           from cat_profile
     </sql>
 
     <!-- 列表查询不返回 Base64 二维码，避免列表接口数据过大；只带 has_qr_code 标记 -->
     <sql id="selectCatProfileListVo">
-        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, status, base_id, ward_id, owner_base_id, hospital_name, (case when qr_code is not null and qr_code &lt;&gt; '' then 1 else 0 end) as has_qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
+        select cat_id, archive_no, cat_name, alias, breed, sex, age_estimate, birth_date, birth_estimated, weight, personality, source, capture_date, capture_point, neutered, dewormed, vaccinated, feature, registrar, status, base_id, ward_id, owner_base_id, hospital_name, (case when qr_code is not null and qr_code &lt;&gt; '' then 1 else 0 end) as has_qr_code, archived, create_by, create_time, update_by, update_time, remark from cat_profile
     </sql>
 
     <select id="selectCatProfileById" parameterType="Long" resultMap="CatProfileResult">
@@ -244,6 +245,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormed != null">dewormed,</if>
             <if test="vaccinated != null">vaccinated,</if>
             <if test="feature != null">feature,</if>
+            <if test="registrar != null">registrar,</if>
             <if test="status != null">status,</if>
             <if test="baseId != null">base_id,</if>
             <if test="wardId != null">ward_id,</if>
@@ -252,6 +254,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="qrCode != null">qr_code,</if>
             <if test="archived != null">archived,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="remark != null">remark,</if>
             create_time
         )values(
             <if test="archiveNo != null">#{archiveNo},</if>
@@ -271,6 +274,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormed != null">#{dewormed},</if>
             <if test="vaccinated != null">#{vaccinated},</if>
             <if test="feature != null">#{feature},</if>
+            <if test="registrar != null">#{registrar},</if>
             <if test="status != null">#{status},</if>
             <if test="baseId != null">#{baseId},</if>
             <if test="wardId != null">#{wardId},</if>
@@ -279,6 +283,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="qrCode != null">#{qrCode},</if>
             <if test="archived != null">#{archived},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
             sysdate()
         )
     </insert>
@@ -298,7 +303,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <!-- 提交了空年龄且没有出生日期 = 用户主动清空生日；内部更新（只改状态等）不会带这两个字段，不受影响 -->
             <if test="ageEstimate != null and ageEstimate.length() == 0 and birthDate == null">birth_date = null,</if>
             <if test="weight != null and weight != ''">weight = #{weight},</if>
-            <if test="personality != null and personality != ''">personality = #{personality},</if>
+            <!-- 性格允许清空（编辑页可改回空），所以不带 != '' -->
+            <if test="personality != null">personality = #{personality},</if>
             <if test="source != null and source != ''">source = #{source},</if>
             <if test="captureDate != null">capture_date = #{captureDate},</if>
             <if test="capturePoint != null and capturePoint != ''">capture_point = #{capturePoint},</if>
@@ -306,6 +312,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="dewormed != null and dewormed != ''">dewormed = #{dewormed},</if>
             <if test="vaccinated != null and vaccinated != ''">vaccinated = #{vaccinated},</if>
             <if test="feature != null and feature != ''">feature = #{feature},</if>
+            <!-- 登记人允许写成空串（清掉原来的人名），所以不带 != '' -->
+            <if test="registrar != null">registrar = #{registrar},</if>
             <if test="status != null and status != ''">status = #{status},</if>
             <if test="baseId != null">base_id = #{baseId},</if>
             <if test="wardId != null">ward_id = #{wardId},</if>
@@ -315,6 +323,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="qrCode != null and qrCode != ''">qr_code = #{qrCode},</if>
             <if test="archived != null and archived != ''">archived = #{archived},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <!-- 备注：允许清空，不能加 != '' -->
+            <if test="remark != null">remark = #{remark},</if>
             update_time = sysdate()
         </set>
         where cat_id = #{catId}

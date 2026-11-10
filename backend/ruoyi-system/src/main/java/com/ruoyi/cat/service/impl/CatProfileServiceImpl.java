@@ -290,6 +290,16 @@ public class CatProfileServiceImpl implements ICatProfileService
         {
             throw new ServiceException("档案编号「" + catProfile.getArchiveNo() + "」已存在，请更换");
         }
+        // 登记人没填就记当前登录人（建档的多半就是登记的人），前端仍可改成志愿者姓名
+        if (StringUtils.isEmpty(catProfile.getRegistrar()))
+        {
+            catProfile.setRegistrar(currentUserName());
+        }
+        // create_by 一直没人赋值，导致详情页「登记人」永远是「—」，这里补上登录名兜底
+        if (StringUtils.isEmpty(catProfile.getCreateBy()))
+        {
+            catProfile.setCreateBy(currentUserAccount());
+        }
         // 只填了「约 2 岁」时按救助日期反推出生日期，年龄后续靠出生日期实时算
         resolveBirthDate(catProfile);
         int rows = catProfileMapper.insertCatProfile(catProfile);
@@ -639,5 +649,38 @@ public class CatProfileServiceImpl implements ICatProfileService
     public List<String> selectHospitalOptions()
     {
         return catProfileMapper.selectHospitalOptions();
+    }
+
+    /**
+     * 当前登录人昵称（「登记人」默认值）；取不到昵称退回登录名，匿名场景返回空串。
+     */
+    private String currentUserName()
+    {
+        try
+        {
+            String nick = SecurityUtils.getLoginUser().getUser().getNickName();
+            return StringUtils.isNotEmpty(nick) ? nick : currentUserAccount();
+        }
+        catch (Exception e)
+        {
+            return currentUserAccount();
+        }
+    }
+
+    /**
+     * 当前登录名（写 create_by 用；create_by 存登录名，昵称靠 sys_user 关联出来）
+     */
+    private String currentUserAccount()
+    {
+        try
+        {
+            String name = SecurityUtils.getUsername();
+            return name == null ? "" : name;
+        }
+        catch (Exception e)
+        {
+            // 定时任务 / 匿名扫码等无登录上下文的场景
+            return "";
+        }
     }
 }

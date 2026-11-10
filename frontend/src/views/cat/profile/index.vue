@@ -274,6 +274,9 @@
                   <el-option v-for="tag in tagList" :key="tag.tagId" :label="tag.tagName" :value="tag.tagId" />
                </el-select>
             </el-form-item>
+            <el-form-item label="登记人" prop="registrar">
+               <el-input v-model="form.registrar" maxlength="50" placeholder="谁登记这只猫；留空按当前登录人记录，也可改成志愿者姓名" />
+            </el-form-item>
             <el-form-item label="备注" prop="remark">
                <el-input v-model="form.remark" type="textarea" placeholder="性格、应激程度、是否怕人、特殊习性" />
             </el-form-item>
@@ -352,6 +355,7 @@ import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
 import { useFormDraft } from "@/utils/formDraft"
+import useUserStore from "@/store/modules/user"
 import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 import { useNarrow } from "@/utils/useNarrow"
 
@@ -665,7 +669,9 @@ function getWardList() {
 }
 
 function getTagList() {
-  listCatTag().then(response => {
+  // 标签接口是分页的（默认 10 条），不传 pageSize 只拿到第一页，
+  // 已选但不在这 10 条里的标签就没有对应 option，el-select 只能把 tagId 当文字显示（110 × 113 ×）
+  listCatTag({ pageNum: 1, pageSize: 500 }).then(response => {
     tagList.value = response.rows
   })
 }
@@ -736,6 +742,7 @@ function reset() {
     dewormed: '0',
     vaccinated: '0',
     feature: undefined,
+    registrar: undefined,
     status: '1',
     baseId: undefined,
     wardId: undefined,
@@ -798,6 +805,10 @@ function handleAdd() {
   draft.begin()
   open.value = true
   title.value = "添加猫咪档案"
+  // 登记人默认就是当前登录人（可改），省得每次手填
+  if (!form.value.registrar) {
+    form.value.registrar = useUserStore().nickName || useUserStore().name || undefined
+  }
 }
 
 function handleUpdate(row) {

@@ -523,3 +523,25 @@ message: {
 
 **判定口径**：`在养(1) / 基地内治疗中(2) / 姑息照料(8)` 都表示"猫在站内某间屋里"，
 拿不到病房时不能落这三个状态，只能落 `9 待安置`，由后续安置补房。
+
+---
+
+## 十六、手机照片必须按 EXIF 方向转正（2026-11-10 打印卡照片「斜的」）
+
+**现象**：手机拍的猫照片上传后，二维码卡片、相册列表里全是躺倒/侧翻的，点开大图却是正的。
+
+**根因**：iPhone / 安卓拍竖图时，像素其实是横着存的（4032×3024），方向靠 JPEG 里的
+EXIF `Orientation`（常见值 6）标记，由看图软件转正。浏览器 `<img>` 会认这个标记，
+但 `CatThumbnailService` 用 `ImageIO.read()` 只拿像素、**不认 EXIF**，生成出来的缩略图
+就是躺着的；而打印卡、相册列表、详情页网格都优先用 `thumbUrl`，于是全都歪。
+
+**规则**
+
+| 环节 | 要求 |
+|---|---|
+| 生成缩略图 | `makeImageThumb` 先读 EXIF Orientation（`readExifOrientation`），缩放后用 `orient()` 做像素级旋转/镜像，输出不带 EXIF 的正向 JPEG |
+| 视频封面 | ffmpeg 自己会 autorotate；jcodec 取帧不处理，属已知限制 |
+| 历史数据 | 改了算法必须重建：`POST /cat/photo/rebuildThumb`（body 可带 `{catId}` 限定范围） |
+| 新增图片处理 | 任何「自己解码再重编码」的地方（缩略图、水印、裁剪）都要先过 Orientation，否则一定歪 |
+
+支持的 1~8 全部实测过（Pillow `ImageOps.exif_transpose` 逐像素比对，误差 <1.2 属 JPEG 噪声）。

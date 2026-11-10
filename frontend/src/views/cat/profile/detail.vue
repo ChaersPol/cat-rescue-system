@@ -60,7 +60,7 @@
             <el-descriptions-item label="抓捕/投喂点位" :span="3">{{ profile.capturePoint || '—' }}</el-descriptions-item>
             <el-descriptions-item label="标志性特征" :span="3">{{ profile.feature || '—' }}</el-descriptions-item>
             <el-descriptions-item label="性格/备注" :span="3">{{ [profile.personality, profile.remark].filter(Boolean).join('；') || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="登记人">{{ profile.creatorName || profile.createBy || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="登记人">{{ profile.registrar || profile.creatorName || profile.createBy || '—' }}</el-descriptions-item>
             <el-descriptions-item label="建档时间" :span="2">{{ profile.createTime || '—' }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
