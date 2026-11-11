@@ -84,7 +84,11 @@
                <el-input v-model="form.spec" placeholder="请输入规格" />
             </el-form-item>
             <el-form-item label="单位" prop="unit">
-               <el-input v-model="form.unit" placeholder="请输入单位" />
+               <!-- 单位决定库存扣减、开单显示、卡片文案，必须走统一字典：
+                    自由输入会让「片/片剂/粒」各成一套，账对不上 -->
+               <el-select v-model="form.unit" placeholder="选择或输入单位" filterable allow-create default-first-option clearable style="width: 100%">
+                  <el-option v-for="d in material_unit" :key="d.value" :label="d.label" :value="d.value" />
+               </el-select>
             </el-form-item>
             <el-form-item label="库存" prop="stock">
                <el-input-number v-model="form.stock" :min="0" :precision="2" style="width: 100%" />
@@ -112,6 +116,8 @@ import { useNarrow } from "@/utils/useNarrow"
 
 const { proxy } = getCurrentInstance()
 const { isNarrow } = useNarrow()
+// 计量单位字典：物资、检查项目共用同一份，避免两处各填一套
+const { material_unit } = proxy.useDict('material_unit')
 
 const list = ref([])
 const categoryOptions = ref([])

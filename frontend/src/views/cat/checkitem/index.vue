@@ -124,7 +124,11 @@
           <el-col :span="8">
             <el-form-item label="单位" prop="unit" label-width="70px">
               <!-- 关联了物资就跟着物资单位走：库存按物资单位扣，两处各填一份必然对不上账 -->
-              <el-input v-model="form.unit" :disabled="!!form.materialId" :placeholder="form.materialId ? '' : '片/支/次'" maxlength="20" />
+              <el-input v-if="form.materialId" :model-value="form.unit" disabled placeholder="跟随物资单位" />
+              <!-- 不扣库存的服务项（血常规→次、体格检查→次）从统一字典选，口径与物资一致 -->
+              <el-select v-else v-model="form.unit" placeholder="选择或输入单位" filterable allow-create default-first-option clearable style="width: 100%">
+                <el-option v-for="d in material_unit" :key="d.value" :label="d.label" :value="d.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -166,7 +170,7 @@ import { listCatMaterial } from '@/api/cat/material'
 import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
-const { sys_normal_disable } = proxy.useDict('sys_normal_disable')
+const { sys_normal_disable, material_unit } = proxy.useDict('sys_normal_disable', 'material_unit')
 const { isNarrow } = useNarrow()
 
 const typeOptions = [
