@@ -15,6 +15,7 @@ import com.ruoyi.cat.domain.CatDeworm;
 import com.ruoyi.cat.domain.CatDiagnosis;
 import com.ruoyi.cat.domain.CatDiagnosisItem;
 import com.ruoyi.cat.domain.CatDiagnosisSummary;
+import com.ruoyi.cat.domain.CatMaterial;
 import com.ruoyi.cat.domain.CatMedication;
 import com.ruoyi.cat.domain.CatPrescription;
 import com.ruoyi.cat.domain.CatProfile;
@@ -23,6 +24,7 @@ import com.ruoyi.cat.domain.CatVaccine;
 import com.ruoyi.cat.domain.CatWard;
 import com.ruoyi.cat.mapper.CatBaseMapper;
 import com.ruoyi.cat.mapper.CatCheckItemMapper;
+import com.ruoyi.cat.mapper.CatMaterialMapper;
 import com.ruoyi.cat.mapper.CatDewormMapper;
 import com.ruoyi.cat.mapper.CatDiagnosisItemMapper;
 import com.ruoyi.cat.mapper.CatDiagnosisMapper;
@@ -73,6 +75,9 @@ public class CatDiagnosisServiceImpl implements ICatDiagnosisService
 
     @Autowired
     private CatCheckItemMapper checkItemMapper;
+
+    @Autowired
+    private CatMaterialMapper materialMapper;
 
     @Autowired
     private CatStockRecordMapper stockRecordMapper;
@@ -517,6 +522,16 @@ public class CatDiagnosisServiceImpl implements ICatDiagnosisService
                 if (StringUtils.isNotEmpty(catalog.getUnit()))
                 {
                     item.setUnit(catalog.getUnit());
+                }
+                // 关联了物资就按物资单位落库：库存是按片/支/瓶扣的，
+                // 明细若记成「盒」就会出现「开 1 盒只扣 1 片」的账实不符
+                if (catalog.getMaterialId() != null)
+                {
+                    CatMaterial material = materialMapper.selectCatMaterialById(catalog.getMaterialId());
+                    if (material != null && StringUtils.isNotEmpty(material.getUnit()))
+                    {
+                        item.setUnit(material.getUnit());
+                    }
                 }
                 if (catalog.getPrice() != null)
                 {

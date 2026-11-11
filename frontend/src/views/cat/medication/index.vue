@@ -122,7 +122,7 @@
                         <template #default="d">
                            <template v-if="d.row.materialName">
                               {{ d.row.materialName }}
-                              <span class="muted" v-if="d.row.stockQty">× {{ d.row.stockQty }}</span>
+                              <span class="muted" v-if="d.row.stockQty">× {{ d.row.stockQty }}{{ materialUnits[d.row.materialId] || '' }}</span>
                            </template>
                            <span class="muted" v-else>未关联（不扣库存）</span>
                         </template>
@@ -420,6 +420,7 @@ import {
   saveCatMedicationExec, delCatMedication
 } from "@/api/cat/medication"
 import { listCatStaffOptions } from "@/api/cat/staff"
+import { listCatMaterial } from "@/api/cat/material"
 import { uploadTimeLabel } from "@/utils/photoTime"
 import { resolveFileUrl } from "@/utils/fileUrl"
 import useUserStore from "@/store/modules/user"
@@ -866,11 +867,25 @@ function openQuickEntry() {
   router.replace({ path: route.path, query: {} })
 }
 
+/**
+ * 物资 id → 单位（片/支/瓶）。用药明细里的「本次用量」只有数字，
+ * 不带上单位就看不出扣了 1 片还是 1 盒；台账本身不存单位，按物资现取。
+ */
+const materialUnits = ref({})
+function getMaterialUnits() {
+  listCatMaterial({ pageNum: 1, pageSize: 999 }).then(res => {
+    const map = {}
+    ;(res.rows || []).forEach(m => { map[m.materialId] = m.unit || '' })
+    materialUnits.value = map
+  })
+}
+
 onMounted(() => {
   syncNarrow()
   window.addEventListener('resize', syncNarrow)
   getAssistantOptions()
   getList()
+  getMaterialUnits()
   openQuickEntry()
 })
 onBeforeUnmount(() => {

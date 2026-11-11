@@ -553,12 +553,189 @@ public class CatProfileController extends BaseController
             return success(new ArrayList<>());
         }
         List<com.ruoyi.cat.domain.CatCardVo> cards = catProfileMapper.selectCardsByIds(catIds);
+        Map<Long, String> medicationTexts = buildCardMedicationText(catIds);
         for (com.ruoyi.cat.domain.CatCardVo card : cards)
         {
             // 打印时现画：贴纸上的码必须是「打印这一刻」的访问地址
             card.setQrCode(catIdService.encodeQrCode(card.getArchiveNo()));
+            card.setMedicationText(medicationTexts.get(card.getCatId()));
         }
         return success(cards);
+    }
+
+    /**
+     * 信息卡「用药」栏文案：每味药一行，带剂量、给药方式、给药时段。
+     * <p>
+     * 取数分两级：优先「进行中的处方」（医生开的给药方案就存在这里，含早/中/晚），
+     * 没有处方（老数据、或只开单没开方）才回落到用药台账，按药名归并。
+     * 只拼日期+药名的老口径在卡面上看不出「一天几次、怎么吃」，护士照着卡片没法喂药。
+     */
+    private Map<Long, String> buildCardMedicationText(Long[] catIds)
+    {
+        Map<Long, List<String>> lines = new HashMap<>();
+        // 已收录的药名，同一只猫同一味药不重复（多张历史处方只留最新的那张）
+        Map<Long, List<String>> picked = new HashMap<>();
+
+        for (Map<String, Object> row : catProfileMapper.selectCardPrescriptionLines(catIds))
+        {
+            Long catId = toLong(row.get("catId"));
+            String drug = text(row.get("drugName"));
+            if (catId == null || drug.isEmpty())
+            {
+                continue;
+            }
+            List<String> drugs = picked.computeIfAbsent(catId, k -> new ArrayList<>());
+            if (drugs.contains(drug))
+            {
+                continue;
+            }
+            drugs.add(drug);
+            lines.computeIfAbsent(catId, k -> new ArrayList<>())
+                 .add(joinLine(drug, quantityText(row.get("quantity"), row.get("unit")),
+                               dosageText(text(row.get("dosage"))),
+                               text(row.get("administration")), text(row.get("periods"))));
+        }
+
+        // 兜底：没有处方的猫，用最近用药台账按药名归并，时段合并成「早,晚」
+        Map<Long, Map<String, LedgerLine>> ledger = new HashMap<>();
+        for (Map<String, Object> row : catProfileMapper.selectCardMedicationLines(catIds))
+        {
+            Long catId = toLong(row.get("catId"));
+            String drug = text(row.get("drugName"));
+            if (catId == null || drug.isEmpty() || lines.containsKey(catId))
+            {
+                continue;
+            }
+            Map<String, LedgerLine> byDrug = ledger.computeIfAbsent(catId, k -> new java.util.LinkedHashMap<>());
+            LedgerLine line = byDrug.get(drug);
+            if (line == null)
+            {
+                line = new LedgerLine(drug, shortDate(row.get("useDate")), text(row.get("dosage")),
+                                      text(row.get("administration")));
+                byDrug.put(drug, line);
+            }
+            line.addPeriod(text(row.get("timePeriod")));
+        }
+        for (Map.Entry<Long, Map<String, LedgerLine>> e : ledger.entrySet())
+        {
+            List<String> list = new ArrayList<>();
+            for (LedgerLine line : e.getValue().values())
+            {
+                list.add(line.render());
+            }
+            lines.put(e.getKey(), list);
+        }
+        Map<Long, String> result = new HashMap<>();
+        for (Map.Entry<Long, List<String>> e : lines.entrySet())
+        {
+            result.put(e.getKey(), String.join("\n", e.getValue()));
+        }
+        return result;
+    }
+
+    /** 用药台账归并用的一行：同一天早/晚各一条记录，要合并成「早,晚」一行 */
+    private static class LedgerLine
+    {
+        private final String drug;
+        private final String date;
+        private final String dosage;
+        private final String administration;
+        private final List<String> periods = new ArrayList<>();
+
+        LedgerLine(String drug, String date, String dosage, String administration)
+        {
+            this.drug = drug;
+            this.date = date;
+            this.dosage = dosage;
+            this.administration = administration;
+        }
+
+        void addPeriod(String period)
+        {
+            if (period != null && !period.isEmpty() && !periods.contains(period))
+            {
+                periods.add(period);
+            }
+        }
+
+        String render()
+        {
+            return joinLine(date, drug, dosageText(dosage), administration, String.join(",", periods));
+        }
+    }
+
+    /** 把非空片段用空格连成一行，中间不留空档 */
+    private static String joinLine(String... parts)
+    {
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts)
+        {
+            if (p == null || p.isEmpty())
+            {
+                continue;
+            }
+            if (sb.length() > 0)
+            {
+                sb.append(' ');
+            }
+            sb.append(p);
+        }
+        return sb.toString();
+    }
+
+    /** 数量带乘号：『×2片』，和「每次 1 片」区分开，护士一眼看得懂总量与单次量 */
+    private String quantityText(Object quantity, Object unit)
+    {
+        if (quantity == null)
+        {
+            return "";
+        }
+        String qty = new java.math.BigDecimal(String.valueOf(quantity)).stripTrailingZeros().toPlainString();
+        return "×" + qty + text(unit);
+    }
+
+    /** 剂量统一读成「每次 1 片」；已经是「每次…」或不是剂量的自由文本（如「按 1:100 稀释」）原样保留 */
+    private static String dosageText(String dosage)
+    {
+        if (dosage == null || dosage.isEmpty())
+        {
+            return "";
+        }
+        if (dosage.contains("次") || dosage.contains("每日") || dosage.contains("/日"))
+        {
+            return dosage;
+        }
+        // 只有「1片 / 0.5ml / 半片」这种以量开头的才补「每次」前缀
+        if (!dosage.matches("^[0-9０-９.．/½⅓¼半一二三四五六七八九十].*"))
+        {
+            return dosage;
+        }
+        return "每次" + dosage;
+    }
+
+    private String shortDate(Object date)
+    {
+        if (date == null)
+        {
+            return "";
+        }
+        String s = String.valueOf(date);
+        // java.sql.Date 的 toString 就是 yyyy-MM-dd，取月-日
+        return s.length() >= 10 ? s.substring(5, 10) : s;
+    }
+
+    private String text(Object value)
+    {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private Long toLong(Object value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        return value instanceof Number ? ((Number) value).longValue() : Long.valueOf(String.valueOf(value));
     }
 
     /**

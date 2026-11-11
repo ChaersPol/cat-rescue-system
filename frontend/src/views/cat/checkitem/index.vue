@@ -118,12 +118,13 @@
               :value="m.materialId"
             />
           </el-select>
-          <div class="form-tip">关联后医生开具这个项目，会自动生成一条出库记录并扣库存；不关联则只做诊疗记录</div>
+          <div class="form-tip">关联后医生开具这个项目，会自动生成一条出库记录并扣库存；不关联则只做诊疗记录。<b>关联物资时单位自动跟随物资</b>（片/支/瓶），不用手填</div>
         </el-form-item>
         <el-row>
           <el-col :span="8">
             <el-form-item label="单位" prop="unit" label-width="70px">
-              <el-input v-model="form.unit" placeholder="片/支/次" maxlength="20" />
+              <!-- 关联了物资就跟着物资单位走：库存按物资单位扣，两处各填一份必然对不上账 -->
+              <el-input v-model="form.unit" :disabled="!!form.materialId" :placeholder="form.materialId ? '' : '片/支/次'" maxlength="20" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -261,6 +262,21 @@ function loadMaterials() {
   })
 }
 
+/**
+ * 单位跟着关联物资走：选了物资就用物资单位（输入框锁住不可改）。
+ * 物资单位是库存的唯一真值，目录再存一份必然分叉 ——
+ * 曾经「物资=片、目录=盒」，医生开 1 盒只扣了 1 片。
+ */
+function applyMaterialUnit() {
+  const id = form.value.materialId
+  if (!id) return
+  const m = materialOptions.value.find(x => String(x.materialId) === String(id))
+  if (m) form.value.unit = m.unit || ''
+}
+watch(() => form.value.materialId, applyMaterialUnit)
+// 物资列表是异步拉的：先选了物资、列表后到，也要补一次
+watch(materialOptions, applyMaterialUnit)
+
 function handleQuery() {
   getList()
 }
@@ -335,6 +351,11 @@ function submitForm() {
     // 0 代表顶级；后端按 0 处理，这里保持数字类型
     payload.parentId = payload.parentId || 0
     if (payload.materialId === undefined) payload.materialId = null
+    // 落库前再兜一次：关联了物资就存物资单位，防止历史数据/手改把「盒」带进来
+    if (payload.materialId) {
+      const m = materialOptions.value.find(x => String(x.materialId) === String(payload.materialId))
+      if (m && m.unit) payload.unit = m.unit
+    }
     const request = payload.itemId ? updateCatCheckItem(payload) : addCatCheckItem(payload)
     request.then(() => {
       proxy.$modal.msgSuccess(payload.itemId ? '修改成功' : '新增成功')

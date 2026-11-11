@@ -76,10 +76,10 @@
       <el-table-column v-if="!isNarrow" label="所属房间" width="110" :show-overflow-tooltip="true">
         <template #default="scope">{{ catWardName(scope.row.catId) }}</template>
       </el-table-column>
-      <el-table-column label="数量" align="center" prop="quantity" width="100">
+      <el-table-column label="数量" align="center" width="100">
         <template #default="scope">
           <span :class="scope.row.recordType === '1' ? 'in' : 'out'">
-            {{ scope.row.recordType === '1' ? '+' : '-' }}{{ scope.row.quantity }}
+            {{ scope.row.recordType === '1' ? '+' : '-' }}{{ scope.row.quantity }}{{ materialUnit(scope.row.materialId) }}
           </span>
         </template>
       </el-table-column>
@@ -201,6 +201,12 @@ const { queryParams, form, rules } = toRefs(data)
 function materialName(id) {
   const m = materialOptions.value.find(i => i.materialId === id)
   return m ? m.materialName : '#' + id
+}
+
+/** 物资单位（片/支/瓶）：数量不带单位就看不出是几片还是几盒 */
+function materialUnit(id) {
+  const m = materialOptions.value.find(i => i.materialId === id)
+  return m ? (m.unit || '') : ''
 }
 
 function loadMaterials() {

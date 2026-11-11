@@ -128,11 +128,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                (select concat(date_format(d.visit_date, '%Y-%m-%d'), ' ', ifnull(d.diagnosis_result, ''))
                   from cat_diagnosis d
                  where d.cat_id = p.cat_id and d.del_flag = '0'
-                 order by d.visit_date desc, d.diagnosis_id desc limit 1) as diagnosis_text,
-               (select group_concat(concat(date_format(m.use_date, '%m-%d'), ' ', ifnull(m.drug_name, ''), ifnull(concat(' ', m.dosage), ''))
-                       order by m.use_date desc, m.medication_id desc separator '\n')
-                  from cat_medication m
-                 where m.cat_id = p.cat_id and m.del_flag = '0') as medication_text
+                 order by d.visit_date desc, d.diagnosis_id desc limit 1) as diagnosis_text
+               <!-- 说明：用药栏（剂量/给药方式/时段）不在这里拼，改由接口层按「进行中处方 → 用药台账」
+                    两级取数组装，见 selectCardPrescriptionLines / selectCardMedicationLines -->
           from cat_profile p
           left join cat_base b on b.base_id = p.base_id
           left join cat_ward w on w.ward_id = p.ward_id
@@ -149,6 +147,54 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           ) ph on true
          where p.cat_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <!-- ============ 信息卡「用药」栏 ============
+         分两级取数：
+           1. 有进行中处方（status=0）→ 按处方明细逐味药展示，带剂量、给药方式、时段；
+              数量/单位从同一诊断的明细快照取（单位已按物资统一，见 CatCheckItemMapper）。
+           2. 没有处方（老数据 / 只开单没开方）→ 回落用药台账，按药名归并。 -->
+    <select id="selectCardPrescriptionLines" resultType="java.util.LinkedHashMap">
+        select pc.cat_id          as catId,
+               pc.prescription_id as prescriptionId,
+               pc.start_date      as startDate,
+               pc.days            as days,
+               pi.drug_name       as drugName,
+               pi.dosage          as dosage,
+               pi.administration  as administration,
+               pi.time_periods    as periods,
+               pi.usage_note      as usageNote,
+               di.quantity        as quantity,
+               di.unit            as unit
+          from cat_prescription pc
+          join cat_prescription_item pi on pi.prescription_id = pc.prescription_id
+          <!-- 数量/单位取自开单明细；同一诊断同名的多行取最小 detail_id，避免重复行把数量翻倍 -->
+          left join cat_diagnosis_item di
+                 on di.diagnosis_id = pc.diagnosis_id
+                and di.item_name = pi.drug_name
+                and di.detail_id = (select min(d2.detail_id)
+                                      from cat_diagnosis_item d2
+                                     where d2.diagnosis_id = pc.diagnosis_id
+                                       and d2.item_name = pi.drug_name)
+         where pc.del_flag = '0'
+           and pc.status = '0'
+           and pc.cat_id in
+        <foreach item="id" collection="catIds" open="(" separator="," close=")">#{id}</foreach>
+         order by pc.cat_id, pc.prescription_id desc, pi.sort, pi.item_id
+    </select>
+
+    <select id="selectCardMedicationLines" resultType="java.util.LinkedHashMap">
+        select m.cat_id        as catId,
+               m.use_date      as useDate,
+               m.time_period   as timePeriod,
+               m.drug_name     as drugName,
+               m.dosage        as dosage,
+               m.administration as administration
+          from cat_medication m
+         where m.del_flag = '0'
+           and m.cat_id in
+        <foreach item="id" collection="catIds" open="(" separator="," close=")">#{id}</foreach>
+         order by m.cat_id, m.use_date desc, m.medication_id desc
     </select>
 
     <update id="updateArchived">

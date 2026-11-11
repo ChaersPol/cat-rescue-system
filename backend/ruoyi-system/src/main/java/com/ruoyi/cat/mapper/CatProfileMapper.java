@@ -60,6 +60,22 @@ public interface CatProfileMapper
     public List<com.ruoyi.cat.domain.CatCardVo> selectCardsByIds(Long[] catIds);
 
     /**
+     * 信息卡「用药」栏：进行中处方的用药明细（含剂量、给药方式、时段、数量单位）
+     *
+     * @param catIds 猫咪 id 集合
+     * @return 每味药一行，按处方 id 倒序（新的在前）
+     */
+    public List<java.util.Map<String, Object>> selectCardPrescriptionLines(@Param("catIds") Long[] catIds);
+
+    /**
+     * 信息卡「用药」栏兜底：没有处方时按用药台账的最近记录汇总
+     *
+     * @param catIds 猫咪 id 集合
+     * @return 用药台账行，按用药日期倒序
+     */
+    public List<java.util.Map<String, Object>> selectCardMedicationLines(@Param("catIds") Long[] catIds);
+
+    /**
      * 更新归档状态（0 未归档 1 已归档）
      */
     public int updateArchived(@Param("catId") Long catId, @Param("archived") String archived);

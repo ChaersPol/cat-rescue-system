@@ -464,18 +464,22 @@
                      <el-tag :type="itemTypeTag(scope.row.itemType)" size="small" effect="plain">{{ itemTypeLabel(scope.row.itemType) }}</el-tag>
                   </template>
                </el-table-column>
-               <el-table-column label="数量" :width="isNarrow ? 96 : 112" align="center">
+               <el-table-column label="数量" :width="isNarrow ? 118 : 140" align="center">
                   <template #default="scope">
-                     <el-input-number v-model="scope.row.quantity" size="small" controls-position="right" class="cell-input"
-                        :min="isFractionUnit(scope.row.unit) ? 0.01 : 1"
-                        :precision="isFractionUnit(scope.row.unit) ? 2 : 0"
-                        :step="isFractionUnit(scope.row.unit) ? 0.1 : 1" />
+                     <div class="qty-cell">
+                        <el-input-number v-model="scope.row.quantity" size="small" controls-position="right" class="cell-input"
+                           :min="isFractionUnit(scope.row.unit) ? 0.01 : 1"
+                           :precision="isFractionUnit(scope.row.unit) ? 2 : 0"
+                           :step="isFractionUnit(scope.row.unit) ? 0.1 : 1" />
+                        <!-- 单位必须写在数量旁边：只显示一个「1」，看不出是 1 片还是 1 盒，曾因此扣错库存 -->
+                        <span class="qty-unit">{{ scope.row.unit || '' }}</span>
+                     </div>
                   </template>
                </el-table-column>
                <el-table-column v-if="!isNarrow" label="库存" width="76" align="center">
                   <template #default="scope">
                      <span v-if="scope.row.materialId" :class="{ 'short-stock': isShortStock(scope.row) }">
-                        {{ scope.row.stock === null || scope.row.stock === undefined ? '—' : scope.row.stock }}
+                        {{ scope.row.stock === null || scope.row.stock === undefined ? '—' : scope.row.stock }}{{ scope.row.unit || '' }}
                      </span>
                      <span v-else class="muted">不扣</span>
                   </template>
@@ -684,10 +688,28 @@ function loadCatalog() {
     .then(res => {
       catalogTree.value = proxy.handleTree(res.data || [], 'itemId', 'parentId')
       catalogLeaves.value = collectLeaves(catalogTree.value)
+      mergeCatalogIntoPicked()
     })
     .finally(() => {
       catalogLoading.value = false
     })
+}
+
+/**
+ * 编辑已保存的诊断时，明细来自 cat_diagnosis_item 快照：没有当前库存，单位也可能是旧值（如「盒」）。
+ * 目录拉回来后按 itemId 补一次：库存、关联物资、以及以物资为准的单位。
+ */
+function mergeCatalogIntoPicked() {
+  if (!pickedItems.value.length) return
+  const map = new Map(catalogLeaves.value.map(l => [String(l.itemId), l]))
+  pickedItems.value.forEach(p => {
+    const c = map.get(String(p.itemId))
+    if (!c) return
+    p.stock = c.stock
+    p.materialId = c.materialId
+    p.materialName = c.materialName
+    if (c.unit) p.unit = c.unit
+  })
 }
 
 // 分类过滤靠 ancestors（顶级 ancestors 就是 "0"），点叶子节点时也能精确命中自己
@@ -755,7 +777,7 @@ function qtyText(row) {
 function stockText(row) {
   if (!row.materialId) return '不扣库存'
   const stock = row.stock === null || row.stock === undefined ? '—' : row.stock
-  return `库存 ${stock}`
+  return `库存 ${stock}${row.unit || ''}`
 }
 
 function onPickCategory(node) {
@@ -1668,6 +1690,22 @@ getWardStats()
 /* 表格内的输入框一律占满单元格，不能再写死像素宽——写死超出列宽就会被裁成「1 ⋯」 */
 .picked-table :deep(.cell-input) {
   width: 100%;
+}
+/* 数量 + 单位：输入框占满剩余宽度，单位跟在右边不被挤掉 */
+.qty-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.qty-cell :deep(.el-input-number) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.qty-unit {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
 }
 /* 给药方案不换行，「口服 · 早,中,晚」也保持一行 */
 .picked-table :deep(.plan-col .cell) {
