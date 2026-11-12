@@ -269,7 +269,7 @@
 
     <!-- 分组翻看：点开一只猫，左右滑动/方向键看它全部照片 -->
     <el-dialog v-model="viewer.open" :title="viewerTitle" width="min(880px, 96vw)" append-to-body destroy-on-close
-      class="album-viewer" @opened="bindViewerKeys" @closed="unbindViewerKeys">
+      class="album-viewer" @opened="bindViewerKeys" @closed="onViewerClosed">
       <div v-loading="viewer.loading" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
         <el-button v-if="viewer.items.length > 1" class="viewer-nav prev" circle @click="stepViewer(-1)">
           <el-icon><ArrowLeft /></el-icon>
@@ -277,11 +277,14 @@
         <template v-if="currentPhoto">
           <video v-if="isVideo(currentPhoto)" :src="resolveUrl(currentPhoto.fileUrl)" controls autoplay playsinline
             class="viewer-media"></video>
-          <!-- 主图走预览图（长边 1400，约 200KB），切图时先用已缓存的缩略图顶着，
-               预览图下载完再换上来，避免每翻一张都对着黑屏等 8 秒 -->
-          <img v-else :src="stageSrc" class="viewer-media zoomable" alt="" title="点击放大" @click="openZoom" />
-          <div class="viewer-loading" v-if="stageLoading">
-            <el-icon class="is-loading"><Loading /></el-icon>
+          <!-- 主图走预览图（长边 1400，约 200KB）。双层交叉淡入：上一张一直留在屏幕上，
+               新图解码完成后才淡入覆盖，中间不出现糊图、白屏或高度跳动 -->
+          <div v-else class="viewer-frame">
+            <img v-for="(layer, li) in stageLayers" :key="li" :src="layer.src" class="viewer-media viewer-layer zoomable"
+              :class="{ 'is-shown': layer.shown }" alt="" draggable="false" title="点击放大" @click="openZoom" />
+            <div class="viewer-loading" v-if="stageLoading">
+              <el-icon class="is-loading"><Loading /></el-icon>
+            </div>
           </div>
         </template>
         <el-empty v-else-if="!viewer.loading" description="暂无照片" :image-size="60" />
@@ -699,50 +702,87 @@ const viewerTitle = computed(() => {
   return viewer.loading ? viewer.catTitle : `${viewer.catTitle} · ${viewer.items.length} 张`
 })
 
-// ---------- 主图加载：缩略图先顶、预览图后到 ----------
+// ---------- 主图加载：双层缓冲，交叉淡入 ----------
 // 线上原图常有 4~5MB，公网 3~4Mbps 下一张要 8 秒；预览图（长边 1400）约 200KB。
 // 老数据还没重建预览图时 previewUrl 为空，自动回落到原图，行为与以前一致。
 function previewSrcOf(photo) {
   return resolveUrl(photo.previewUrl || photo.fileUrl)
 }
 
-const stageSrc = ref('')
-const stageLoading = ref(false)
-// 每次切图 +1，图片回调回来时对不上号就丢弃，防止「翻得快时上一张反而盖住当前张」
+// 两个图层交替使用：新图先加载到「背后那层」，解码完成后与旧层交换显示。
+// 这样切换过程中屏幕上始终有一张完整图片，不会出现单层 img 换 src 时的空白帧，
+// 也不会先显示模糊缩略图再替换成清晰大图（那个「糊→清」跳变就是用户说的闪烁）。
+const stageLayers = reactive([
+  { src: '', shown: false },
+  { src: '', shown: false }
+])
+let activeLayer = 0
+// 每次切图 +1，异步回调回来时对不上号就丢弃，防止「翻得快时上一张反而盖住当前张」
 let stageToken = 0
+const stageLoading = ref(false)
+
+function resetStage() {
+  stageToken++
+  stageLayers[0].src = ''
+  stageLayers[1].src = ''
+  stageLayers[0].shown = false
+  stageLayers[1].shown = false
+  activeLayer = 0
+  stageLoading.value = false
+}
 
 function showStage(photo) {
-  const token = ++stageToken
   if (!photo || isVideo(photo)) {
-    stageSrc.value = photo ? resolveUrl(photo.fileUrl) : ''
-    stageLoading.value = false
+    resetStage()
     return
   }
-  const thumb = thumbSrc(photo)
   const full = previewSrcOf(photo)
-  // 缩略图在列表里早就加载过，浏览器缓存命中，先顶上就有画面，不再是黑屏
-  stageSrc.value = thumb
-  if (!full || full === thumb) {
-    stageLoading.value = false
-    preloadNeighbors()
+  if (stageLayers[activeLayer].shown && stageLayers[activeLayer].src === full) {
     return
   }
-  stageLoading.value = true
+  const token = ++stageToken
+  // 只有屏幕上还没有任何图（首次打开/切到另一只猫）才转圈；
+  // 翻页时旧图一直在，不需要 loading 提示，否则每切一张闪一个圈
+  stageLoading.value = !stageLayers[0].shown && !stageLayers[1].shown
+  loadStageLayer(full, token, () => {
+    // 预览图 404（老数据没重建）就退回原图，宁可慢也别空白
+    const fallback = resolveUrl(photo.fileUrl)
+    if (fallback && fallback !== full) {
+      loadStageLayer(fallback, token)
+    } else {
+      stageLoading.value = false
+    }
+  })
+}
+
+function loadStageLayer(url, token, onFail) {
   const img = new Image()
-  img.onload = () => {
+  img.onload = async () => {
     if (token !== stageToken) return
-    stageSrc.value = full
+    // 等浏览器真正解码完再换层，否则换上去的一瞬间可能还是空白
+    try {
+      await img.decode()
+    } catch (e) {
+      /* 老浏览器不支持 decode，直接换层也无妨 */
+    }
+    if (token !== stageToken) return
+    // 目标层与上一张都在此刻取：等待期间可能已经有别的图完成切换，不能沿用刚发起时的值
+    const prev = activeLayer
+    const target = 1 - prev
+    stageLayers[target].src = url
+    stageLayers[target].shown = true
+    stageLayers[prev].shown = false
+    activeLayer = target
     stageLoading.value = false
     // 当前这张到位了再预取左右邻图，不跟当前这张抢带宽
     preloadNeighbors()
   }
   img.onerror = () => {
     if (token !== stageToken) return
-    // 预览图 404（老数据没重建）就退回原图，宁可慢也别空白
-    stageSrc.value = resolveUrl(photo.fileUrl)
-    stageLoading.value = false
+    if (onFail) onFail()
+    else stageLoading.value = false
   }
-  img.src = full
+  img.src = url
 }
 
 // 预取左右各一张：连续翻页时下一张大概率已经在缓存里，翻过去几乎无等待
@@ -875,6 +915,12 @@ function unbindViewerKeys() {
   // 弹窗关掉时顺手收掉全屏查看器，否则它可能残留在页面上（destroy-on-close 只管弹窗自己）
   zoomOpen.value = false
   viewer.items = []
+}
+
+// 关闭时清空双层缓冲：否则下次打开另一只猫，旧图会先淡入再被换掉
+function onViewerClosed() {
+  unbindViewerKeys()
+  resetStage()
 }
 
 onBeforeUnmount(() => window.removeEventListener('keydown', onViewerKey))
@@ -1010,13 +1056,16 @@ watch(() => route.query.catId, raw => {
   color: var(--el-text-color-placeholder);
 }
 /* 分组翻看弹窗 */
+/* 舞台高度必须固定：以前只有 min/max-height，横图切竖图时整个弹窗高度突变，
+   看起来就是「闪一下」。固定后图片在框内 contain，比例再变也不影响布局。 */
 .viewer-stage {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 62vh;
+  max-height: 620px;
   min-height: 320px;
-  max-height: 62vh;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -1024,9 +1073,29 @@ watch(() => route.query.catId, raw => {
 }
 .viewer-media {
   max-width: 100%;
-  max-height: 62vh;
+  max-height: 100%;
   display: block;
   object-fit: contain;
+}
+/* 双层缓冲：两层都绝对定位铺满同一个框，靠 opacity 交叉淡入 */
+.viewer-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.viewer-layer {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  opacity: 0;
+  transition: opacity .16s ease;
+  pointer-events: none;
+}
+.viewer-layer.is-shown {
+  opacity: 1;
+  pointer-events: auto;
 }
 .viewer-nav {
   position: absolute;
