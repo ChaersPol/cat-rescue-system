@@ -98,20 +98,23 @@ public class CatPhotoServiceImpl implements ICatPhotoService
             {
                 continue;
             }
-            String thumb = thumbnailService.generate(photo.getFileUrl(), photo.getFileType());
-            if (thumb == null)
+            CatThumbnailService.Derivatives derivatives = thumbnailService.generateAll(photo.getFileUrl(),
+                    photo.getFileType());
+            // 缩略图和预览图一次生成，任一有值就写库：小图只有预览图、视频只有缩略图都算成功
+            if (derivatives.getThumbUrl() == null && derivatives.getPreviewUrl() == null)
             {
                 continue;
             }
             CatPhoto update = new CatPhoto();
             update.setPhotoId(photo.getPhotoId());
-            update.setThumbUrl(thumb);
+            update.setThumbUrl(derivatives.getThumbUrl() == null ? "" : derivatives.getThumbUrl());
+            update.setPreviewUrl(derivatives.getPreviewUrl() == null ? "" : derivatives.getPreviewUrl());
             if (photoIdMapper.updateCatPhoto(update) > 0)
             {
                 count++;
             }
         }
-        log.info("批量重建照片缩略图：共 {} 条，成功 {} 条", list.size(), count);
+        log.info("批量重建照片缩略图/预览图：共 {} 条，成功 {} 条", list.size(), count);
         return count;
     }
 
@@ -132,9 +135,11 @@ public class CatPhotoServiceImpl implements ICatPhotoService
         {
             photo.setFileType(thumbnailService.detectFileType(photo.getFileUrl()));
         }
-        // 忽略调用方传入的旧缩略图地址，按当前文件重新生成
-        String thumb = thumbnailService.generate(photo.getFileUrl(), photo.getFileType());
-        // 生成失败时写入空串，确保旧缩略图不会被残留引用
-        photo.setThumbUrl(thumb == null ? "" : thumb);
+        // 忽略调用方传入的旧地址，按当前文件重新生成；缩略图与预览图共用一次解码
+        CatThumbnailService.Derivatives derivatives = thumbnailService.generateAll(photo.getFileUrl(),
+                photo.getFileType());
+        // 生成失败时写入空串，确保旧缩略图/预览图不会被残留引用
+        photo.setThumbUrl(derivatives.getThumbUrl() == null ? "" : derivatives.getThumbUrl());
+        photo.setPreviewUrl(derivatives.getPreviewUrl() == null ? "" : derivatives.getPreviewUrl());
     }
 }

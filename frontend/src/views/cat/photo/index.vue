@@ -277,8 +277,12 @@
         <template v-if="currentPhoto">
           <video v-if="isVideo(currentPhoto)" :src="resolveUrl(currentPhoto.fileUrl)" controls autoplay playsinline
             class="viewer-media"></video>
-          <img v-else :src="resolveUrl(currentPhoto.fileUrl)" class="viewer-media zoomable" alt="" title="点击放大"
-            @click="openZoom" />
+          <!-- 主图走预览图（长边 1400，约 200KB），切图时先用已缓存的缩略图顶着，
+               预览图下载完再换上来，避免每翻一张都对着黑屏等 8 秒 -->
+          <img v-else :src="stageSrc" class="viewer-media zoomable" alt="" title="点击放大" @click="openZoom" />
+          <div class="viewer-loading" v-if="stageLoading">
+            <el-icon class="is-loading"><Loading /></el-icon>
+          </div>
         </template>
         <el-empty v-else-if="!viewer.loading" description="暂无照片" :image-size="60" />
         <el-button v-if="viewer.items.length > 1" class="viewer-nav next" circle @click="stepViewer(1)">
@@ -294,11 +298,14 @@
         <el-tag size="small" type="info">{{ currentPhoto.folder || '未分类' }}</el-tag>
         <span class="viewer-remark">{{ currentPhoto.remark || '' }}</span>
         <span class="viewer-time">{{ (currentPhoto.createTime || '').slice(0, 16) }}</span>
+        <!-- 放大用的是 1400px 预览图（快）；真要抠细节再点这里开原图 -->
+        <el-button link type="primary" size="small" @click="openOriginal">原图</el-button>
       </div>
       <div class="viewer-strip" v-if="viewer.items.length > 1">
         <div v-for="(it, i) in viewer.items" :key="it.photoId" class="strip-item" :class="{ active: i === viewer.index }"
           @click="viewer.index = i">
-          <img v-if="!isVideo(it)" :src="thumbSrc(it)" alt="" @error="onThumbError(it)" />
+          <!-- lazy：一组的缩略图可能有上百张，全部同时下载既抢带宽又吃内存，滚到附近再加载 -->
+          <img v-if="!isVideo(it)" :src="thumbSrc(it)" alt="" loading="lazy" decoding="async" @error="onThumbError(it)" />
           <div v-else class="strip-video"><el-icon><VideoPlay /></el-icon></div>
         </div>
       </div>
@@ -692,6 +699,68 @@ const viewerTitle = computed(() => {
   return viewer.loading ? viewer.catTitle : `${viewer.catTitle} · ${viewer.items.length} 张`
 })
 
+// ---------- 主图加载：缩略图先顶、预览图后到 ----------
+// 线上原图常有 4~5MB，公网 3~4Mbps 下一张要 8 秒；预览图（长边 1400）约 200KB。
+// 老数据还没重建预览图时 previewUrl 为空，自动回落到原图，行为与以前一致。
+function previewSrcOf(photo) {
+  return resolveUrl(photo.previewUrl || photo.fileUrl)
+}
+
+const stageSrc = ref('')
+const stageLoading = ref(false)
+// 每次切图 +1，图片回调回来时对不上号就丢弃，防止「翻得快时上一张反而盖住当前张」
+let stageToken = 0
+
+function showStage(photo) {
+  const token = ++stageToken
+  if (!photo || isVideo(photo)) {
+    stageSrc.value = photo ? resolveUrl(photo.fileUrl) : ''
+    stageLoading.value = false
+    return
+  }
+  const thumb = thumbSrc(photo)
+  const full = previewSrcOf(photo)
+  // 缩略图在列表里早就加载过，浏览器缓存命中，先顶上就有画面，不再是黑屏
+  stageSrc.value = thumb
+  if (!full || full === thumb) {
+    stageLoading.value = false
+    preloadNeighbors()
+    return
+  }
+  stageLoading.value = true
+  const img = new Image()
+  img.onload = () => {
+    if (token !== stageToken) return
+    stageSrc.value = full
+    stageLoading.value = false
+    // 当前这张到位了再预取左右邻图，不跟当前这张抢带宽
+    preloadNeighbors()
+  }
+  img.onerror = () => {
+    if (token !== stageToken) return
+    // 预览图 404（老数据没重建）就退回原图，宁可慢也别空白
+    stageSrc.value = resolveUrl(photo.fileUrl)
+    stageLoading.value = false
+  }
+  img.src = full
+}
+
+// 预取左右各一张：连续翻页时下一张大概率已经在缓存里，翻过去几乎无等待
+function preloadNeighbors() {
+  const total = viewer.items.length
+  if (total < 2) return
+  ;[-1, 1].forEach(offset => {
+    const it = viewer.items[(viewer.index + offset + total) % total]
+    if (!it || isVideo(it)) return
+    const url = previewSrcOf(it)
+    if (!url) return
+    const img = new Image()
+    img.src = url
+  })
+}
+
+watch(currentPhoto, photo => showStage(photo))
+
 function albumAttrs(c) {
   const loc = [c.baseName, c.wardName].filter(Boolean).join(' / ')
   return [c.breed, sexText(c.sex), loc].filter(Boolean).join(' · ') || '—'
@@ -739,7 +808,8 @@ function stepViewer(delta) {
 // 全屏查看器只收图片，索引必须按「过滤掉视频后」的数组算，否则会错位到别的图
 const zoomOpen = ref(false)
 const zoomItems = computed(() => viewer.items.filter(it => !isVideo(it)))
-const zoomUrls = computed(() => zoomItems.value.map(it => resolveUrl(it.fileUrl)))
+// 放大也用预览图：1400px 在手机/1080p 屏上足够，开图 1 秒内；要原尺寸点「原图」另开一页
+const zoomUrls = computed(() => zoomItems.value.map(it => previewSrcOf(it)))
 const canZoom = computed(() => !!currentPhoto.value && !isVideo(currentPhoto.value))
 const zoomIndex = computed(() => {
   const cur = currentPhoto.value
@@ -751,6 +821,12 @@ const zoomIndex = computed(() => {
 function openZoom() {
   if (!canZoom.value) return
   zoomOpen.value = true
+}
+
+// 原图：只有确实要抠细节（伤口、耳标）时才点，4~5MB 要等几秒，浏览器直接开新页下载
+function openOriginal() {
+  if (!currentPhoto.value) return
+  window.open(resolveUrl(currentPhoto.value.fileUrl), '_blank')
 }
 
 // 全屏里翻过页再关掉时，把弹窗同步到同一张，避免「放大看的是 A、关掉回到 B」
@@ -980,6 +1056,22 @@ watch(() => route.query.catId, raw => {
 /* 图片本身也是可点放大的，给个放大镜光标提示 */
 .zoomable {
   cursor: zoom-in;
+}
+/* 预览图还在路上时的小转圈：画面已经有缩略图顶着，这里只做提示，别遮住图 */
+.viewer-loading {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .5);
+  color: #fff;
+  font-size: 14px;
 }
 
 .viewer-counter {

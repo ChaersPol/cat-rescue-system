@@ -11,6 +11,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="fileType" column="file_type" />
         <result property="fileUrl" column="file_url" />
         <result property="thumbUrl" column="thumb_url" />
+        <result property="previewUrl" column="preview_url" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -27,7 +28,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectCatPhotoVo">
-        select photo_id, cat_id, folder, file_type, file_url, thumb_url, create_by, create_time, update_by, update_time, remark from cat_photo
+        select photo_id, cat_id, folder, file_type, file_url, thumb_url, preview_url, create_by, create_time, update_by, update_time, remark from cat_photo
     </sql>
 
     <select id="selectCatPhotoById" parameterType="Long" resultMap="CatPhotoResult">
@@ -36,7 +37,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectCatPhotoList" parameterType="CatPhoto" resultMap="CatPhotoResult">
-        select ph.photo_id, ph.cat_id, ph.folder, ph.file_type, ph.file_url, ph.thumb_url,
+        select ph.photo_id, ph.cat_id, ph.folder, ph.file_type, ph.file_url, ph.thumb_url, ph.preview_url,
                ph.create_by, ph.create_time, ph.update_by, ph.update_time, ph.remark,
                p.cat_name, p.archive_no, p.breed, p.sex, p.base_id, p.ward_id,
                b.base_name, w.ward_name
@@ -112,6 +113,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="fileType != null">file_type,</if>
             <if test="fileUrl != null">file_url,</if>
             <if test="thumbUrl != null">thumb_url,</if>
+            <if test="previewUrl != null">preview_url,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             <if test="remark != null">remark,</if>
             create_time
@@ -121,6 +123,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="fileType != null">#{fileType},</if>
             <if test="fileUrl != null">#{fileUrl},</if>
             <if test="thumbUrl != null">#{thumbUrl},</if>
+            <if test="previewUrl != null">#{previewUrl},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             <if test="remark != null">#{remark},</if>
             sysdate()
@@ -136,6 +139,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <!-- 允许写入空串，删掉照片后能把 file_url 清空 -->
             <if test="fileUrl != null">file_url = #{fileUrl},</if>
             <if test="thumbUrl != null">thumb_url = #{thumbUrl},</if>
+            <!-- 允许写入空串：换了文件或重建失败时要能把旧预览图地址清掉 -->
+            <if test="previewUrl != null">preview_url = #{previewUrl},</if>
             <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate()

@@ -63,6 +63,25 @@ public class CatThumbnailService
     /** 缩略图文件名后缀 */
     private static final String THUMB_SUFFIX = "_thumb.jpg";
 
+    /**
+     * 预览图最大长边（像素）。
+     *
+     * <p>存在的理由：手机直出的原图动辄 4~5MB，线上公网出口只有 3~4Mbps，
+     * 一张要 8 秒以上；相册弹窗里左右翻页时每切一张就等一次，体验极差。
+     * 长边 1400 的 JPEG 约 150~250KB，同样的网 1 秒内到位，而 1400 在 880px 弹窗里
+     * 肉眼与原件无差别。要看针脚细节再放大时仍走原图，见前端 `openZoom`。</p>
+     */
+    private static final int PREVIEW_MAX_EDGE = 1400;
+
+    /** 预览图 JPEG 质量：0.82 在 1400px 上肉眼看不出压损，体积比 0.85 再省两成 */
+    private static final float PREVIEW_QUALITY = 0.82f;
+
+    /** 预览图文件名后缀 */
+    private static final String PREVIEW_SUFFIX = "_preview.jpg";
+
+    /** 长边不超过预览尺寸、且体积小于该值的图片不必另存预览图（原图本身就够快） */
+    private static final long PREVIEW_FILE_LIMIT = 400 * 1024L;
+
     /** 可被 ImageIO 直接解码的图片扩展名 */
     private static final Set<String> IMAGE_EXTS = new HashSet<>(
             Arrays.asList("jpg", "jpeg", "png", "gif", "bmp"));
@@ -99,16 +118,32 @@ public class CatThumbnailService
      */
     public String generate(String fileUrl, String fileType)
     {
+        return generateAll(fileUrl, fileType).getThumbUrl();
+    }
+
+    /**
+     * 一次解码生成两档派生图：列表用的缩略图（400px）和相册弹窗用的预览图（1400px）。
+     *
+     * <p>合并成一次调用是因为原图要完整解码一遍（一张 4000×3000 的手机照片解码后约 48MB），
+     * 分两次调用就会解两次、占两倍内存，在 1.7G 的小机器上很容易和 MySQL 抢内存。</p>
+     *
+     * @param fileUrl 原文件地址（完整 URL 或 /profile/ 开头的相对路径）
+     * @param fileType 文件类型（1 图片 2 视频），为空时按扩展名推断
+     * @return 派生图地址，永远不返回 null（生成不出来时字段为 null）
+     */
+    public Derivatives generateAll(String fileUrl, String fileType)
+    {
+        Derivatives result = new Derivatives();
         if (!enabled || fileUrl == null || fileUrl.trim().isEmpty())
         {
-            return null;
+            return result;
         }
         String url = fileUrl.trim();
         File src = resolveLocalFile(url);
         if (src == null || !src.exists() || !src.isFile())
         {
             log.debug("缩略图跳过，源文件不在本机存储: {}", url);
-            return null;
+            return result;
         }
         String type = isBlank(fileType) ? detectFileType(url) : fileType;
         String ext = extensionOf(src.getName());
@@ -116,19 +151,22 @@ public class CatThumbnailService
         {
             if ("2".equals(type) || VIDEO_EXTS.contains(ext))
             {
-                return makeVideoThumb(src, url);
+                result.setThumbUrl(makeVideoThumb(src, url));
+                // 视频不做预览图：原文件是 mp4，本来就靠浏览器边下边播
+                return result;
             }
             if (IMAGE_EXTS.contains(ext))
             {
-                return makeImageThumb(src, url);
+                makeImageDerivatives(src, url, result);
+                return result;
             }
             log.debug("缩略图跳过，不支持的格式: {}", ext);
-            return null;
+            return result;
         }
         catch (Exception e)
         {
             log.warn("生成缩略图失败: {} ({})", url, e.getMessage());
-            return null;
+            return result;
         }
     }
 
@@ -161,31 +199,43 @@ public class CatThumbnailService
 
     // ------------------------------------------------------------------ 图片
 
-    private String makeImageThumb(File src, String originalUrl) throws IOException
+    private void makeImageDerivatives(File src, String originalUrl, Derivatives out) throws IOException
     {
         BufferedImage source = ImageIO.read(src);
         if (source == null)
         {
             // ImageIO 无法解码（如 webp/heic），保持原图展示
             log.debug("ImageIO 无法解码，保留原图: {}", src.getName());
-            return null;
+            return;
         }
         int srcWidth = source.getWidth();
         int srcHeight = source.getHeight();
         if (srcWidth <= 0 || srcHeight <= 0)
         {
-            return null;
-        }
-        // 小图且体积不大，直接用原图更省事
-        if (srcWidth <= MAX_WIDTH && src.length() <= SMALL_FILE_LIMIT)
-        {
-            return null;
+            return;
         }
         // 手机拍的照片像素是横着的，靠 EXIF Orientation 让看图软件转正；
-        // ImageIO 只读像素、不认这个标记，所以缩略图必须自己转，否则打印卡/相册里全是躺倒的
-        BufferedImage thumb = orient(scaleToWidth(source, MAX_WIDTH), readExifOrientation(src));
-        writeJpeg(thumb, thumbFileFor(src));
-        return thumbUrlFor(originalUrl);
+        // ImageIO 只读像素、不认这个标记，所以派生图必须自己转，否则打印卡/相册里全是躺倒的
+        int orientation = readExifOrientation(src);
+        int maxEdge = Math.max(srcWidth, srcHeight);
+
+        // 1) 预览图：相册弹窗里翻页用。原图 4~5MB 在 3~4Mbps 的公网上要 8 秒，
+        //    1400px 的 JPEG 只要 0.5 秒左右；本身就不大的图不重复生成。
+        if (maxEdge > PREVIEW_MAX_EDGE || src.length() > PREVIEW_FILE_LIMIT)
+        {
+            BufferedImage preview = orient(scaleToMaxEdge(source, PREVIEW_MAX_EDGE), orientation);
+            writeJpeg(preview, derivativeFileFor(src, PREVIEW_SUFFIX), PREVIEW_QUALITY);
+            out.setPreviewUrl(derivativeUrlFor(originalUrl, PREVIEW_SUFFIX));
+        }
+
+        // 2) 缩略图：列表/网格用。小图且体积不大时直接用原图更省事
+        if (srcWidth <= MAX_WIDTH && src.length() <= SMALL_FILE_LIMIT)
+        {
+            return;
+        }
+        BufferedImage thumb = orient(scaleToWidth(source, MAX_WIDTH), orientation);
+        writeJpeg(thumb, thumbFileFor(src), JPEG_QUALITY);
+        out.setThumbUrl(thumbUrlFor(originalUrl));
     }
 
     /**
@@ -403,7 +453,70 @@ public class CatThumbnailService
         return target;
     }
 
+    /**
+     * 按长边等比缩放（竖图不会被放大到离谱的高度），透明区域统一铺白。
+     *
+     * <p>缩略图沿用 {@link #scaleToWidth}（固定 400 宽），预览图用这个：
+     * 手机竖拍是 3000×4000，按宽度缩到 1400 会得到 1866 高的图，比横图大一截。</p>
+     */
+    private BufferedImage scaleToMaxEdge(BufferedImage source, int maxEdge)
+    {
+        int srcWidth = source.getWidth();
+        int srcHeight = source.getHeight();
+        int longest = Math.max(srcWidth, srcHeight);
+        if (longest <= maxEdge)
+        {
+            return copyOnWhite(source);
+        }
+        double ratio = (double) maxEdge / longest;
+        int targetWidth = Math.max(1, (int) Math.round(srcWidth * ratio));
+        int targetHeight = Math.max(1, (int) Math.round(srcHeight * ratio));
+
+        BufferedImage target = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = target.createGraphics();
+        try
+        {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, targetWidth, targetHeight);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(source, 0, 0, targetWidth, targetHeight, null);
+        }
+        finally
+        {
+            g.dispose();
+        }
+        return target;
+    }
+
+    /** 尺寸已经够小，转成同色深的白底图，避免直接写 PNG 带 Alpha 时出黑块 */
+    private BufferedImage copyOnWhite(BufferedImage source)
+    {
+        int w = source.getWidth();
+        int h = source.getHeight();
+        BufferedImage target = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = target.createGraphics();
+        try
+        {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, w, h);
+            g.drawImage(source, 0, 0, null);
+        }
+        finally
+        {
+            g.dispose();
+        }
+        return target;
+    }
+
     private void writeJpeg(BufferedImage image, File out) throws IOException
+    {
+        writeJpeg(image, out, JPEG_QUALITY);
+    }
+
+    private void writeJpeg(BufferedImage image, File out, float quality) throws IOException
     {
         File parent = out.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs())
@@ -415,7 +528,7 @@ public class CatThumbnailService
         if (param.canWriteCompressed())
         {
             param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            param.setCompressionQuality(JPEG_QUALITY);
+            param.setCompressionQuality(quality);
         }
         try (ImageOutputStream ios = ImageIO.createImageOutputStream(out))
         {
@@ -646,6 +759,14 @@ public class CatThumbnailService
      */
     private File thumbFileFor(File src)
     {
+        return derivativeFileFor(src, THUMB_SUFFIX);
+    }
+
+    /**
+     * 派生图（缩略图/预览图）文件路径：原文件同目录下的 thumb/ 子目录，文件名换成对应后缀
+     */
+    private File derivativeFileFor(File src, String suffix)
+    {
         File parent = src.getParentFile();
         File thumbDir = parent == null ? new File(RuoYiConfig.getProfile(), THUMB_DIR)
                 : new File(parent, THUMB_DIR);
@@ -655,13 +776,21 @@ public class CatThumbnailService
         {
             baseName = baseName.substring(0, dot);
         }
-        return new File(thumbDir, baseName + THUMB_SUFFIX);
+        return new File(thumbDir, baseName + suffix);
     }
 
     /**
      * 由原文件地址推导缩略图访问地址：同目录下 thumb/ 子目录，沿用原域名
      */
     private String thumbUrlFor(String originalUrl)
+    {
+        return derivativeUrlFor(originalUrl, THUMB_SUFFIX);
+    }
+
+    /**
+     * 由原文件地址推导派生图访问地址（与 {@link #derivativeFileFor} 一一对应）
+     */
+    private String derivativeUrlFor(String originalUrl, String suffix)
     {
         String marker = "/profile/";
         int idx = originalUrl.indexOf(marker);
@@ -684,7 +813,39 @@ public class CatThumbnailService
         {
             name = name.substring(0, dot);
         }
-        return head + dir + THUMB_DIR + "/" + name + THUMB_SUFFIX;
+        return head + dir + THUMB_DIR + "/" + name + suffix;
+    }
+
+    /**
+     * 一次生成的两档派生图地址
+     */
+    public static class Derivatives
+    {
+        /** 400px 缩略图，列表/网格用 */
+        private String thumbUrl;
+
+        /** 1400px 预览图，相册弹窗翻页用 */
+        private String previewUrl;
+
+        public String getThumbUrl()
+        {
+            return thumbUrl;
+        }
+
+        public void setThumbUrl(String thumbUrl)
+        {
+            this.thumbUrl = thumbUrl;
+        }
+
+        public String getPreviewUrl()
+        {
+            return previewUrl;
+        }
+
+        public void setPreviewUrl(String previewUrl)
+        {
+            this.previewUrl = previewUrl;
+        }
     }
 
     private String extensionOf(String name)

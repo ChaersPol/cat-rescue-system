@@ -32,6 +32,13 @@ public class CatPhoto extends BaseEntity
     /** 缩略图地址（列表/相册展示用，图片自动缩放、视频自动抽帧） */
     @Excel(name = "缩略图地址")
     private String thumbUrl;
+    /**
+     * 预览图地址（长边 1400，相册弹窗翻页用）。
+     *
+     * <p>原图常有 4~5MB，公网 3~4Mbps 下一张要 8 秒；预览图约 200KB，1 秒内到位。
+     * 为空表示这张不需要预览图（原图本来就小）或还没重建，前端回落到原图。</p>
+     */
+    private String previewUrl;
     /** 猫咪名（关联档案，展示用） */
     private String catName;
     /** 档案编号（关联档案，展示用） */
@@ -105,6 +112,16 @@ public class CatPhoto extends BaseEntity
     public void setThumbUrl(String thumbUrl)
     {
         this.thumbUrl = thumbUrl;
+    }
+
+    public String getPreviewUrl()
+    {
+        return previewUrl;
+    }
+
+    public void setPreviewUrl(String previewUrl)
+    {
+        this.previewUrl = previewUrl;
     }
 
     public String getCatName()
@@ -195,6 +212,7 @@ public class CatPhoto extends BaseEntity
             .append("fileType", getFileType())
             .append("fileUrl", getFileUrl())
             .append("thumbUrl", getThumbUrl())
+            .append("previewUrl", getPreviewUrl())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())
