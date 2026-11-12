@@ -92,6 +92,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="baseName" column="base_name" />
         <result property="wardName" column="ward_name" />
         <result property="remark" column="remark" />
+        <result property="adviceText" column="advice_text" />
         <result property="qrCode" column="qr_code" />
         <result property="photoUrl" column="photo_url" />
         <result property="photoFolder" column="photo_folder" />
@@ -102,10 +103,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <select id="selectCardsByIds" resultMap="CatCardResult">
-        select p.cat_id, p.archive_no, p.cat_name, p.sex, p.neutered, p.weight, p.status,
+        select p.cat_id, p.archive_no, p.cat_name, p.sex, p.neutered, p.status,
                p.remark, p.qr_code,
                b.base_name, w.ward_name,
                ph.photo_url, ph.photo_folder,
+               <!-- 体重只取站内就诊里最近一次「称过」的实测值，一次都没称就留空：
+                    档案 p.weight 是「初始体重」，与卡面无关，绝不回落到这里（否则卡上会显示建档时的旧体重） -->
+               nullif(dw.weight, '') as weight,
+               <!-- 「注意事项」只取最近一次就诊的「医嘱/预后」，没写就留空，同样不回落档案备注 -->
+               nullif(dg.medical_advice, '') as advice_text,
                <!-- 疫苗栏：第一/二/三针都齐了只写「已打齐」（卡面小，不堆三行日期）；
                     没齐就显示最近接种的那一针。狂犬/加强针不计入三针 -->
                (case when (select count(distinct v.vaccine_type)
@@ -145,6 +151,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                         p2.create_time desc, p2.photo_id desc
                limit 1
           ) ph on true
+          <!-- 最近一次「称过体重」的就诊：体重是状态量，最近一次称重就是当前体重，
+               所以跳过漏填的记录往前找；一次都没称过则为空，绝不回落到档案的初始体重 -->
+          left join lateral (
+              select d.weight
+                from cat_diagnosis d
+               where d.cat_id = p.cat_id and d.del_flag = '0'
+                 and nullif(trim(d.weight), '') is not null
+               order by d.visit_date desc, d.diagnosis_id desc
+               limit 1
+          ) dw on true
+          <!-- 最近一次就诊的「医嘱/预后」：医嘱是当次指令，当次没写就留空，不拿上个月的医嘱顶上 -->
+          left join lateral (
+              select d.medical_advice
+                from cat_diagnosis d
+               where d.cat_id = p.cat_id and d.del_flag = '0'
+               order by d.visit_date desc, d.diagnosis_id desc
+               limit 1
+          ) dg on true
          where p.cat_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
     </select>

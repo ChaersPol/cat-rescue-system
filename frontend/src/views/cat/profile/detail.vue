@@ -51,7 +51,7 @@
             <!-- 年龄按出生日期实时算，每次打开页面都是当前年龄 -->
             <el-descriptions-item label="年龄">{{ profile.ageText || '未知' }}</el-descriptions-item>
             <el-descriptions-item label="出生日期">{{ birthText }}</el-descriptions-item>
-            <el-descriptions-item label="体重">{{ profile.weight || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="初始体重">{{ profile.weight || '—' }}</el-descriptions-item>
             <el-descriptions-item label="来源"><dict-tag :options="cat_source" :value="profile.source" /></el-descriptions-item>
             <el-descriptions-item label="抓捕日期">{{ profile.captureDate || '—' }}</el-descriptions-item>
             <el-descriptions-item label="是否绝育"><dict-tag :options="cat_neutered" :value="profile.neutered" /></el-descriptions-item>

@@ -16,6 +16,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="doctorUserId" column="doctor_user_id" />
         <result property="symptoms" column="symptoms" />
         <result property="diagnosisResult" column="diagnosis_result" />
+        <result property="weight" column="weight" />
         <result property="checkItems" column="check_items" />
         <result property="medicalAdvice" column="medical_advice" />
         <result property="checkPhotos" column="check_photos" />
@@ -31,7 +32,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectCatDiagnosisVo">
         select diagnosis_id, cat_id, base_id, source_base_id, ward_id, visit_date, visit_type, doctor, doctor_user_id,
-               symptoms, diagnosis_result, check_items, medical_advice, check_photos,
+               symptoms, diagnosis_result, weight, check_items, medical_advice, check_photos,
                correction_note, correction_by, correction_time, create_by, create_time, update_by, update_time, remark from cat_diagnosis
     </sql>
 
@@ -243,6 +244,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="doctorUserId != null">doctor_user_id,</if>
             <if test="symptoms != null">symptoms,</if>
             <if test="diagnosisResult != null">diagnosis_result,</if>
+            <if test="weight != null">weight,</if>
             <if test="checkItems != null">check_items,</if>
             <if test="medicalAdvice != null">medical_advice,</if>
             <if test="checkPhotos != null">check_photos,</if>
@@ -262,6 +264,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="doctorUserId != null">#{doctorUserId},</if>
             <if test="symptoms != null">#{symptoms},</if>
             <if test="diagnosisResult != null">#{diagnosisResult},</if>
+            <if test="weight != null">#{weight},</if>
             <if test="checkItems != null">#{checkItems},</if>
             <if test="medicalAdvice != null">#{medicalAdvice},</if>
             <if test="checkPhotos != null">#{checkPhotos},</if>
@@ -287,6 +290,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="doctorUserId != null">doctor_user_id = #{doctorUserId},</if>
             <if test="symptoms != null and symptoms != ''">symptoms = #{symptoms},</if>
             <if test="diagnosisResult != null and diagnosisResult != ''">diagnosis_result = #{diagnosisResult},</if>
+            <!-- 体重允许清空（误填后要能删掉），所以不加 != '' 判断 -->
+            <if test="weight != null">weight = #{weight},</if>
             <if test="checkItems != null and checkItems != ''">check_items = #{checkItems},</if>
             <if test="medicalAdvice != null and medicalAdvice != ''">medical_advice = #{medicalAdvice},</if>
             <!-- 允许写入空串，删掉检查照片后能把 check_photos 清空 -->

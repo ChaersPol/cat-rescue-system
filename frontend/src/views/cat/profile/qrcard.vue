@@ -124,7 +124,7 @@
                 <td colspan="6" class="cell tall"><span class="lb">用药：</span><span class="val pre">{{ medText(c.medicationText) }}</span></td>
               </tr>
               <tr>
-                <td colspan="6" class="cell tall"><span class="lb">注意事项：</span><span class="val pre">{{ clamp(c.remark, 160) }}</span></td>
+                <td colspan="6" class="cell tall"><span class="lb">注意事项：</span><span class="val pre">{{ clamp(c.adviceText, 160) }}</span></td>
               </tr>
             </tbody>
           </table>

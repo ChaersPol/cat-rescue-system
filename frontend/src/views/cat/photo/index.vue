@@ -45,7 +45,7 @@
     <div class="cat-scope" v-if="queryParams.catId">
       <span class="cat-scope-label">当前只看</span>
       <el-tag type="primary" effect="plain" closable @close="clearCatScope">{{ catLabel(queryParams.catId) }}</el-tag>
-      <span class="cat-scope-label">的相册，共 {{ total }} 条</span>
+      <span class="cat-scope-label">的相册，共 {{ total }}{{ viewMode === 'grid' ? ' 组' : ' 条' }}</span>
       <el-button link type="primary" @click="clearCatScope">看全部猫咪</el-button>
     </div>
 
@@ -78,8 +78,32 @@
       title="未检测到 ffmpeg，视频封面将由内置解码器生成；若解码失败会自动用视频首帧展示。"
     />
 
-    <!-- 相册视图 / 信息卡视图（信息卡视图 = 只看相册分类为「信息卡」的照片） -->
-    <div v-if="viewMode !== 'table'" v-loading="loading" class="photo-grid">
+    <!-- 相册视图：按猫分组，一只猫一张封面卡，点进分组再左右翻看它全部照片 -->
+    <div v-if="viewMode === 'grid'" v-loading="loading" class="album-grid">
+      <el-empty v-if="list.length === 0" description="暂无照片" />
+      <div class="album-item" v-for="c in list" :key="c.catId" @click="openAlbum(c)">
+        <div class="album-cover">
+          <el-image v-if="c.coverUrl" :src="resolveUrl(c.coverUrl)" fit="cover" class="album-img" lazy>
+            <template #error>
+              <div class="photo-error"><el-icon><Picture /></el-icon></div>
+            </template>
+          </el-image>
+          <div v-else class="album-img photo-error"><el-icon><Picture /></el-icon></div>
+          <span class="album-count">{{ c.photoCount || 0 }} 张</span>
+        </div>
+        <div class="album-title" :title="formatCatLabel(c.catName, c.archiveNo)">
+          {{ formatCatLabel(c.catName, c.archiveNo) }}
+        </div>
+        <div class="album-attrs">{{ albumAttrs(c) }}</div>
+        <div class="album-foot">
+          <span class="album-time">{{ (c.latestTime || '').slice(0, 10) }}</span>
+          <el-button link type="primary" @click.stop="goDetail(c.catId)">档案</el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 信息卡视图（只看相册分类为「信息卡」的照片） -->
+    <div v-else-if="viewMode === 'cats'" v-loading="loading" class="photo-grid">
       <el-empty v-if="list.length === 0" description="暂无照片" />
       <div class="photo-item" v-for="item in list" :key="item.photoId">
         <!-- 视频：显示封面 + 播放按钮 -->
@@ -243,6 +267,53 @@
       </template>
     </el-dialog>
 
+    <!-- 分组翻看：点开一只猫，左右滑动/方向键看它全部照片 -->
+    <el-dialog v-model="viewer.open" :title="viewer.title" width="min(880px, 96vw)" append-to-body destroy-on-close
+      class="album-viewer" @opened="bindViewerKeys" @closed="unbindViewerKeys">
+      <div v-loading="viewer.loading" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+        <el-button v-if="viewer.items.length > 1" class="viewer-nav prev" circle @click="stepViewer(-1)">
+          <el-icon><ArrowLeft /></el-icon>
+        </el-button>
+        <template v-if="currentPhoto">
+          <video v-if="isVideo(currentPhoto)" :src="resolveUrl(currentPhoto.fileUrl)" controls autoplay playsinline
+            class="viewer-media"></video>
+          <img v-else :src="resolveUrl(currentPhoto.fileUrl)" class="viewer-media zoomable" alt="" title="点击放大"
+            @click="openZoom" />
+        </template>
+        <el-empty v-else-if="!viewer.loading" description="暂无照片" :image-size="60" />
+        <el-button v-if="viewer.items.length > 1" class="viewer-nav next" circle @click="stepViewer(1)">
+          <el-icon><ArrowRight /></el-icon>
+        </el-button>
+        <div class="viewer-counter" v-if="viewer.items.length">{{ viewer.index + 1 }} / {{ viewer.items.length }}</div>
+        <!-- 放大：右下角按钮，和直接点图片等效，进全屏可缩放/旋转/看原图 -->
+        <el-button v-if="canZoom" class="viewer-zoom" circle title="放大查看（可缩放）" @click.stop="openZoom">
+          <el-icon><ZoomIn /></el-icon>
+        </el-button>
+      </div>
+      <div class="viewer-meta" v-if="currentPhoto">
+        <el-tag size="small" type="info">{{ currentPhoto.folder || '未分类' }}</el-tag>
+        <span class="viewer-remark">{{ currentPhoto.remark || '' }}</span>
+        <span class="viewer-time">{{ (currentPhoto.createTime || '').slice(0, 16) }}</span>
+      </div>
+      <div class="viewer-strip" v-if="viewer.items.length > 1">
+        <div v-for="(it, i) in viewer.items" :key="it.photoId" class="strip-item" :class="{ active: i === viewer.index }"
+          @click="viewer.index = i">
+          <img v-if="!isVideo(it)" :src="thumbSrc(it)" alt="" @error="onThumbError(it)" />
+          <div v-else class="strip-video"><el-icon><VideoPlay /></el-icon></div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="goDetail(viewer.catId)">查看档案</el-button>
+          <el-button type="primary" @click="viewer.open = false">关 闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 全屏查看器：滚轮/按钮缩放、旋转、全屏，看细节用（只在图片上出现，视频走原生播放器） -->
+    <el-image-viewer v-if="zoomOpen" :url-list="zoomUrls" :initial-index="zoomIndex" :z-index="3000" teleported
+      hide-on-click-modal :min-scale="0.2" :max-scale="8" @switch="onZoomSwitch" @close="zoomOpen = false" />
+
     <!-- 视频播放弹窗 -->
     <el-dialog v-model="videoOpen" :title="videoTitle" width="760px" append-to-body destroy-on-close>
       <video :src="videoUrl" controls autoplay class="video-player"></video>
@@ -251,11 +322,11 @@
 </template>
 
 <script setup name="CatPhoto">
-import { listCatPhoto, getCatPhoto, delCatPhoto, addCatPhoto, updateCatPhoto, rebuildCatPhotoThumb, getCatPhotoThumbStatus, listCatPhotoBreeds } from '@/api/cat/photo'
+import { listCatPhoto, listCatPhotoCards, getCatPhoto, delCatPhoto, addCatPhoto, updateCatPhoto, rebuildCatPhotoThumb, getCatPhotoThumbStatus, listCatPhotoBreeds } from '@/api/cat/photo'
 import { listCatBase } from '@/api/cat/base'
 import { listCatWard } from '@/api/cat/ward'
 import { deleteUploadFile } from '@/api/common'
-import { useCatCache } from '@/utils/catCache'
+import { useCatCache, formatCatLabel } from '@/utils/catCache'
 import { useNarrow } from '@/utils/useNarrow'
 
 const { proxy } = getCurrentInstance()
@@ -373,7 +444,11 @@ function isVideo(item) {
 
 function getList() {
   loading.value = true
-  listCatPhoto(queryParams.value).then(response => {
+  // 相册视图按猫分组（一只猫一张卡），信息卡/列表视图按照片逐条
+  const request = viewMode.value === 'grid'
+    ? listCatPhotoCards(queryParams.value)
+    : listCatPhoto(queryParams.value)
+  request.then(response => {
     list.value = response.rows
     total.value = response.total
     loading.value = false
@@ -557,6 +632,115 @@ function handleDelete(row) {
   }).catch(() => {})
 }
 
+// ---------- 按猫分组：一张封面卡 + 点开左右翻看 ----------
+const viewer = reactive({
+  open: false,
+  loading: false,
+  catId: undefined,
+  title: '',
+  items: [],
+  index: 0
+})
+
+const currentPhoto = computed(() => viewer.items[viewer.index])
+
+function albumAttrs(c) {
+  const loc = [c.baseName, c.wardName].filter(Boolean).join(' / ')
+  return [c.breed, sexText(c.sex), loc].filter(Boolean).join(' · ') || '—'
+}
+
+// 打开某只猫的分组：按当前筛选条件拉它全部照片（不受列表分页影响）
+function openAlbum(c) {
+  viewer.catId = c.catId
+  viewer.title = `${formatCatLabel(c.catName, c.archiveNo)} · ${c.photoCount || 0} 张`
+  viewer.items = []
+  viewer.index = 0
+  viewer.loading = true
+  viewer.open = true
+  const query = { ...queryParams.value, catId: c.catId, pageNum: 1, pageSize: 500 }
+  listCatPhoto(query).then(res => {
+    viewer.items = res.rows || []
+    viewer.loading = false
+  }).catch(() => {
+    viewer.loading = false
+  })
+}
+
+// 左右翻页：到头绕回另一头，避免在多张图里卡死
+function stepViewer(delta) {
+  const total = viewer.items.length
+  if (total < 2) return
+  viewer.index = (viewer.index + delta + total) % total
+}
+
+// ---------- 放大查看 ----------
+// 全屏查看器只收图片，索引必须按「过滤掉视频后」的数组算，否则会错位到别的图
+const zoomOpen = ref(false)
+const zoomItems = computed(() => viewer.items.filter(it => !isVideo(it)))
+const zoomUrls = computed(() => zoomItems.value.map(it => resolveUrl(it.fileUrl)))
+const canZoom = computed(() => !!currentPhoto.value && !isVideo(currentPhoto.value))
+const zoomIndex = computed(() => {
+  const cur = currentPhoto.value
+  if (!cur) return 0
+  const i = zoomItems.value.findIndex(it => it.photoId === cur.photoId)
+  return i < 0 ? 0 : i
+})
+
+function openZoom() {
+  if (!canZoom.value) return
+  zoomOpen.value = true
+}
+
+// 全屏里翻过页再关掉时，把弹窗同步到同一张，避免「放大看的是 A、关掉回到 B」
+function onZoomSwitch(i) {
+  const target = zoomItems.value[i]
+  if (!target) return
+  const idx = viewer.items.findIndex(it => it.photoId === target.photoId)
+  if (idx >= 0) viewer.index = idx
+}
+
+// 手机端左右滑动翻页
+let touchStartX = 0
+let touchStartY = 0
+
+function onTouchStart(e) {
+  const t = e.touches && e.touches[0]
+  if (!t) return
+  touchStartX = t.clientX
+  touchStartY = t.clientY
+}
+
+function onTouchEnd(e) {
+  const t = e.changedTouches && e.changedTouches[0]
+  if (!t) return
+  const dx = t.clientX - touchStartX
+  const dy = t.clientY - touchStartY
+  // 横向位移要明显大于纵向，才当成翻页，否则是误触/滚动
+  if (Math.abs(dx) < 40 || Math.abs(dx) <= Math.abs(dy)) return
+  stepViewer(dx < 0 ? 1 : -1)
+}
+
+// 键盘方向键翻页（弹窗打开时才生效）
+function onViewerKey(e) {
+  // 全屏查看器开着时方向键归它管，别再在背后偷偷翻弹窗里的图
+  if (zoomOpen.value) return
+  if (e.key === 'ArrowLeft') stepViewer(-1)
+  else if (e.key === 'ArrowRight') stepViewer(1)
+}
+
+function bindViewerKeys() {
+  window.addEventListener('keydown', onViewerKey)
+}
+
+function unbindViewerKeys() {
+  window.removeEventListener('keydown', onViewerKey)
+  // 弹窗关掉时顺手收掉全屏查看器，否则它可能残留在页面上（destroy-on-close 只管弹窗自己）
+  zoomOpen.value = false
+  viewer.items = []
+}
+
+onBeforeUnmount(() => window.removeEventListener('keydown', onViewerKey))
+
 function openVideo(item) {
   videoUrl.value = resolveUrl(item.fileUrl)
   videoTitle.value = `${catLabel(item.catId)} · ${item.folder || '未分类'}`
@@ -616,6 +800,190 @@ watch(() => route.query.catId, raw => {
 .cat-scope-label {
   color: var(--el-text-color-secondary);
 }
+/* 按猫分组：一只猫一张封面卡 */
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  min-height: 200px;
+}
+.album-grid > .el-empty {
+  grid-column: 1 / -1;
+}
+.album-item {
+  min-width: 0;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--el-bg-color-overlay);
+  cursor: pointer;
+  transition: border-color .2s, transform .2s;
+}
+.album-item:hover {
+  border-color: var(--el-color-primary-light-5);
+  transform: translateY(-1px);
+}
+.album-cover {
+  position: relative;
+}
+.album-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+}
+/* 封面右上角的「共 N 张」，一眼知道这一组有多少内容 */
+.album-count {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+}
+.album-title {
+  padding: 8px 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.album-attrs {
+  padding: 4px 10px 0;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.album-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 10px 8px;
+}
+.album-time {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+/* 分组翻看弹窗 */
+.viewer-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  max-height: 62vh;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.viewer-media {
+  max-width: 100%;
+  max-height: 62vh;
+  display: block;
+  object-fit: contain;
+}
+.viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  opacity: .85;
+}
+.viewer-nav.prev { left: 10px; }
+.viewer-nav.next { right: 10px; }
+/* 放大按钮停在图片右下角，跟「1 / 7」计数一左一右；半透明黑底保证压在亮图上也能看清 */
+.viewer-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  background: rgba(0, 0, 0, .55);
+  border-color: rgba(255, 255, 255, .35);
+  color: #fff;
+}
+.viewer-zoom:hover,
+.viewer-zoom:focus {
+  background: rgba(0, 0, 0, .75);
+  border-color: #fff;
+  color: #fff;
+}
+/* 图片本身也是可点放大的，给个放大镜光标提示 */
+.zoomable {
+  cursor: zoom-in;
+}
+
+.viewer-counter {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: 12px;
+}
+.viewer-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.viewer-remark {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viewer-time {
+  color: var(--el-text-color-placeholder);
+}
+.viewer-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 2px 2px;
+}
+.strip-item {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 54px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: var(--el-fill-color-light);
+}
+.strip-item.active {
+  border-color: var(--el-color-primary);
+}
+.strip-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.strip-video {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+  background: #000;
+}
+
 /* 自适应网格：卡片按容器宽度均分，避免 flex 固定 200px 导致右侧留空列 */
 .photo-grid {
   display: grid;

@@ -175,8 +175,12 @@
                   </el-form-item>
                </el-col>
                <el-col :span="8">
-                  <el-form-item label="体重" prop="weight">
-                     <el-input v-model="form.weight" placeholder="如：3.5kg" />
+                  <el-form-item label="初始体重" prop="weight">
+                     <!-- 单位固定 kg 自动显示，只填数字；这是建档时的体重，不随接诊变化 -->
+                     <el-input v-model="form.weight" placeholder="如 3.5" maxlength="10"
+                        @input="form.weight = onlyDecimal(form.weight)">
+                        <template #append>kg</template>
+                     </el-input>
                   </el-form-item>
                </el-col>
             </el-row>
@@ -312,7 +316,7 @@
                <dict-tag :options="cat_sex" :value="viewForm.sex" />
             </el-descriptions-item>
             <el-descriptions-item label="年龄">{{ viewForm.ageText || '未知' }}</el-descriptions-item>
-            <el-descriptions-item label="体重">{{ viewForm.weight }}</el-descriptions-item>
+            <el-descriptions-item label="初始体重">{{ viewForm.weight }}</el-descriptions-item>
             <el-descriptions-item label="来源">
                <dict-tag :options="cat_source" :value="viewForm.source" />
             </el-descriptions-item>
@@ -355,6 +359,7 @@ import { listCatBase } from "@/api/cat/base"
 import { listCatTag } from "@/api/cat/tag"
 import { listCatWard } from "@/api/cat/ward"
 import { useFormDraft } from "@/utils/formDraft"
+import { onlyDecimal, weightToInput, weightToStore } from '@/utils/weight'
 import useUserStore from "@/store/modules/user"
 import { invalidateMasterData, MASTER_KIND } from "@/utils/catCache"
 import { useNarrow } from "@/utils/useNarrow"
@@ -820,6 +825,8 @@ function handleUpdate(row) {
   getCatProfile(id).then(response => {
     const data = response.data || {}
     form.value = data
+    // 库里是「3.5kg」，输入框右侧已有 kg，只回填数字
+    form.value.weight = weightToInput(data.weight)
     originPlace.value = { baseId: data.baseId || null, wardId: data.wardId || null }
     // 年龄描述拆回「数值 + 单位」；出生日期是估算值时不再回填，交给后端按年龄重算
     const parsed = parseAgeText(data.ageEstimate)
@@ -882,10 +889,12 @@ function submitForm() {
         // 没填生日就不传该字段，后端按救助日期从年龄反推
         delete form.value.birthDate
       }
+      // 体重统一成「数字+kg」再提交，但不动 form 本身，免得输入框里变成「3.5kg kg」
+      const payload = { ...form.value, weight: weightToStore(form.value.weight) }
       if (form.value.catId != undefined) {
         // 换过病房：笼子上的旧卡位置就不对了，保存后提醒重打
         const movedWard = wardChanged.value
-        updateCatProfile(form.value).then(response => {
+        updateCatProfile(payload).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           draft.pause()
           open.value = false
@@ -899,7 +908,7 @@ function submitForm() {
           }
         })
       } else {
-        addCatProfile(form.value).then(response => {
+        addCatProfile(payload).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           draft.clear()
           draft.pause()

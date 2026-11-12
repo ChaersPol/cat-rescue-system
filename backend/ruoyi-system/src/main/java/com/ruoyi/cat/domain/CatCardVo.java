@@ -40,6 +40,9 @@ public class CatCardVo
     /** 备注（应激程度、是否怕人、特殊习性）→ 卡片「注意事项」 */
     private String remark;
 
+    /** 卡片「注意事项」：取最近一次站内就诊的医嘱/预后，没写过才回落到档案备注 */
+    private String adviceText;
+
     /** 二维码 Base64 */
     private String qrCode;
 
@@ -159,6 +162,16 @@ public class CatCardVo
     public void setRemark(String remark)
     {
         this.remark = remark;
+    }
+
+    public String getAdviceText()
+    {
+        return adviceText;
+    }
+
+    public void setAdviceText(String adviceText)
+    {
+        this.adviceText = adviceText;
     }
 
     public String getQrCode()

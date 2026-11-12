@@ -87,6 +87,12 @@
             </template>
          </el-table-column>
          <el-table-column label="医生" align="center" prop="doctor" width="96" :show-overflow-tooltip="true" />
+         <el-table-column label="体重" align="center" prop="weight" width="96" :show-overflow-tooltip="true">
+            <template #default="scope">
+               <span v-if="scope.row.weight">{{ weightText(scope.row.weight) }}</span>
+               <span v-else class="muted">—</span>
+            </template>
+         </el-table-column>
          <el-table-column label="来源基地" align="center" prop="sourceBaseId" min-width="140" :show-overflow-tooltip="true">
             <template #default="scope">
                <span v-if="scope.row.sourceBaseId">{{ baseLabel(scope.row.sourceBaseId) }}</span>
@@ -167,6 +173,7 @@
                               <span class="history-doctor">基地：{{ baseLabel(h.baseId) || '—' }}</span>
                               <span class="history-doctor">病房：{{ h.wardId ? wardLabel(h.wardId) : '—' }}</span>
                            </div>
+                           <div class="history-line" v-if="h.weight"><b>体重：</b>{{ weightText(h.weight) }}</div>
                            <div class="history-line"><b>症状：</b>{{ h.symptoms || '—' }}</div>
                            <div class="history-line"><b>诊断：</b>{{ h.diagnosisResult || '—' }}</div>
                            <div class="history-line" v-if="h.checkItems"><b>检查及用药：</b>{{ h.checkItems }}</div>
@@ -289,6 +296,14 @@
                   :disabled="!form.baseId" :no-data-text="form.baseId ? '该基地还没有病房' : '请先选择治疗基地'">
                   <el-option v-for="w in formWardOptions" :key="w.wardId" :label="w.wardName" :value="w.wardId" />
                </el-select>
+            </el-form-item>
+            <el-form-item label="体重" prop="weight">
+               <!-- 单位固定 kg：挂在输入框右侧自动显示，医生只填数字，写「3.5kg/3.5 公斤」这种进库会成套账 -->
+               <el-input v-model="form.weight" placeholder="如 3.5" maxlength="10" style="width: 200px"
+                  @input="form.weight = onlyDecimal(form.weight)">
+                  <template #append>kg</template>
+               </el-input>
+               <div class="form-tip">每次接诊称一次；信息卡上的体重取最近一次就诊的值，档案里的是初始体重</div>
             </el-form-item>
             <el-form-item label="症状" prop="symptoms">
                <el-input v-model="form.symptoms" type="textarea" :rows="2" placeholder="主诉/症状" />
@@ -538,6 +553,7 @@
 
 <script setup name="CatDiagnosis">
 import { useCatCache, useBaseCache, useWardCache, formatCatLabel } from "@/utils/catCache"
+import { onlyDecimal, weightToInput, weightToStore, weightText } from '@/utils/weight'
 import { getDeleteImpact } from "@/api/cat/deleteImpact"
 import { deleteWithImpact } from "@/utils/deleteConfirm"
 import { listCatDiagnosis, listCatDiagnosisSummary, getCatDiagnosis, delCatDiagnosis, addCatDiagnosis, updateCatDiagnosis, correctCatDiagnosis, getDiagnosisStat, listDiagnosisWardStats, getDiagnosisCatInfo, listDiagnosisDoctorOptions } from "@/api/cat/diagnosis"
@@ -1093,6 +1109,7 @@ function reset() {
     doctorUserId: isDoctor.value ? Number(userStore.id) : undefined,
     symptoms: undefined,
     diagnosisResult: undefined,
+    weight: undefined,
     checkItems: undefined,
     medicalAdvice: undefined,
     checkPhotos: undefined,
@@ -1226,6 +1243,8 @@ function handleUpdate(row) {
   const id = row.diagnosisId || ids.value
   getCatDiagnosis(id).then(response => {
     form.value = response.data
+    // 库里存的是「3.5kg」，输入框右侧已经有 kg，这里只回填数字，别显示成「3.5kg kg」
+    form.value.weight = weightToInput(form.value.weight)
     // 历史记录可能没有明细（老数据只有一段检查项目文字），统一成数组避免表格报错
     form.value.items = response.data.items || []
     // 已有处方回填到用药行上（剂量/给药方式/时段），医生在同一个表格里改
@@ -1273,8 +1292,10 @@ function submitForm() {
       }
       // 把用药行的给药方案组装成处方，随诊断一起提交（后端据此展开成用药打卡任务）
       syncPrescription()
+      // 体重统一成「数字+kg」再提交，但不动 form 本身，免得输入框里变成「3.5kg kg」
+      const payload = { ...form.value, weight: weightToStore(form.value.weight) }
       if (form.value.diagnosisId != undefined) {
-        updateCatDiagnosis(form.value).then(response => {
+        updateCatDiagnosis(payload).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           draft.pause()
           open.value = false
@@ -1283,7 +1304,7 @@ function submitForm() {
           askPrintCard(form.value.catId)
         })
       } else {
-        addCatDiagnosis(form.value).then(response => {
+        addCatDiagnosis(payload).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           draft.clear()
           draft.pause()

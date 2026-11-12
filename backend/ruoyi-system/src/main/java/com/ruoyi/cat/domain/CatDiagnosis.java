@@ -55,6 +55,9 @@ public class CatDiagnosis extends BaseEntity
     /** 初步诊断结果 */
     @Excel(name = "初步诊断结果")
     private String diagnosisResult;
+    /** 本次就诊实测体重（自由文本，如 3.5kg）；信息卡体重取最近一次就诊的值 */
+    @Excel(name = "体重")
+    private String weight;
     /** 检查项目 */
     @Excel(name = "检查项目")
     private String checkItems;
@@ -228,6 +231,14 @@ public class CatDiagnosis extends BaseEntity
     {
         this.diagnosisResult = diagnosisResult;
     }
+    public String getWeight()
+    {
+        return weight;
+    }
+    public void setWeight(String weight)
+    {
+        this.weight = weight;
+    }
     public String getCheckItems()
     {
         return checkItems;
@@ -298,6 +309,7 @@ public class CatDiagnosis extends BaseEntity
             .append("doctorUserId", getDoctorUserId())
             .append("symptoms", getSymptoms())
             .append("diagnosisResult", getDiagnosisResult())
+            .append("weight", getWeight())
             .append("checkItems", getCheckItems())
             .append("medicalAdvice", getMedicalAdvice())
             .append("checkPhotos", getCheckPhotos())
