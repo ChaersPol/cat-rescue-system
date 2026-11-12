@@ -268,7 +268,7 @@
     </el-dialog>
 
     <!-- 分组翻看：点开一只猫，左右滑动/方向键看它全部照片 -->
-    <el-dialog v-model="viewer.open" :title="viewer.title" width="min(880px, 96vw)" append-to-body destroy-on-close
+    <el-dialog v-model="viewer.open" :title="viewerTitle" width="min(880px, 96vw)" append-to-body destroy-on-close
       class="album-viewer" @opened="bindViewerKeys" @closed="unbindViewerKeys">
       <div v-loading="viewer.loading" class="viewer-stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
         <el-button v-if="viewer.items.length > 1" class="viewer-nav prev" circle @click="stepViewer(-1)">
@@ -303,9 +303,19 @@
         </div>
       </div>
       <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="goDetail(viewer.catId)">查看档案</el-button>
-          <el-button type="primary" @click="viewer.open = false">关 闭</el-button>
+        <div class="viewer-footer">
+          <!-- 分组视图里照片不再是一行一条，列表行上的按钮也就没了；修改/删除必须在这里给出来，
+               作用对象是当前这一张，改完/删完留在原处继续翻，不用退回相册再点进来 -->
+          <div class="viewer-footer-ops">
+            <el-button v-if="currentPhoto && !viewer.loading" icon="Edit" @click="handleUpdate(currentPhoto)"
+              v-hasPermi="['cat:photo:edit']">修改本张</el-button>
+            <el-button v-if="currentPhoto && !viewer.loading" type="danger" plain icon="Delete"
+              @click="handleDeleteInViewer" v-hasPermi="['cat:photo:remove']">删除本张</el-button>
+          </div>
+          <div class="viewer-footer-actions">
+            <el-button @click="goDetail(viewer.catId)">查看档案</el-button>
+            <el-button type="primary" @click="viewer.open = false">关 闭</el-button>
+          </div>
         </div>
       </template>
     </el-dialog>
@@ -597,11 +607,16 @@ function handleVideoUploaded(val) {
 function submitForm() {
   proxy.$refs['photoRef'].validate(valid => {
     if (valid) {
-      const request = form.value.photoId != undefined ? updateCatPhoto(form.value) : addCatPhoto(form.value)
+      const photoId = form.value.photoId
+      const request = photoId != undefined ? updateCatPhoto(form.value) : addCatPhoto(form.value)
       request.then(() => {
-        proxy.$modal.msgSuccess(form.value.photoId != undefined ? '修改成功' : '新增成功')
+        proxy.$modal.msgSuccess(photoId != undefined ? '修改成功' : '新增成功')
         open.value = false
         getList()
+        // 从分组弹窗里点「修改本张」进来的，改完要把弹窗里的那张也刷新（分类/备注可能变了）
+        if (viewer.open && photoId != undefined) {
+          loadAlbumItems(photoId)
+        }
       })
     }
   })
@@ -612,21 +627,48 @@ function handleSelectionChange(selection) {
   multiple.value = !selection.length
 }
 
-function handleDelete(row) {
-  const delIds = row.photoId || ids.value
-  const idList = Array.isArray(delIds) ? delIds : [delIds]
-  // 先记下要删的记录对应的文件，删完数据库后再把磁盘文件一并清掉
+// 要删的记录对应哪些磁盘文件：删除是两步，先删库记录，再把原图/缩略图清掉
+function collectFiles(rows, idList) {
   const files = []
-  list.value.forEach(item => {
+  rows.forEach(item => {
     if (idList.includes(item.photoId)) {
       if (item.fileUrl) files.push(item.fileUrl)
       if (item.thumbUrl) files.push(item.thumbUrl)
     }
   })
+  return files
+}
+
+function handleDelete(row) {
+  const delIds = row.photoId || ids.value
+  const idList = Array.isArray(delIds) ? delIds : [delIds]
+  // 先记下要删的记录对应的文件，删完数据库后再把磁盘文件一并清掉
+  const files = collectFiles(list.value, idList)
   proxy.$modal.confirm('删除后服务器上的照片文件也会一并清除，且无法恢复，是否继续？').then(function () {
     return delCatPhoto(delIds)
   }).then(() => {
     files.forEach(f => deleteUploadFile(f).catch(() => {}))
+    getList()
+    proxy.$modal.msgSuccess('删除成功')
+  }).catch(() => {})
+}
+
+/**
+ * 分组弹窗里删「当前这张」。
+ * 删完不关弹窗，游标停在原位置（删的是最后一张就往前收一张），可以接着翻。
+ */
+function handleDeleteInViewer() {
+  const cur = currentPhoto.value
+  if (!cur) return
+  const id = cur.photoId
+  const files = collectFiles(viewer.items, [id])
+  proxy.$modal.confirm('删除后服务器上的照片文件也会一并清除，且无法恢复，是否继续？').then(function () {
+    return delCatPhoto([id])
+  }).then(() => {
+    files.forEach(f => deleteUploadFile(f).catch(() => {}))
+    const idx = viewer.items.findIndex(it => it.photoId === id)
+    if (idx >= 0) viewer.items.splice(idx, 1)
+    if (viewer.index > viewer.items.length - 1) viewer.index = Math.max(0, viewer.items.length - 1)
     getList()
     proxy.$modal.msgSuccess('删除成功')
   }).catch(() => {})
@@ -637,12 +679,18 @@ const viewer = reactive({
   open: false,
   loading: false,
   catId: undefined,
-  title: '',
+  catTitle: '',
   items: [],
   index: 0
 })
 
 const currentPhoto = computed(() => viewer.items[viewer.index])
+
+// 标题里的张数跟着实际列表走：删掉一张、改完后照片被筛掉，标题立刻跟着变
+const viewerTitle = computed(() => {
+  if (!viewer.catTitle) return ''
+  return viewer.loading ? viewer.catTitle : `${viewer.catTitle} · ${viewer.items.length} 张`
+})
 
 function albumAttrs(c) {
   const loc = [c.baseName, c.wardName].filter(Boolean).join(' / ')
@@ -652,15 +700,29 @@ function albumAttrs(c) {
 // 打开某只猫的分组：按当前筛选条件拉它全部照片（不受列表分页影响）
 function openAlbum(c) {
   viewer.catId = c.catId
-  viewer.title = `${formatCatLabel(c.catName, c.archiveNo)} · ${c.photoCount || 0} 张`
+  viewer.catTitle = formatCatLabel(c.catName, c.archiveNo)
   viewer.items = []
   viewer.index = 0
   viewer.loading = true
   viewer.open = true
-  const query = { ...queryParams.value, catId: c.catId, pageNum: 1, pageSize: 500 }
-  listCatPhoto(query).then(res => {
+  loadAlbumItems()
+}
+
+// 按当前筛选条件重新拉这一组的照片；keepPhotoId 用来改完/删完后把游标停在原来那张（或它的下一张）
+function loadAlbumItems(keepPhotoId) {
+  if (!viewer.catId) return Promise.resolve()
+  const query = { ...queryParams.value, catId: viewer.catId, pageNum: 1, pageSize: 500 }
+  return listCatPhoto(query).then(res => {
     viewer.items = res.rows || []
     viewer.loading = false
+    if (keepPhotoId) {
+      const i = viewer.items.findIndex(it => it.photoId === keepPhotoId)
+      if (i >= 0) viewer.index = i
+    }
+    // 删掉最后一张、或改完分类后照片不再属于当前筛选时，游标会越界，收回到有效的最后一张
+    if (viewer.index > viewer.items.length - 1) {
+      viewer.index = Math.max(0, viewer.items.length - 1)
+    }
   }).catch(() => {
     viewer.loading = false
   })
@@ -948,6 +1010,23 @@ watch(() => route.query.catId, raw => {
 }
 .viewer-time {
   color: var(--el-text-color-placeholder);
+}
+/* 弹窗底部：左边改/删当前这张，右边关闭，中间留白避免手滑删掉正在看的图 */
+.viewer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.viewer-footer-ops,
+.viewer-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.viewer-footer .el-button + .el-button {
+  margin-left: 0;
 }
 .viewer-strip {
   display: flex;
